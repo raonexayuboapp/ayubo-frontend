@@ -142,6 +142,37 @@ class ApiService {
     });
   }
 
+  Future<Map<String, dynamic>> updateProfile({
+    required String firstName,
+    required String lastName,
+    required String mobileNumber,
+  }) async {
+    final res = await _send('PATCH', '/api/profile', auth: true, body: {
+      'first_name': firstName,
+      'last_name': lastName,
+      'mobile_number': mobileNumber,
+    });
+    return (res['data'] as Map<String, dynamic>)['user'] as Map<String, dynamic>;
+  }
+
+  Future<List<Map<String, dynamic>>> listAddresses() async {
+    final res = await _send('GET', '/api/addresses', auth: true);
+    final list = (res['data'] as Map<String, dynamic>)['addresses'] as List<dynamic>;
+    return list.cast<Map<String, dynamic>>();
+  }
+
+  Future<void> createAddress(Map<String, dynamic> body) async {
+    await _send('POST', '/api/addresses', auth: true, body: body);
+  }
+
+  Future<void> updateAddress(int id, Map<String, dynamic> body) async {
+    await _send('PATCH', '/api/addresses/$id', auth: true, body: body);
+  }
+
+  Future<void> deleteAddress(int id) async {
+    await _send('DELETE', '/api/addresses/$id', auth: true);
+  }
+
   /// Stores the token securely and returns the user map.
   /// A 403 ApiException means the email is not verified yet.
   Future<Map<String, dynamic>> login(String email, String password) async {
