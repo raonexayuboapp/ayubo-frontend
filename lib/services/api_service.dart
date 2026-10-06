@@ -199,4 +199,19 @@ class ApiService {
   }
 
   Future<bool> hasToken() async => (await _storage.read(key: _tokenKey)) != null;
+
+  Future<Map<String, dynamic>> adminListUsers({String search = '', int page = 1}) async {
+    final path = Uri(path: '/api/admin/users', queryParameters: {
+      if (search.isNotEmpty) 'search': search,
+      'page': '$page',
+    }).toString();
+    final res = await _send('GET', path, auth: true);
+    return res['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> adminUpdateUser(int id, Map<String, dynamic> body) async {
+    final res = await _send('PATCH', '/api/admin/users/$id', auth: true, body: body);
+    return (res['data'] as Map<String, dynamic>)['user'] as Map<String, dynamic>;
+  }
+
 }
