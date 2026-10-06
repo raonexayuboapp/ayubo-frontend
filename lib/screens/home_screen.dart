@@ -2,17 +2,36 @@ import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
 import '../utils/navigation.dart';
-import 'change_password_screen.dart';
 import 'login_screen.dart';
+import 'profile_screen.dart';
 
 /// Placeholder until the real modules (shop, cart, vouchers...) exist.
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final Map<String, dynamic> user;
   const HomeScreen({super.key, required this.user});
 
-  Future<void> _logout(BuildContext context) async {
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late Map<String, dynamic> _user = widget.user;
+
+  Future<void> _openProfile() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ProfileScreen(user: _user)),
+    );
+    // Refresh the name shown here in case it was edited.
+    try {
+      final fresh = await ApiService.instance.me();
+      if (mounted) setState(() => _user = fresh);
+    } catch (_) {}
+  }
+
+  Future<void> _logout() async {
     await ApiService.instance.logout();
-    if (context.mounted) goTo(context, const LoginScreen());
+    if (mounted) goTo(context, const LoginScreen());
   }
 
   @override
@@ -22,25 +41,20 @@ class HomeScreen extends StatelessWidget {
         title: const Text('Ayubo Organics'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.lock_reset),
-            tooltip: 'Change password',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ChangePasswordScreen(email: user['email'] as String),
-              ),
-            ),
+            icon: const Icon(Icons.person_outline),
+            tooltip: 'My profile',
+            onPressed: _openProfile,
           ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Log out',
-            onPressed: () => _logout(context),
+            onPressed: _logout,
           ),
         ],
       ),
       body: Center(
         child: Text(
-          'Welcome, ${user['first_name']} ${user['last_name']}',
+          'Welcome, ${_user['first_name']} ${_user['last_name']}',
           style: const TextStyle(fontSize: 22),
         ),
       ),
