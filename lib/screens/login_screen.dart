@@ -47,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
       goTo(context, HomeScreen(user: user));
     } on ApiException catch (e) {
       if (!mounted) return;
-      if (e.statusCode == 403) {
+      if (e.statusCode == 403 && e.message == 'Email address is not verified.') {
         Navigator.push(context, MaterialPageRoute(builder: (_) => VerifyScreen(email: email)));
         setState(() => _loading = false);
         return;
