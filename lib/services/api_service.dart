@@ -155,6 +155,11 @@ class ApiService {
     return (res['data'] as Map<String, dynamic>)['user'] as Map<String, dynamic>;
   }
 
+  Future<void> deleteAccount(String password) async {
+    await _send('DELETE', '/api/profile', auth: true, body: {'password': password});
+    await _storage.delete(key: _tokenKey);
+  }
+
   Future<List<Map<String, dynamic>>> listAddresses() async {
     final res = await _send('GET', '/api/addresses', auth: true);
     final list = (res['data'] as Map<String, dynamic>)['addresses'] as List<dynamic>;
