@@ -219,4 +219,17 @@ class ApiService {
     return (res['data'] as Map<String, dynamic>)['user'] as Map<String, dynamic>;
   }
 
+  Future<List<Map<String, dynamic>>> adminListPlans() async {
+    final res = await _send('GET', '/api/admin/membership-plans', auth: true);
+    final list = (res['data'] as Map<String, dynamic>)['plans'] as List<dynamic>;
+    return list.cast<Map<String, dynamic>>();
+  }
+
+  Future<void> adminCreatePlan(Map<String, dynamic> body) async {
+    await _send('POST', '/api/admin/membership-plans', auth: true, body: body);
+  }
+
+  Future<void> adminUpdatePlan(int id, Map<String, dynamic> body) async {
+    await _send('PATCH', '/api/admin/membership-plans/$id', auth: true, body: body);
+  }
 }
