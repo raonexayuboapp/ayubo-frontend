@@ -4,7 +4,7 @@ import '../services/api_service.dart';
 import '../utils/navigation.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
-import 'admin_users_screen.dart';
+import 'admin_menu_screen.dart';
 
 // Placeholder until the real modules (shop, cart, vouchers...) exist.
 class HomeScreen extends StatefulWidget {
@@ -50,19 +50,17 @@ return Scaffold(
 appBar: AppBar(
 title: const Text('Ayubo Organics'),
 actions: [
-if (_user['role'] == 'admin')
-IconButton(
-icon: const Icon(Icons.admin_panel_settings_outlined),
-tooltip: 'Admin',
-onPressed: () => Navigator.push(
-context,
-MaterialPageRoute(
-builder: (_) => AdminUsersScreen(
-currentUserId: _user['id'] as int,
-),
-),
-),
-),
+  if (_user['role'] == 'admin')
+    IconButton(
+      icon: const Icon(Icons.admin_panel_settings_outlined),
+      tooltip: 'Admin',
+      onPressed: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AdminMenuScreen(currentUserId: _user['id'] as int),
+        ),
+      ),
+    ),
 IconButton(
 icon: const Icon(Icons.person_outline),
 tooltip: 'My profile',
