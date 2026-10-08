@@ -211,6 +211,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
 
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Log out'),
+              onTap: () async {
+                await ApiService.instance.logout();
+                if (context.mounted) goTo(context, const LoginScreen());
+              },
+            ),
+
             const Divider(height: 32),
 
             ListTile(
