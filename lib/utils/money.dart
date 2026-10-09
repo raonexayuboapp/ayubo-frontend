@@ -10,3 +10,5 @@ int? parseEuroToCents(String input) {
 
 String formatCents(int cents) =>
     '€${cents ~/ 100}.${(cents % 100).toString().padLeft(2, '0')}';
+/// 5.0 -> "5", 7.5 -> "7.5"
+String formatPercent(num d) => d == d.roundToDouble() ? '${d.toInt()}' : '$d';

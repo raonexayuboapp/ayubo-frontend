@@ -232,4 +232,28 @@ class ApiService {
   Future<void> adminUpdatePlan(int id, Map<String, dynamic> body) async {
     await _send('PATCH', '/api/admin/membership-plans/$id', auth: true, body: body);
   }
+
+  Future<List<Map<String, dynamic>>> listMembershipPlans() async {
+    final res = await _send('GET', '/api/membership-plans', auth: true);
+    final list = (res['data'] as Map<String, dynamic>)['plans'] as List<dynamic>;
+    return list.cast<Map<String, dynamic>>();
+  }
+
+  Future<void> addPlanToCart(int planId, {int quantity = 1}) async {
+    await _send('POST', '/api/cart/items',
+        auth: true, body: {'plan_id': planId, 'quantity': quantity});
+  }
+
+  Future<Map<String, dynamic>> getCart() async {
+    final res = await _send('GET', '/api/cart', auth: true);
+    return res['data'] as Map<String, dynamic>;
+  }
+
+  Future<void> updateCartItem(int id, int quantity) async {
+    await _send('PATCH', '/api/cart/items/$id', auth: true, body: {'quantity': quantity});
+  }
+
+  Future<void> removeCartItem(int id) async {
+    await _send('DELETE', '/api/cart/items/$id', auth: true);
+  }
 }

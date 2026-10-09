@@ -33,7 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
           style: const TextStyle(fontSize: 22),
         ),
       ),
-      bottomNavigationBar: AppBottomBar(currentIndex: 0,),
+      bottomNavigationBar: AppBottomBar(currentIndex: 0, user: widget.user,),
     );
   }
 }
