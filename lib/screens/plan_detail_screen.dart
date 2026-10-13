@@ -1,12 +1,18 @@
+
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
-import '../utils/money.dart';
 
-/// Full details of one plan, with the Add to cart button.
+/// Full details of a membership plan, with the Add to cart button.
 class PlanDetailScreen extends StatefulWidget {
   final Map<String, dynamic> plan;
-  const PlanDetailScreen({super.key, required this.plan});
+
+  const PlanDetailScreen({
+    super.key,
+    required this.plan,
+  });
 
   @override
   State<PlanDetailScreen> createState() => _PlanDetailScreenState();
@@ -16,118 +22,308 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> {
   bool _adding = false;
   bool _added = false;
 
+  int? _readInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  String _readString(dynamic value, {String fallback = ''}) {
+    if (value == null) return fallback;
+    return value.toString();
+  }
+
+  bool _readActive(dynamic value) {
+    return value == true || value == 1 || value == '1';
+  }
+
+  List<Map<String, dynamic>> _readBenefits(dynamic value) {
+    if (value is! List) return [];
+
+    return value
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+  }
+
+  String _formatConfiguration(dynamic value) {
+    if (value == null) return '';
+
+    dynamic decoded = value;
+
+    if (value is String) {
+      if (value.trim().isEmpty) return '';
+
+      try {
+        decoded = jsonDecode(value);
+      } on FormatException {
+        return value;
+      }
+    }
+
+    if (decoded is! Map && decoded is! List) {
+      return '';
+    }
+
+    // Convert configuration into a readable summary.
+    if (decoded is Map) {
+      final parts = <String>[];
+
+      final discount = decoded['discount_percent'];
+      if (discount is num) {
+        parts.add('${discount.toStringAsFixed(0)}% discount');
+      }
+
+      final amount = decoded['amount_cents'];
+      if (amount is num) {
+        final currency = _readString(
+          decoded['currency'],
+          fallback: 'EUR',
+        );
+        parts.add(
+          '$currency ${(amount / 100).toStringAsFixed(2)} credit',
+        );
+      }
+
+      if (parts.isNotEmpty) return parts.join(' · ');
+    }
+
+    return '';
+  }
+
   Future<void> _addToCart() async {
-    setState(() => _adding = true);
+    if (_adding) return;
+
+    final id = _readInt(widget.plan['id']);
+
+    if (id == null || id < 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This plan has an invalid ID. Please reload the plans.'),
+        ),
+      );
+      return;
+    }
+
+    if (!_readActive(widget.plan['active'])) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This membership plan is currently unavailable.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _adding = true;
+    });
+
     try {
-      await ApiService.instance.addPlanToCart(widget.plan['id'] as int);
+      await ApiService.instance.addPlanToCart(id);
+
       if (!mounted) return;
+
       setState(() {
         _adding = false;
         _added = true;
       });
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('"${widget.plan['name']}" added to your cart.')),
+        SnackBar(
+          content: Text(
+            '"${_readString(widget.plan['name'], fallback: 'Membership plan')}" added to your cart.',
+          ),
+        ),
       );
     } on ApiException catch (e) {
       if (!mounted) return;
-      setState(() => _adding = false);
-      // e.g. 404 when an admin deactivated the plan while the page was open
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+
+      setState(() {
+        _adding = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _adding = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to add this plan to your cart. Please try again.'),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final p = widget.plan;
+    final plan = widget.plan;
     final theme = Theme.of(context);
-    final benefits = (p['benefits'] as List<dynamic>).cast<Map<String, dynamic>>();
-    final bonus = p['bonus_cents'] as int;
-    final description = p['description'] as String?;
-    final level = p['membership_level'] as String?;
+
+    final name = _readString(
+      plan['name'],
+      fallback: 'Membership plan',
+    );
+
+    final code = _readString(plan['code']);
+    final description = _readString(plan['description']);
+    final active = _readActive(plan['active']);
+    final benefits = _readBenefits(plan['benefits']);
 
     return Scaffold(
-      appBar: AppBar(title: Text(p['name'] as String)),
+      appBar: AppBar(
+        title: Text(name),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
-          if (level != null)
+          if (code.isNotEmpty)
             Align(
               alignment: Alignment.centerLeft,
-              child: Chip(label: Text(level.toUpperCase())),
+              child: Chip(
+                label: Text(code),
+              ),
             ),
 
-          // The value of the voucher
-          Text(formatCents(p['credit_cents'] as int),
-              style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold)),
-          Text('to spend on Ayubo products', style: theme.textTheme.bodyMedium),
+          const SizedBox(height: 8),
+
+          Text(
+            name,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          if (description.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              description,
+              style: theme.textTheme.bodyLarge,
+            ),
+          ],
+
           const SizedBox(height: 16),
 
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Column(children: [
-                _row('You pay', formatCents(p['price_cents'] as int)),
-                if (bonus > 0) _row('Bonus', '+ ${formatCents(bonus)}'),
-                const Divider(),
-                _row('You get', formatCents(p['credit_cents'] as int), bold: true),
-                const SizedBox(height: 4),
-                _row('Valid for', '${p['duration_months']} months'),
-              ]),
+              child: Row(
+                children: [
+                  Icon(
+                    active
+                        ? Icons.check_circle_outline
+                        : Icons.info_outline,
+                    color: active
+                        ? Colors.green
+                        : theme.colorScheme.error,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      active
+                          ? 'This membership plan is available.'
+                          : 'This membership plan is currently inactive.',
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 
-          if (description != null && description.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Text(description),
-          ],
+          const SizedBox(height: 24),
 
-          if (benefits.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            Text('Benefits', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            for (final b in benefits)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.check_circle_outline),
-                title: Text(b['title'] as String),
-                subtitle: (b['description'] as String?)?.isNotEmpty == true
-                    ? Text(b['description'] as String)
-                    : null,
-                trailing: Text('${formatPercent(b['discount_percent'] as num)}% off',
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-              ),
-          ],
-
-          const SizedBox(height: 16),
-          Text('How it works', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          const Text(
-            '• Your voucher balance can be spent in several purchases until it runs out.\n'
-                '• The discount applies to the part of a purchase paid with the voucher.\n'
-                '• Vouchers expire after the validity period and cannot be refunded or transferred.',
+          Text(
+            'Membership benefits',
+            style: theme.textTheme.titleLarge,
           ),
+
+          const SizedBox(height: 8),
+
+          if (benefits.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text('No benefits have been configured for this plan.'),
+            )
+          else
+            for (final benefit in benefits)
+              _buildBenefit(benefit, theme),
+
+          const SizedBox(height: 24),
+
+          Text(
+            'About this plan',
+            style: theme.textTheme.titleMedium,
+          ),
+
+          const SizedBox(height: 8),
+
+          const Text(
+            'Review the benefits and terms associated with this membership '
+                'before adding it to your cart. Any applicable discounts, credit, '
+                'expiry rules, and redemption conditions must follow the terms '
+                'implemented by Ayubo Organics.',
+          ),
+
           const SizedBox(height: 24),
 
           FilledButton.icon(
-            onPressed: _adding ? null : _addToCart,
+            onPressed: _adding || !active ? null : _addToCart,
             icon: _adding
                 ? const SizedBox(
-                height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              height: 18,
+              width: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+              ),
+            )
                 : const Icon(Icons.add_shopping_cart),
-            label: Text(_added ? 'Add another' : 'Add to cart'),
+            label: Text(
+              _adding
+                  ? 'Adding...'
+                  : _added
+                  ? 'Add another'
+                  : 'Add to cart',
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _row(String label, String value, {bool bold = false}) {
-    final style = bold ? const TextStyle(fontWeight: FontWeight.bold) : null;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [Text(label, style: style), Text(value, style: style)],
+  Widget _buildBenefit(
+      Map<String, dynamic> benefit,
+      ThemeData theme,
+      ) {
+    final code = _readString(benefit['benefit_code']);
+    final description = _readString(
+      benefit['description'],
+      fallback: 'Membership benefit',
+    );
+    final configuration = _formatConfiguration(
+      benefit['configuration_json'],
+    );
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.check_circle_outline),
+      title: Text(description),
+      subtitle: [
+        if (code.isNotEmpty) code,
+        if (configuration.isNotEmpty) configuration,
+      ].isEmpty
+          ? null
+          : Text(
+        [
+          if (code.isNotEmpty) code,
+          if (configuration.isNotEmpty) configuration,
+        ].join(' · '),
+        style: theme.textTheme.bodySmall,
       ),
     );
   }

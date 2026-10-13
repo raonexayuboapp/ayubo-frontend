@@ -245,15 +245,61 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> getCart() async {
-    final res = await _send('GET', '/api/cart', auth: true);
-    return res['data'] as Map<String, dynamic>;
+    final res = await _send(
+      'GET',
+      '/api/cart',
+      auth: true,
+    );
+
+    return Map<String, dynamic>.from(
+      res['data'] as Map,
+    );
   }
 
-  Future<void> updateCartItem(int id, int quantity) async {
-    await _send('PATCH', '/api/cart/items/$id', auth: true, body: {'quantity': quantity});
+  Future<Map<String, dynamic>> updateCartItem(
+      int id,
+      Map<String, dynamic> body,
+      ) async {
+    final res = await _send(
+      'PATCH',
+      '/api/cart/items/$id',
+      auth: true,
+      body: body,
+    );
+
+    return Map<String, dynamic>.from(
+      res['data'] as Map,
+    );
   }
 
-  Future<void> removeCartItem(int id) async {
-    await _send('DELETE', '/api/cart/items/$id', auth: true);
+  Future<Map<String, dynamic>> removeCartItem(int id) async {
+    final res = await _send(
+      'DELETE',
+      '/api/cart/items/$id',
+      auth: true,
+    );
+
+    return Map<String, dynamic>.from(
+      res['data'] as Map,
+    );
+  }
+
+  Future<Map<String, dynamic>> addCartItem({
+    required int variantId,
+    num quantity = 1,
+  }) async {
+    final res = await _send(
+      'POST',
+      '/api/cart/items',
+      auth: true,
+      body: {
+        'variant_id': variantId,
+        'quantity': quantity,
+      },
+    );
+
+    return Map<String, dynamic>.from(
+      res['data'] as Map,
+    );
   }
 }

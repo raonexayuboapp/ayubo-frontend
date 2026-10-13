@@ -1,61 +1,94 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
-import '../utils/money.dart';
 import '../widgets/loading_button.dart';
 
-/// One editable benefit line. It owns its controllers, so the form must dispose them.
+/// One editable membership benefit.
 class _BenefitRow {
-  final TextEditingController title;
-  final TextEditingController discount;
-  // Not editable here, but kept so saving doesn't silently erase them (the server replaces the whole list).
-  final String? description;
-  final bool isActive;
+  final TextEditingController code;
+  final TextEditingController description;
+  final TextEditingController configuration;
 
-  _BenefitRow({String title = '', String discount = '', this.description, this.isActive = true})
-      : title = TextEditingController(text: title),
-        discount = TextEditingController(text: discount);
+  _BenefitRow({
+    String code = '',
+    String description = '',
+    String configuration = '',
+  })  : code = TextEditingController(text: code),
+        description = TextEditingController(text: description),
+        configuration = TextEditingController(text: configuration);
 
-  factory _BenefitRow.fromJson(Map<String, dynamic> b) {
-    final d = (b['discount_percent'] as num).toDouble();
+  factory _BenefitRow.fromJson(Map<String, dynamic> benefit) {
+    final rawConfiguration = benefit['configuration_json'];
+
+    String configurationText = '';
+
+    if (rawConfiguration is Map || rawConfiguration is List) {
+      configurationText = const JsonEncoder.withIndent('  ')
+          .convert(rawConfiguration);
+    } else if (rawConfiguration is String &&
+        rawConfiguration.trim().isNotEmpty) {
+      // Support APIs returning configuration_json as a JSON string.
+      try {
+        final decoded = jsonDecode(rawConfiguration);
+        configurationText =
+            const JsonEncoder.withIndent('  ').convert(decoded);
+      } on FormatException {
+        configurationText = rawConfiguration;
+      }
+    }
+
     return _BenefitRow(
-      title: b['title'] as String,
-      discount: d == d.roundToDouble() ? d.toInt().toString() : d.toString(),
-      description: b['description'] as String?,
-      isActive: b['is_active'] != false,
+      code: benefit['benefit_code'] as String? ?? '',
+      description: benefit['description'] as String? ?? '',
+      configuration: configurationText,
     );
   }
 
   void dispose() {
-    title.dispose();
-    discount.dispose();
+    code.dispose();
+    description.dispose();
+    configuration.dispose();
   }
 }
 
 class AdminPlanFormScreen extends StatefulWidget {
-  final Map<String, dynamic>? plan; // null = create, otherwise edit
-  const AdminPlanFormScreen({super.key, this.plan});
+  /// Null creates a plan; a supplied plan edits an existing plan.
+  final Map<String, dynamic>? plan;
+
+  const AdminPlanFormScreen({
+    super.key,
+    this.plan,
+  });
 
   @override
-  State<AdminPlanFormScreen> createState() => _AdminPlanFormScreenState();
+  State<AdminPlanFormScreen> createState() =>
+      _AdminPlanFormScreenState();
 }
 
 class _AdminPlanFormScreenState extends State<AdminPlanFormScreen> {
   final _form = GlobalKey<FormState>();
 
-  late final _code = TextEditingController(text: (widget.plan?['code'] as String?) ?? '');
-  late final _name = TextEditingController(text: (widget.plan?['name'] as String?) ?? '');
-  late final _desc = TextEditingController(text: (widget.plan?['description'] as String?) ?? '');
-  late final _price = TextEditingController(text: _euros(widget.plan?['price_cents'] as int?));
-  late final _bonus = TextEditingController(text: _euros(widget.plan?['bonus_cents'] as int?));
-  late final _months = TextEditingController(text: '${widget.plan?['duration_months'] ?? 12}');
-  late final _sort = TextEditingController(text: '${widget.plan?['sort_order'] ?? 0}');
+  late final TextEditingController _code =
+  TextEditingController(text: widget.plan?['code'] as String? ?? '');
 
-  late String? _level = widget.plan?['membership_level'] as String?;
-  late bool _active = widget.plan?['is_active'] != false;
+  late final TextEditingController _name =
+  TextEditingController(text: widget.plan?['name'] as String? ?? '');
+
+  late final TextEditingController _description =
+  TextEditingController(
+    text: widget.plan?['description'] as String? ?? '',
+  );
+
+  late bool _active = _readActive(widget.plan?['active']);
+
   late final List<_BenefitRow> _benefits = [
-    for (final b in (widget.plan?['benefits'] as List<dynamic>? ?? []))
-      _BenefitRow.fromJson(b as Map<String, dynamic>),
+    for (final benefit
+    in (widget.plan?['benefits'] as List<dynamic>? ?? []))
+      _BenefitRow.fromJson(
+        Map<String, dynamic>.from(benefit as Map),
+      ),
   ];
 
   bool _loading = false;
@@ -64,80 +97,126 @@ class _AdminPlanFormScreenState extends State<AdminPlanFormScreen> {
 
   bool get _editing => widget.plan != null;
 
-  /// 10500 -> "105.00". Integer maths only, so there is no floating-point rounding.
-  static String _euros(int? cents) =>
-      cents == null ? '' : '${cents ~/ 100}.${(cents % 100).toString().padLeft(2, '0')}';
+  static bool _readActive(dynamic value) {
+    // The API may represent MySQL TINYINT values as 0/1,
+    // or return a native boolean.
+    if (value == false || value == 0 || value == '0') {
+      return false;
+    }
+
+    return true;
+  }
 
   @override
   void dispose() {
-    for (final c in [_code, _name, _desc, _price, _bonus, _months, _sort]) {
-      c.dispose();
+    _code.dispose();
+    _name.dispose();
+    _description.dispose();
+
+    for (final benefit in _benefits) {
+      benefit.dispose();
     }
-    for (final b in _benefits) {
-      b.dispose();
-    }
+
     super.dispose();
   }
 
-  // ---------- validation (the server checks everything again) ----------
+  // ---------------- Validation ----------------
 
-  String? _vCode(String? v) => RegExp(r'^[a-z0-9][a-z0-9_-]{1,49}$').hasMatch((v ?? '').trim())
-      ? null
-      : '2 to 50 characters: lowercase letters, numbers, - or _.';
+  String? _validateCode(String? value) {
+    final code = (value ?? '').trim();
 
-  String? _vName(String? v) {
-    final s = (v ?? '').trim();
-    return s.isEmpty || s.length > 100 ? 'Name must be 1 to 100 characters.' : null;
+    return RegExp(r'^[a-z0-9][a-z0-9_-]{1,49}$')
+        .hasMatch(code)
+        ? null
+        : 'Use 2–50 lowercase letters, numbers, hyphens or underscores.';
   }
 
-  String? _vDesc(String? v) => (v ?? '').trim().length > 1000 ? 'Maximum 1000 characters.' : null;
+  String? _validateName(String? value) {
+    final name = (value ?? '').trim();
 
-  String? _vPrice(String? v) {
-    final cents = parseEuroToCents(v ?? '');
-    if (cents == null) return 'Enter an amount like 100 or 100.50.';
-    if (cents < 1 || cents > 1000000) return 'Price must be between 0.01 and 10000.';
-    return null;
+    return name.isEmpty || name.length > 100
+        ? 'Name must be 1–100 characters.'
+        : null;
   }
 
-  String? _vBonus(String? v) {
-    if ((v ?? '').trim().isEmpty) return null; // empty means no bonus
-    final bonus = parseEuroToCents(v!);
-    if (bonus == null) return 'Enter an amount like 5 or 5.50.';
-    if (bonus > 1000000) return 'Bonus is too large.';
-    final price = parseEuroToCents(_price.text);
-    if (price != null && bonus > price) return 'Bonus cannot be higher than the price.';
-    return null;
+  String? _validateDescription(String? value) {
+    final description = (value ?? '').trim();
+
+    return description.length > 1000
+        ? 'Maximum 1000 characters.'
+        : null;
   }
 
-  String? _vInt(String? v, int min, int max) {
-    final n = int.tryParse((v ?? '').trim());
-    return n == null || n < min || n > max ? 'Enter a whole number from $min to $max.' : null;
+  String? _validateBenefitCode(String? value) {
+    final code = (value ?? '').trim();
+
+    return RegExp(r'^[a-z0-9][a-z0-9_-]{0,99}$')
+        .hasMatch(code)
+        ? null
+        : 'Use 1–100 lowercase letters, numbers, hyphens or underscores.';
   }
 
-  String? _vBenefitTitle(String? v) {
-    final s = (v ?? '').trim();
-    return s.isEmpty || s.length > 100 ? 'Title must be 1 to 100 characters.' : null;
+  String? _validateBenefitDescription(String? value) {
+    final description = (value ?? '').trim();
+
+    return description.isEmpty || description.length > 1000
+        ? 'Description must be 1–1000 characters.'
+        : null;
   }
 
-  String? _vDiscount(String? v) {
-    final d = double.tryParse((v ?? '').trim().replaceAll(',', '.'));
-    return d == null || d <= 0 || d > 100 ? 'Enter a discount above 0 and up to 100.' : null;
+  String? _validateConfiguration(String? value) {
+    final text = (value ?? '').trim();
+
+    if (text.isEmpty) return null;
+
+    try {
+      final decoded = jsonDecode(text);
+
+      if (decoded is! Map && decoded is! List) {
+        return 'Enter a JSON object, JSON array, or leave empty.';
+      }
+
+      return null;
+    } on FormatException {
+      return 'Enter valid JSON.';
+    }
   }
 
-  // ---------- benefits list ----------
+  // ---------------- Benefits ----------------
 
-  void _addBenefit() => setState(() => _benefits.add(_BenefitRow()));
+  void _addBenefit() {
+    if (_benefits.length >= 20) {
+      setState(() {
+        _error = 'A plan can have at most 20 benefits.';
+      });
+      return;
+    }
 
-  void _removeBenefit(int i) {
-    final row = _benefits[i];
-    setState(() => _benefits.removeAt(i));
-    // Dispose after the frame: the removed field is still on screen until it finishes.
-    WidgetsBinding.instance.addPostFrameCallback((_) => row.dispose());
+    setState(() {
+      _error = null;
+      _benefits.add(_BenefitRow());
+    });
   }
 
-  // ---------- save ----------
+  void _removeBenefit(int index) {
+    final benefit = _benefits[index];
+
+    setState(() {
+      _benefits.removeAt(index);
+      _serverErrors = {};
+    });
+
+    // Dispose after Flutter has removed the corresponding fields.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      benefit.dispose();
+    });
+  }
+
+  // ---------------- Save ----------------
 
   Future<void> _save() async {
+    FocusScope.of(context).unfocus();
+
     if (!_form.currentState!.validate()) return;
 
     setState(() {
@@ -146,183 +225,256 @@ class _AdminPlanFormScreenState extends State<AdminPlanFormScreen> {
       _serverErrors = {};
     });
 
-    // Safe to use "!" and parse(): the validators above already accepted these values.
+    final benefits = <Map<String, dynamic>>[];
+
+    for (final benefit in _benefits) {
+      final rawConfiguration = benefit.configuration.text.trim();
+
+      benefits.add({
+        'benefit_code': benefit.code.text.trim(),
+        'description': benefit.description.text.trim(),
+        'configuration_json': rawConfiguration.isEmpty
+            ? null
+            : jsonDecode(rawConfiguration),
+      });
+    }
+
     final body = <String, dynamic>{
       if (!_editing) 'code': _code.text.trim(),
       'name': _name.text.trim(),
-      'description': _desc.text.trim().isEmpty ? null : _desc.text.trim(),
-      'membership_level': _level,
-      'price_cents': parseEuroToCents(_price.text)!,
-      'bonus_cents': _bonus.text.trim().isEmpty ? 0 : parseEuroToCents(_bonus.text)!,
-      'duration_months': int.parse(_months.text.trim()),
-      'sort_order': int.parse(_sort.text.trim()),
-      'is_active': _active,
-      'benefits': [
-        for (final b in _benefits)
-          {
-            'title': b.title.text.trim(),
-            'discount_percent': double.parse(b.discount.text.trim().replaceAll(',', '.')),
-            if (b.description != null) 'description': b.description,
-            'is_active': b.isActive,
-          },
-      ],
+      'description': _description.text.trim().isEmpty
+          ? null
+          : _description.text.trim(),
+      'active': _active,
+      'benefits': benefits,
     };
 
     try {
       if (_editing) {
-        await ApiService.instance.adminUpdatePlan(widget.plan!['id'] as int, body);
+        final rawId = widget.plan!['id'];
+        final id = rawId is int
+            ? rawId
+            : int.parse(rawId.toString());
+
+        await ApiService.instance.adminUpdatePlan(id, body);
       } else {
         await ApiService.instance.adminCreatePlan(body);
       }
+
       if (!mounted) return;
+
       Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (!mounted) return;
+
       final errors = Map<String, String>.from(e.fieldErrors);
-      if (e.statusCode == 409) errors['code'] = e.message; // duplicate plan code
+
+      if (e.statusCode == 409) {
+        errors['code'] = e.message;
+      }
+
+      final generalErrors = <String>[];
+
+      for (final entry in errors.entries) {
+        if (!entry.key.startsWith('benefits.') &&
+            entry.key != 'code' &&
+            entry.key != 'name' &&
+            entry.key != 'description' &&
+            entry.key != 'active') {
+          generalErrors.add(entry.value);
+        }
+      }
+
       setState(() {
         _serverErrors = errors;
-        // Errors with no field of their own are shown at the bottom.
-        final general = [errors['benefits'], errors['is_active'], errors['membership_level']]
-            .whereType<String>()
-            .join('\n');
-        _error = e.fieldErrors.isEmpty && e.statusCode != 409
-            ? e.message
-            : (general.isEmpty ? null : general);
+        _error = generalErrors.isNotEmpty
+            ? generalErrors.join('\n')
+            : (errors.isEmpty ? e.message : null);
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _error = 'Unable to save the plan. Please try again.';
         _loading = false;
       });
     }
   }
 
-  // ---------- UI ----------
+  // ---------------- UI helpers ----------------
 
-  Widget _text(
-      String serverKey,
-      String label,
-      TextEditingController c,
-      String? Function(String?) validator, {
-        TextInputType? type,
-        bool enabled = true,
-        String? helper,
-        int maxLines = 1,
-      }) {
+  Widget _textField({
+    required String serverKey,
+    required String label,
+    required TextEditingController controller,
+    String? Function(String?)? validator,
+    int maxLines = 1,
+    bool enabled = true,
+    String? helper,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
-        controller: c,
-        enabled: enabled,
-        keyboardType: type,
-        maxLines: maxLines,
-        textInputAction: maxLines == 1 ? TextInputAction.next : TextInputAction.newline,
-        autovalidateMode: AutovalidateMode.onUserInteraction,
+        controller: controller,
+        enabled: enabled && !_loading,
         validator: validator,
+        maxLines: maxLines,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
         forceErrorText: _serverErrors[serverKey],
-        decoration: InputDecoration(labelText: label, helperText: helper),
+        decoration: InputDecoration(
+          labelText: label,
+          helperText: helper,
+          border: const OutlineInputBorder(),
+        ),
+      ),
+    );
+  }
+
+  Widget _benefitFields(int index) {
+    final benefit = _benefits[index];
+
+    return Card(
+      key: ObjectKey(benefit),
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Benefit ${index + 1}',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Remove benefit',
+                  onPressed: _loading
+                      ? null
+                      : () => _removeBenefit(index),
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ],
+            ),
+            _textField(
+              serverKey: 'benefits.$index.benefit_code',
+              label: 'Benefit code',
+              controller: benefit.code,
+              validator: _validateBenefitCode,
+              helper: 'Example: special_offers',
+            ),
+            _textField(
+              serverKey: 'benefits.$index.description',
+              label: 'Benefit description',
+              controller: benefit.description,
+              validator: _validateBenefitDescription,
+              maxLines: 2,
+            ),
+            _textField(
+              serverKey: 'benefits.$index.configuration_json',
+              label: 'Configuration JSON (optional)',
+              controller: benefit.configuration,
+              validator: _validateConfiguration,
+              maxLines: 4,
+              helper:
+              'Example: {"discount_percent": 5}. Leave empty for no configuration.',
+            ),
+          ],
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    const money = TextInputType.numberWithOptions(decimal: true);
-
     return Scaffold(
-      appBar: AppBar(title: Text(_editing ? 'Edit plan' : 'New plan')),
+      appBar: AppBar(
+        title: Text(_editing ? 'Edit membership plan' : 'New membership plan'),
+      ),
       body: Form(
         key: _form,
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            _text('code', 'Code', _code, _vCode,
-                enabled: !_editing, helper: _editing ? 'The code cannot be changed.' : 'e.g. family-100'),
-            _text('name', 'Name', _name, _vName),
-            _text('description', 'Description (optional)', _desc, _vDesc, maxLines: 3),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: DropdownButtonFormField<String?>(
-                initialValue: _level,
-                decoration: const InputDecoration(labelText: 'Level'),
-                items: const [
-                  DropdownMenuItem(value: null, child: Text('None')),
-                  DropdownMenuItem(value: 'starter', child: Text('Starter')),
-                  DropdownMenuItem(value: 'premium', child: Text('Premium')),
-                  DropdownMenuItem(value: 'vip', child: Text('VIP')),
-                ],
-                onChanged: (v) => setState(() => _level = v),
-              ),
+            _textField(
+              serverKey: 'code',
+              label: 'Plan code',
+              controller: _code,
+              validator: _validateCode,
+              enabled: !_editing,
+              helper: _editing
+                  ? 'The plan code cannot be changed.'
+                  : 'Example: family-basic',
             ),
-            _text('price_cents', 'Price (€)', _price, _vPrice, type: money),
-            _text('bonus_cents', 'Bonus (€)', _bonus, _vBonus, type: money, helper: 'Added on top of the price.'),
-            _text('duration_months', 'Valid for (months)', _months, (v) => _vInt(v, 1, 60),
-                type: TextInputType.number),
-            _text('sort_order', 'Sort order', _sort, (v) => _vInt(v, 0, 10000),
-                type: TextInputType.number, helper: 'Lower numbers are shown first.'),
+            _textField(
+              serverKey: 'name',
+              label: 'Plan name',
+              controller: _name,
+              validator: _validateName,
+            ),
+            _textField(
+              serverKey: 'description',
+              label: 'Description (optional)',
+              controller: _description,
+              validator: _validateDescription,
+              maxLines: 3,
+            ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Available to buy'),
+              title: const Text('Active'),
+              subtitle: const Text(
+                'Whether this plan is available for use.',
+              ),
               value: _active,
-              onChanged: (v) => setState(() => _active = v),
+              onChanged: _loading
+                  ? null
+                  : (value) {
+                setState(() {
+                  _active = value;
+                  _serverErrors.remove('active');
+                });
+              },
             ),
             const Divider(height: 32),
-            Text('Benefits (discounts)', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 4),
             Text(
-              'The highest discount applies when a voucher is used.',
-              style: Theme.of(context).textTheme.bodySmall,
+              'Membership benefits',
+              style: Theme.of(context).textTheme.titleMedium,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
+            const Text(
+              'Each benefit has a code, description and optional JSON '
+                  'configuration. The configuration is stored separately '
+                  'from the benefit description.',
+            ),
+            const SizedBox(height: 16),
             for (var i = 0; i < _benefits.length; i++)
-              Padding(
-                key: ObjectKey(_benefits[i]),
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: TextFormField(
-                        controller: _benefits[i].title,
-                        autovalidateMode: AutovalidateMode.onUserInteraction,
-                        validator: _vBenefitTitle,
-                        forceErrorText: _serverErrors['benefits.$i.title'],
-                        decoration: const InputDecoration(labelText: 'Title'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      flex: 2,
-                      child: TextFormField(
-                        controller: _benefits[i].discount,
-                        keyboardType: money,
-                        autovalidateMode: AutovalidateMode.onUserInteraction,
-                        validator: _vDiscount,
-                        forceErrorText: _serverErrors['benefits.$i.discount_percent'],
-                        decoration: const InputDecoration(labelText: 'Discount %'),
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Remove benefit',
-                      icon: const Icon(Icons.close),
-                      onPressed: () => _removeBenefit(i),
-                    ),
-                  ],
-                ),
-              ),
+              _benefitFields(i),
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
-                onPressed: _addBenefit,
+                onPressed: _loading ? null : _addBenefit,
                 icon: const Icon(Icons.add),
                 label: const Text('Add benefit'),
               ),
             ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                ),
               ),
-            const SizedBox(height: 16),
-            LoadingButton(label: _editing ? 'Save changes' : 'Create plan', loading: _loading, onPressed: _save),
+            ],
+            const SizedBox(height: 24),
+            LoadingButton(
+              label: _editing ? 'Save changes' : 'Create plan',
+              loading: _loading,
+              onPressed: _save,
+            ),
           ],
         ),
       ),
