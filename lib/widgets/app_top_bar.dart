@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../screens/admin_menu_screen.dart';
+import '../screens/products_screen.dart';
 import '../screens/profile_screen.dart';
 
 /// Search pill + profile icon (+ admin icon for admins).
@@ -8,8 +9,9 @@ import '../screens/profile_screen.dart';
 class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
   final Map<String, dynamic> user;
   final VoidCallback? onProfileClosed; // lets the screen refresh the user after a profile edit
+  final VoidCallback? onSearchTap; // a screen with its own search field handles the tap itself
 
-  const AppTopBar({super.key, required this.user, this.onProfileClosed});
+  const AppTopBar({super.key, required this.user, this.onProfileClosed, this.onSearchTap});
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -31,9 +33,11 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
       titleSpacing: 12,
       title: InkWell(
         borderRadius: BorderRadius.circular(24),
-        onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Search arrives with the products feature.')),
-        ),
+        onTap: onSearchTap ??
+                () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ProductsScreen(user: user, focusSearch: true)),
+            ),
         child: Container(
           height: 40,
           padding: const EdgeInsets.symmetric(horizontal: 12),
