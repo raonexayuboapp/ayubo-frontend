@@ -8,6 +8,7 @@ import 'change_password_screen.dart';
 import '../utils/navigation.dart';
 import '../widgets/password_field.dart';
 import 'login_screen.dart';
+import 'favourites_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -194,6 +195,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 MaterialPageRoute(
                   builder: (_) => const AddressesScreen(),
                 ),
+              ),
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.favorite_border),
+              title: const Text('My favourites'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FavouritesScreen()),
               ),
             ),
 
