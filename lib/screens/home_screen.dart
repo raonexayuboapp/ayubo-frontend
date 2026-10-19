@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/app_top_bar.dart';
+import '../services/cart_state.dart';
 
 class HomeScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -35,5 +36,11 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       bottomNavigationBar: AppBottomBar(currentIndex: 0, user: widget.user,),
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    CartState.instance.refresh(); // fills the badge on the Cart tab
   }
 }

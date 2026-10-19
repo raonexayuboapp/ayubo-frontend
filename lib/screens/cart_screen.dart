@@ -1,451 +1,285 @@
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
+import '../utils/money.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/app_top_bar.dart';
+import '../widgets/product_image.dart';
+import '../widgets/quantity_stepper.dart';
 
 class CartScreen extends StatefulWidget {
-final Map<String, dynamic> user;
+  final Map<String, dynamic> user;
+  const CartScreen({super.key, required this.user});
 
-const CartScreen({
-super.key,
-required this.user,
-});
-
-@override
-State<CartScreen> createState() => _CartScreenState();
+  @override
+  State<CartScreen> createState() => _CartScreenState();
 }
 
 class _CartScreenState extends State<CartScreen> {
-List<Map<String, dynamic>> _items = [];
-String _currency = 'EUR';
-bool _loading = true;
-bool _updating = false;
-String? _error;
+  /// Problems that no quantity change can fix: the customer can only remove the line.
+  static const _removeOnly = {'unavailable', 'unsupported', 'currency'};
 
-@override
-void initState() {
-super.initState();
-_loadCart();
-}
+  Map<String, dynamic>? _cart;
+  bool _loading = true;
+  String? _error;
+  final Set<int> _busy = {}; // line ids with a request in flight
 
-int? _readInt(dynamic value) {
-if (value is int) return value;
-if (value is num) return value.toInt();
-if (value is String) return int.tryParse(value);
-return null;
-}
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
 
-String _readString(dynamic value, {String fallback = ''}) {
-if (value is String) return value;
-return fallback;
-}
+  void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
-String _formatQuantity(dynamic value) {
-final quantity = double.tryParse(value.toString());
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final cart = await ApiService.instance.getCart();
+      if (!mounted) return;
+      setState(() {
+        _cart = cart;
+        _loading = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        if (_cart == null) _error = e.message;
+      });
+      if (_cart != null) _snack(e.message); // keep showing the cart we already have
+    }
+  }
 
-if (quantity == null) return value.toString();
+  Future<void> _change(Map<String, dynamic> item, int quantity) async {
+    final id = item['id'] as int;
+    if (_busy.contains(id)) return; // ignore a second tap while the first is still being sent
 
-return quantity
-    .toStringAsFixed(3)
-    .replaceFirst(RegExp(r'\.?0+$'), '');
-}
+    setState(() => _busy.add(id));
+    try {
+      final cart = await ApiService.instance.setCartQuantity(id, quantity);
+      if (!mounted) return;
+      setState(() => _cart = cart);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      _snack(e.message);
+      _load(); // the server's numbers may have moved (for example the stock)
+    } finally {
+      if (mounted) setState(() => _busy.remove(id));
+    }
+  }
 
-Future<void> _loadCart({bool showLoader = true}) async {
-if (showLoader) {
-setState(() {
-_loading = true;
-_error = null;
-});
-}
+  Future<void> _remove(Map<String, dynamic> item) async {
+    final id = item['id'] as int;
+    if (_busy.contains(id)) return;
 
-try {
-final response = await ApiService.instance.getCart();
+    setState(() => _busy.add(id));
+    try {
+      final cart = await ApiService.instance.removeCartItem(id);
+      if (!mounted) return;
+      setState(() => _cart = cart);
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(SnackBar(
+          content: Text('"${item['name']}" removed.'),
+          action: SnackBarAction(label: 'Undo', onPressed: () => _undo(item)),
+        ));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      _snack(e.message);
+      _load();
+    } finally {
+      if (mounted) setState(() => _busy.remove(id));
+    }
+  }
 
-if (!mounted) return;
+  Future<void> _undo(Map<String, dynamic> item) async {
+    try {
+      final cart = await ApiService.instance.addToCart(item['variant_id'] as int, item['quantity'] as int);
+      if (mounted) setState(() => _cart = cart);
+    } on ApiException catch (e) {
+      if (mounted) _snack(e.message); // for example: it sold out in the meantime
+    }
+  }
 
-final rawItems = response['items'];
-final items = rawItems is List
-? rawItems
-    .whereType<Map>()
-    .map((item) => Map<String, dynamic>.from(item))
-    .toList()
-    : <Map<String, dynamic>>[];
+  Widget _line(Map<String, dynamic> item) {
+    final theme = Theme.of(context);
+    final id = item['id'] as int;
+    final busy = _busy.contains(id);
+    final issue = item['issue'] as String?;
+    final type = item['type'] as String;
+    final pack = item['pack'] as String?;
+    final removeOnly = _removeOnly.contains(issue);
+    final canStep = type != 'membership' && !removeOnly;
 
-setState(() {
-_items = items;
-_currency = _readString(
-response['currency'],
-fallback: 'EUR',
-);
-_loading = false;
-_error = null;
-});
-} on ApiException catch (e) {
-if (!mounted) return;
+    return Card(
+      key: ValueKey(id),
+      child: Opacity(
+        opacity: removeOnly ? 0.6 : 1,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SizedBox(
+              width: 72,
+              height: 72,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: ProductImage(url: item['image_url'] as String?),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(item['name'] as String,
+                    maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleSmall),
+                Text(
+                  [if (pack != null && pack.isNotEmpty) pack, '${formatCents(item['unit_price_cents'] as int)} each']
+                      .join(' · '),
+                  style: theme.textTheme.bodySmall,
+                ),
+                if (issue != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      (item['issue_message'] as String?) ?? 'This item has a problem.',
+                      style: TextStyle(fontSize: 12, color: theme.colorScheme.error),
+                    ),
+                  ),
+                const SizedBox(height: 4),
+                Row(children: [
+                  if (canStep)
+                    QuantityStepper(
+                      value: item['quantity'] as int,
+                      max: item['max_quantity'] as int,
+                      enabled: !busy,
+                      onChanged: (q) => _change(item, q),
+                    )
+                  else if (type == 'membership')
+                    const Chip(label: Text('Membership'), visualDensity: VisualDensity.compact),
+                  const Spacer(),
+                  // A line with a problem is not part of the total, so it shows no amount.
+                  if (issue == null)
+                    Text(formatCents(item['line_total_cents'] as int),
+                        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                ]),
+              ]),
+            ),
+            IconButton(
+              tooltip: 'Remove',
+              icon: const Icon(Icons.delete_outline),
+              onPressed: busy ? null : () => _remove(item),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
 
-setState(() {
-_error = e.message;
-_loading = false;
-});
-} catch (_) {
-if (!mounted) return;
+  Widget _footer(Map<String, dynamic> cart) {
+    final theme = Theme.of(context);
+    final totals = cart['totals'] as Map<String, dynamic>;
+    final tax = (totals['tax'] as List<dynamic>).cast<Map<String, dynamic>>();
+    final blocking = (cart['blocking_issues'] as num).toInt();
+    final canCheckout = cart['can_checkout'] == true;
 
-setState(() {
-_error = 'Unable to load your cart. Please try again.';
-_loading = false;
-});
-}
-}
+    Widget row(String label, String value, {TextStyle? style}) => Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [Text(label, style: style), Text(value, style: style)],
+    );
 
-Future<void> _changeQuantity(
-Map<String, dynamic> item,
-double difference,
-) async {
-final itemId = _readInt(item['id']);
-final currentQuantity =
-double.tryParse(item['quantity'].toString());
+    return Material(
+      elevation: 8,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            row('Total', formatCents(totals['subtotal_cents'] as int),
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            for (final t in tax)
+              row('incl. ${formatPercent(t['rate_percent'] as num)}% VAT', formatCents(t['tax_cents'] as int),
+                  style: theme.textTheme.bodySmall),
+            const SizedBox(height: 4),
+            Text(
+              blocking > 0
+                  ? 'Items marked in red are not included. Fix or remove them to continue.'
+                  : 'Shipping and discounts are added at checkout.',
+              style: theme.textTheme.bodySmall?.copyWith(color: blocking > 0 ? theme.colorScheme.error : null),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: canCheckout ? () => _snack('Checkout arrives with the next update.') : null,
+              child: const Text('Checkout'),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
 
-if (itemId == null || currentQuantity == null) {
-_showMessage('Unable to update this cart item.');
-return;
-}
+  Widget _empty() {
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(children: [
+        const SizedBox(height: 120),
+        Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.shopping_cart_outlined, size: 48),
+            const SizedBox(height: 12),
+            const Text('Your cart is empty.'),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: () => AppBottomBar.open(context, 1, widget.user),
+              child: const Text('Browse products'),
+            ),
+          ]),
+        ),
+      ]),
+    );
+  }
 
-final newQuantity = currentQuantity + difference;
+  @override
+  Widget build(BuildContext context) {
+    Widget body;
 
-if (newQuantity <= 0) {
-await _removeItem(itemId);
-return;
-}
+    if (_loading && _cart == null) {
+      body = const Center(child: CircularProgressIndicator());
+    } else if (_error != null && _cart == null) {
+      body = Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(_error!),
+          TextButton(onPressed: _load, child: const Text('Retry')),
+        ]),
+      );
+    } else {
+      final cart = _cart!;
+      final items = (cart['items'] as List<dynamic>).cast<Map<String, dynamic>>();
 
-await _updateQuantity(itemId, newQuantity);
-}
+      body = items.isEmpty
+          ? _empty()
+          : Column(children: [
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _load,
+            child: ListView.separated(
+              padding: const EdgeInsets.all(12),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (_, i) => _line(items[i]),
+            ),
+          ),
+        ),
+        _footer(cart),
+      ]);
+    }
 
-Future<void> _updateQuantity(
-int itemId,
-double quantity,
-) async {
-if (_updating) return;
-
-setState(() => _updating = true);
-
-try {
-await ApiService.instance.updateCartItem(
-itemId,
-{'quantity': quantity},
-);
-
-if (!mounted) return;
-
-await _loadCart(showLoader: false);
-_showMessage('Cart updated.');
-} on ApiException catch (e) {
-if (mounted) _showMessage(e.message);
-} catch (_) {
-if (mounted) {
-_showMessage('Unable to update the cart. Please try again.');
-}
-} finally {
-if (mounted) {
-setState(() => _updating = false);
-}
-}
-}
-
-Future<void> _removeItem(int itemId) async {
-if (_updating) return;
-
-setState(() => _updating = true);
-
-try {
-await ApiService.instance.removeCartItem(itemId);
-
-if (!mounted) return;
-
-await _loadCart(showLoader: false);
-_showMessage('Item removed from your cart.');
-} on ApiException catch (e) {
-if (mounted) _showMessage(e.message);
-} catch (_) {
-if (mounted) {
-_showMessage('Unable to remove the item. Please try again.');
-}
-} finally {
-if (mounted) {
-setState(() => _updating = false);
-}
-}
-}
-
-Future<void> _confirmRemove(int itemId) async {
-final confirmed = await showDialog<bool>(
-context: context,
-builder: (dialogContext) => AlertDialog(
-title: const Text('Remove item?'),
-content: const Text(
-'Do you want to remove this item from your cart?',
-),
-actions: [
-TextButton(
-onPressed: () => Navigator.pop(dialogContext, false),
-child: const Text('Cancel'),
-),
-FilledButton(
-onPressed: () => Navigator.pop(dialogContext, true),
-child: const Text('Remove'),
-),
-],
-),
-);
-
-if (confirmed == true && mounted) {
-await _removeItem(itemId);
-}
-}
-
-void _showMessage(String message) {
-if (!mounted) return;
-
-ScaffoldMessenger.of(context)
-..hideCurrentSnackBar()
-..showSnackBar(
-SnackBar(content: Text(message)),
-);
-}
-
-Widget _buildCartItem(Map<String, dynamic> item) {
-final theme = Theme.of(context);
-final itemId = _readInt(item['id']);
-final variantId = _readInt(item['variant_id']);
-final quantity = double.tryParse(
-item['quantity'].toString(),
-) ??
-1;
-
-return Card(
-margin: EdgeInsets.zero,
-child: Padding(
-padding: const EdgeInsets.all(16),
-child: Row(
-crossAxisAlignment: CrossAxisAlignment.start,
-children: [
-Container(
-width: 64,
-height: 64,
-decoration: BoxDecoration(
-color: theme.colorScheme.surfaceContainerHighest,
-borderRadius: BorderRadius.circular(12),
-),
-child: Icon(
-Icons.shopping_bag_outlined,
-size: 30,
-color: theme.colorScheme.primary,
-),
-),
-const SizedBox(width: 12),
-Expanded(
-child: Column(
-crossAxisAlignment: CrossAxisAlignment.start,
-children: [
-Text(
-variantId == null
-? 'Product variant'
-    : 'Product variant #$variantId',
-style: theme.textTheme.titleMedium,
-),
-const SizedBox(height: 4),
-Text(
-'Item ID: ${itemId ?? 'Unknown'}',
-style: theme.textTheme.bodySmall,
-),
-const SizedBox(height: 12),
-Row(
-children: [
-IconButton(
-tooltip: 'Decrease quantity',
-onPressed: _updating || itemId == null
-? null
-    : () => _changeQuantity(item, -1),
-icon: const Icon(Icons.remove_circle_outline),
-),
-Text(
-_formatQuantity(item['quantity'] ?? 1),
-style: theme.textTheme.titleMedium,
-),
-IconButton(
-tooltip: 'Increase quantity',
-onPressed: _updating || itemId == null
-? null
-    : () => _changeQuantity(item, 1),
-icon: const Icon(Icons.add_circle_outline),
-),
-const Spacer(),
-IconButton(
-tooltip: 'Remove item',
-onPressed: _updating || itemId == null
-? null
-    : () => _confirmRemove(itemId),
-icon: const Icon(Icons.delete_outline),
-),
-],
-),
-],
-),
-),
-],
-),
-),
-);
-}
-
-Widget _buildEmptyCart() {
-final theme = Theme.of(context);
-
-return RefreshIndicator(
-onRefresh: _loadCart,
-child: ListView(
-physics: const AlwaysScrollableScrollPhysics(),
-children: [
-const SizedBox(height: 100),
-Icon(
-Icons.shopping_cart_outlined,
-size: 76,
-color: theme.colorScheme.outline,
-),
-const SizedBox(height: 20),
-Text(
-'Your cart is empty',
-textAlign: TextAlign.center,
-style: theme.textTheme.headlineSmall,
-),
-const SizedBox(height: 8),
-Text(
-'Explore our products and add your favourites.',
-textAlign: TextAlign.center,
-style: theme.textTheme.bodyMedium,
-),
-const SizedBox(height: 20),
-Center(
-child: OutlinedButton.icon(
-onPressed: () {
-// Products is tab index 1 in the current app navigation.
-Navigator.of(context).popUntil((route) => route.isFirst);
-},
-icon: const Icon(Icons.storefront_outlined),
-label: const Text('Continue shopping'),
-),
-),
-],
-),
-);
-}
-
-Widget _buildCart() {
-return RefreshIndicator(
-onRefresh: _loadCart,
-child: ListView(
-physics: const AlwaysScrollableScrollPhysics(),
-padding: const EdgeInsets.all(16),
-children: [
-Text(
-'Your items',
-style: Theme.of(context).textTheme.titleLarge,
-),
-const SizedBox(height: 12),
-..._items.map(
-(item) => Padding(
-padding: const EdgeInsets.only(bottom: 12),
-child: _buildCartItem(item),
-),
-),
-const SizedBox(height: 8),
-Card(
-child: Padding(
-padding: const EdgeInsets.all(16),
-child: Column(
-crossAxisAlignment: CrossAxisAlignment.start,
-children: [
-Text(
-'Order summary',
-style: Theme.of(context).textTheme.titleLarge,
-),
-const SizedBox(height: 12),
-Row(
-children: [
-const Expanded(child: Text('Items')),
-Text('${_items.length}'),
-],
-),
-const SizedBox(height: 8),
-Row(
-children: [
-const Expanded(child: Text('Currency')),
-Text(_currency),
-],
-),
-const Divider(height: 24),
-Text(
-'Prices and the total will be shown when product pricing '
-'is available from the backend.',
-style: Theme.of(context).textTheme.bodySmall,
-),
-],
-),
-),
-),
-if (_updating) ...[
-const SizedBox(height: 16),
-const Center(child: CircularProgressIndicator()),
-],
-],
-),
-);
-}
-
-@override
-Widget build(BuildContext context) {
-Widget body;
-
-if (_loading) {
-body = const Center(
-child: CircularProgressIndicator(),
-);
-} else if (_error != null) {
-body = Center(
-child: Padding(
-padding: const EdgeInsets.all(24),
-child: Column(
-mainAxisSize: MainAxisSize.min,
-children: [
-const Icon(Icons.error_outline, size: 44),
-const SizedBox(height: 12),
-Text(
-_error!,
-textAlign: TextAlign.center,
-),
-const SizedBox(height: 12),
-FilledButton.icon(
-onPressed: _loadCart,
-icon: const Icon(Icons.refresh),
-label: const Text('Retry'),
-),
-],
-),
-),
-);
-} else if (_items.isEmpty) {
-body = _buildEmptyCart();
-} else {
-body = _buildCart();
-}
-
-return Scaffold(
-appBar: AppTopBar(user: widget.user),
-body: body,
-bottomNavigationBar: AppBottomBar(
-currentIndex: 1,
-user: widget.user,
-),
-);
-}
+    return Scaffold(
+      appBar: AppTopBar(user: widget.user),
+      body: body,
+      bottomNavigationBar: AppBottomBar(currentIndex: 3, user: widget.user),
+    );
+  }
 }

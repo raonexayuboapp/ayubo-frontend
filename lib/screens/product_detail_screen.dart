@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
+import '../services/cart_state.dart';
 import '../utils/money.dart';
-import '../widgets/product_image.dart';
 import '../widgets/favourite_button.dart';
+import '../widgets/product_image.dart';
+import '../widgets/quantity_stepper.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final int productId;
@@ -15,17 +17,25 @@ class ProductDetailScreen extends StatefulWidget {
 }
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
+  /// Largest quantity per order, by product type. The server enforces the same limits: this only keeps the
+  /// stepper honest. A type that is missing here (courses) cannot be bought in the app yet.
+  static const _maxByType = {'physical': 99, 'gift_voucher': 10, 'service': 10, 'membership': 1};
+
   Map<String, dynamic>? _product;
   bool _loading = true;
   String? _error;
   int _variant = 0;
-  bool? _favourite;
+  int _quantity = 1;
+  bool? _favourite; // null until the product has loaded
+  bool _adding = false;
 
   @override
   void initState() {
     super.initState();
     _load();
   }
+
+  void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
   Future<void> _load() async {
     setState(() {
@@ -49,13 +59,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
   }
 
-  String _num(num n) => n == n.roundToDouble() ? '${n.toInt()}' : '$n';
+  Future<void> _addToCart(int variantId) async {
+    if (_adding) return; // ignore a second tap while the first is still being sent
+
+    setState(() => _adding = true);
+    try {
+      await ApiService.instance.addToCart(variantId, _quantity);
+      if (!mounted) return;
+      final count = CartState.instance.count.value;
+      _snack('Added to your cart. You have $count item${count == 1 ? '' : 's'} in your cart.');
+    } on ApiException catch (e) {
+      if (mounted) _snack(e.message); // for example "Only 5 available."
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
 
   /// "100 g", or the SKU when the variant has no pack size.
   String _variantLabel(Map<String, dynamic> v) {
     final pack = v['pack_quantity'] as num?;
     if (pack == null) return v['sku'] as String;
-    return '${_num(pack)} ${(v['unit'] as String?) ?? ''}'.trim();
+    return '${formatQuantity(pack)} ${(v['unit'] as String?) ?? ''}'.trim();
   }
 
   Widget _section(String title, String? text) {
@@ -68,6 +92,42 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         Text(text),
       ]),
     );
+  }
+
+  Widget _cartRow(String type, Map<String, dynamic>? v, bool inStock) {
+    final maxQty = _maxByType[type];
+
+    if (maxQty == null) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const FilledButton(onPressed: null, child: Text('Book on our website')),
+        const SizedBox(height: 8),
+        Text('This item cannot be bought in the app yet.', style: Theme.of(context).textTheme.bodySmall),
+      ]);
+    }
+
+    final variantId = v?['id'] as int?;
+    final canAdd = variantId != null && inStock && !_adding;
+
+    return Row(children: [
+      if (maxQty > 1) ...[
+        QuantityStepper(
+          value: _quantity,
+          max: maxQty,
+          enabled: !_adding,
+          onChanged: (q) => setState(() => _quantity = q),
+        ),
+        const SizedBox(width: 8),
+      ],
+      Expanded(
+        child: FilledButton.icon(
+          onPressed: canAdd ? () => _addToCart(variantId) : null,
+          icon: _adding
+              ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.add_shopping_cart),
+          label: Text(variantId != null && !inStock ? 'Out of stock' : 'Add to cart'),
+        ),
+      ),
+    ]);
   }
 
   Widget _body() {
@@ -84,6 +144,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     final p = _product!;
     final theme = Theme.of(context);
+    final type = p['product_type'] as String;
     final variants = (p['variants'] as List<dynamic>).cast<Map<String, dynamic>>();
     final images = (p['images'] as List<dynamic>).cast<Map<String, dynamic>>();
     final categories = (p['categories'] as List<dynamic>).cast<Map<String, dynamic>>();
@@ -117,15 +178,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ChoiceChip(
                 label: Text(_variantLabel(variants[i])),
                 selected: i == _variant,
-                onSelected: (_) => setState(() => _variant = i),
+                onSelected: (_) => setState(() {
+                  _variant = i;
+                  _quantity = 1;
+                }),
               ),
           ]),
         ],
-        const SizedBox(height: 8),
-        Text(
-          inStock ? 'In stock' : 'Out of stock',
-          style: TextStyle(color: inStock ? Colors.green.shade700 : theme.colorScheme.error),
-        ),
+        if (type == 'physical') ...[
+          const SizedBox(height: 8),
+          Text(
+            inStock ? 'In stock' : 'Out of stock',
+            style: TextStyle(color: inStock ? Colors.green.shade700 : theme.colorScheme.error),
+          ),
+        ],
         _section('Description', p['description'] as String?),
         _section('Ingredients', p['ingredients'] as String?),
         _section('Allergens', p['allergens'] as String?),
@@ -137,14 +203,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ]),
         ],
         const SizedBox(height: 24),
-        // Stays disabled until the cart is rewritten for product variants.
-        FilledButton.icon(
-          onPressed: null,
-          icon: const Icon(Icons.add_shopping_cart),
-          label: const Text('Add to cart'),
-        ),
-        const SizedBox(height: 8),
-        Text('Cart for products arrives with the next update.', style: theme.textTheme.bodySmall),
+        _cartRow(type, v, inStock),
       ],
     );
   }

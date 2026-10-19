@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'cart_state.dart';
 
 class ApiException implements Exception {
 final String message;
@@ -160,6 +161,7 @@ Future<void> deleteAccount(String password) async {
 await _send('DELETE', '/api/profile',
 auth: true, body: {'password': password});
 await _storage.delete(key: _tokenKey);
+CartState.instance.clear();
 }
 
 Future<List<Map<String, dynamic>>> listAddresses() async {
@@ -202,7 +204,8 @@ await _send('POST', '/api/auth/logout', auth: true);
 } on ApiException {
 // Even if the server call fails, forget the token locally.
 } finally {
-await _storage.delete(key: _tokenKey);
+  await _storage.delete(key: _tokenKey);
+  CartState.instance.clear();
 }
 }
 
@@ -247,77 +250,39 @@ await _send('PATCH', '/api/admin/membership-plans/$id',
 auth: true, body: body);
 }
 
-Future<List<Map<String, dynamic>>> listMembershipPlans() async {
-final res = await _send('GET', '/api/membership-plans', auth: true);
-final list =
-(res['data'] as Map<String, dynamic>)['plans'] as List<dynamic>;
-return list.cast<Map<String, dynamic>>();
-}
+  // ---------- cart ----------
 
-Future<void> addPlanToCart(int planId, {int quantity = 1}) async {
-await _send('POST', '/api/cart/items',
-auth: true, body: {'plan_id': planId, 'quantity': quantity});
-}
+  Future<Map<String, dynamic>> getCart() async {
+    return _cart(await _send('GET', '/api/cart', auth: true));
+  }
 
-Future<Map<String, dynamic>> getCart() async {
-final res = await _send(
-'GET',
-'/api/cart',
-auth: true,
-);
+  Future<Map<String, dynamic>> addToCart(int variantId, int quantity) async {
+    return _cart(await _send('POST', '/api/cart/items',
+        auth: true, body: {'variant_id': variantId, 'quantity': quantity}));
+  }
 
-return Map<String, dynamic>.from(
-res['data'] as Map,
-);
-}
+  Future<Map<String, dynamic>> setCartQuantity(int itemId, int quantity) async {
+    return _cart(await _send('PATCH', '/api/cart/items/$itemId', auth: true, body: {'quantity': quantity}));
+  }
 
-Future<Map<String, dynamic>> updateCartItem(
-int id,
-Map<String, dynamic> body,
-) async {
-final res = await _send(
-'PATCH',
-'/api/cart/items/$id',
-auth: true,
-body: body,
-);
+  Future<Map<String, dynamic>> removeCartItem(int itemId) async {
+    return _cart(await _send('DELETE', '/api/cart/items/$itemId', auth: true));
+  }
 
-return Map<String, dynamic>.from(
-res['data'] as Map,
-);
-}
+  /// Every cart answer is the WHOLE cart. The badge is updated here, so no screen can forget to.
+  Map<String, dynamic> _cart(Map<String, dynamic> res) {
+    final cart = (res['data'] as Map<String, dynamic>)['cart'] as Map<String, dynamic>;
+    CartState.instance.update(cart);
+    return cart;
+  }
 
-Future<Map<String, dynamic>> removeCartItem(int id) async {
-final res = await _send(
-'DELETE',
-'/api/cart/items/$id',
-auth: true,
-);
+  // ---------- memberships ----------
 
-return Map<String, dynamic>.from(
-res['data'] as Map,
-);
-}
-
-Future<Map<String, dynamic>> addCartItem({
-required int variantId,
-num quantity = 1,
-}) async {
-final res = await _send(
-'POST',
-'/api/cart/items',
-auth: true,
-body: {
-'variant_id': variantId,
-'quantity': quantity,
-},
-);
-
-return Map<String, dynamic>.from(
-res['data'] as Map,
-);
-}
-
+  /// {plans: [...], membership: {...} or null}
+  Future<Map<String, dynamic>> membershipPlans() async {
+    final res = await _send('GET', '/api/membership-plans', auth: true);
+    return res['data'] as Map<String, dynamic>;
+  }
 // ---------- products (customer) ----------
 
 Future<Map<String, dynamic>> listProducts({
