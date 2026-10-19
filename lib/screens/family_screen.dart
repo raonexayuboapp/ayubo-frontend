@@ -1,279 +1,200 @@
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
+import '../utils/money.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/app_top_bar.dart';
-import 'plan_detail_screen.dart';
 
-/// The Family tab: displays available membership plans.
-/// Details and "Add to cart" are handled by PlanDetailScreen.
 class FamilyScreen extends StatefulWidget {
-final Map<String, dynamic> user;
+  final Map<String, dynamic> user;
+  const FamilyScreen({super.key, required this.user});
 
-const FamilyScreen({
-super.key,
-required this.user,
-});
-
-@override
-State<FamilyScreen> createState() => _FamilyScreenState();
+  @override
+  State<FamilyScreen> createState() => _FamilyScreenState();
 }
 
 class _FamilyScreenState extends State<FamilyScreen> {
-List<Map<String, dynamic>> _plans = [];
-bool _loading = true;
-String? _error;
+  // ASSUMPTION, the same as on the server: a member whose status is one of these cannot join again.
+  // Confirm the status words with the supervisor. Any other status (for example when the credit ran out)
+  // lets the customer join again.
+  static const _blockingStatuses = {'active', 'suspended'};
 
-@override
-void initState() {
-super.initState();
-_load();
-}
+  Map<String, dynamic>? _data;
+  bool _loading = true;
+  String? _error;
+  final Set<int> _joining = {}; // variant ids with a request in flight
 
-Future<void> _load() async {
-if (mounted) {
-setState(() {
-_loading = true;
-_error = null;
-});
-}
+  List<Map<String, dynamic>> get _plans => ((_data?['plans'] as List<dynamic>?) ?? const []).cast<Map<String, dynamic>>();
 
-try {
-final plans = await ApiService.instance.listMembershipPlans();
+  Map<String, dynamic>? get _membership => _data?['membership'] as Map<String, dynamic>?;
 
-if (!mounted) return;
+  bool get _cannotJoin => _membership != null && _blockingStatuses.contains(_membership!['status']);
 
-setState(() {
-_plans = plans;
-_loading = false;
-});
-} on ApiException catch (e) {
-if (!mounted) return;
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
 
-setState(() {
-_error = e.message;
-_loading = false;
-});
-} catch (_) {
-if (!mounted) return;
+  void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
-setState(() {
-_error = 'Unable to load membership plans. Please try again.';
-_loading = false;
-});
-}
-}
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final data = await ApiService.instance.membershipPlans();
+      if (!mounted) return;
+      setState(() {
+        _data = data;
+        _loading = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        if (_data == null) _error = e.message;
+      });
+      if (_data != null) _snack(e.message);
+    }
+  }
 
-int? _readId(dynamic value) {
-if (value is int && value > 0) return value;
-if (value is String) return int.tryParse(value);
-return null;
-}
+  Future<void> _join(Map<String, dynamic> plan) async {
+    final variantId = plan['variant_id'] as int;
+    if (_joining.contains(variantId)) return;
 
-String _readString(dynamic value, {String fallback = ''}) {
-if (value is String) return value.trim();
-return fallback;
-}
+    setState(() => _joining.add(variantId));
+    try {
+      await ApiService.instance.addToCart(variantId, 1);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(SnackBar(
+          content: Text('"${plan['name']}" added to your cart.'),
+          action: SnackBarAction(
+            label: 'View cart',
+            onPressed: () {
+              if (mounted) AppBottomBar.open(context, 3, widget.user);
+            },
+          ),
+        ));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      _snack(e.message);
+      _load(); // the membership may have changed (for example the customer joined on the website)
+    } finally {
+      if (mounted) setState(() => _joining.remove(variantId));
+    }
+  }
 
-bool _isActive(dynamic value) {
-if (value == true || value == 1) return true;
-if (value is String) {
-return value == '1' ||
-value.toLowerCase() == 'true';
-}
-return false;
-}
+  Widget _banner() {
+    final m = _membership;
+    if (m == null) return const SizedBox.shrink();
 
-List<Map<String, dynamic>> _readBenefits(dynamic value) {
-if (value is! List) return [];
+    final (icon, text) = switch (m['status'] as String) {
+      'active' => (
+      Icons.verified_outlined,
+      'You are an Ayubo Family member (${m['plan_name']}).\nMember number ${m['member_number']}'
+      ),
+      'suspended' => (Icons.pause_circle_outline, 'Your membership is suspended. Please contact support.'),
+      _ => (Icons.info_outline, 'Your membership is not active. You can join again below.'),
+    };
 
-return value
-    .whereType<Map>()
-    .map((benefit) => Map<String, dynamic>.from(benefit))
-    .toList();
-}
+    return Card(child: ListTile(leading: Icon(icon), title: Text(text)));
+  }
 
-Widget _planCard(Map<String, dynamic> plan) {
-final theme = Theme.of(context);
-final name = _readString(
-plan['name'],
-fallback: 'Membership plan',
-);
-final code = _readString(plan['code']);
-final description = _readString(plan['description']);
-final active = _isActive(plan['active']);
-final benefits = _readBenefits(plan['benefits']);
+  Widget _planCard(Map<String, dynamic> p) {
+    final theme = Theme.of(context);
+    final description = p['description'] as String?;
+    final benefits = (p['benefits'] as List<dynamic>).cast<Map<String, dynamic>>();
+    final busy = _joining.contains(p['variant_id'] as int);
+    final price = formatCents(p['price_cents'] as int);
 
-return Card(
-clipBehavior: Clip.antiAlias,
-child: InkWell(
-onTap: () {
-Navigator.push(
-context,
-MaterialPageRoute<void>(
-builder: (_) => PlanDetailScreen(plan: plan),
-),
-);
-},
-child: Padding(
-padding: const EdgeInsets.all(16),
-child: Column(
-crossAxisAlignment: CrossAxisAlignment.start,
-children: [
-Row(
-crossAxisAlignment: CrossAxisAlignment.start,
-children: [
-Expanded(
-child: Text(
-name,
-style: theme.textTheme.titleLarge,
-),
-),
-const SizedBox(width: 8),
-Chip(
-label: Text(active ? 'ACTIVE' : 'INACTIVE'),
-visualDensity: VisualDensity.compact,
-),
-],
-),
-if (code.isNotEmpty) ...[
-const SizedBox(height: 4),
-Text(
-code,
-style: theme.textTheme.bodySmall,
-),
-],
-if (description.isNotEmpty) ...[
-const SizedBox(height: 8),
-Text(description),
-],
-if (benefits.isNotEmpty) ...[
-const SizedBox(height: 12),
-Text(
-'Benefits',
-style: theme.textTheme.titleSmall,
-),
-const SizedBox(height: 4),
-...benefits.take(3).map((benefit) {
-final benefitDescription = _readString(
-benefit['description'],
-fallback: _readString(
-benefit['benefit_code'],
-fallback: 'Membership benefit',
-),
-);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(p['name'] as String, style: theme.textTheme.titleLarge),
+          const SizedBox(height: 4),
+          Text(price, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          Text('incl. VAT', style: theme.textTheme.bodySmall),
+          if (description != null && description.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(description),
+          ],
+          if (benefits.isNotEmpty) ...[
+            const Divider(height: 24),
+            Text('Benefits', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 4),
+            for (final b in benefits)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Icon(Icons.check_circle_outline, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(b['description'] as String)),
+                ]),
+              ),
+          ],
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _cannotJoin || busy ? null : () => _join(p),
+              icon: busy
+                  ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.add_shopping_cart),
+              label: Text('Join for $price'),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
 
-return Padding(
-padding: const EdgeInsets.only(bottom: 4),
-child: Row(
-crossAxisAlignment: CrossAxisAlignment.start,
-children: [
-Icon(
-Icons.check_circle_outline,
-size: 18,
-color: theme.colorScheme.primary,
-),
-const SizedBox(width: 8),
-Expanded(child: Text(benefitDescription)),
-],
-),
-);
-}),
-if (benefits.length > 3)
-Text(
-'+ ${benefits.length - 3} more benefits',
-style: theme.textTheme.bodySmall,
-),
-],
-const SizedBox(height: 12),
-Row(
-mainAxisAlignment: MainAxisAlignment.end,
-children: [
-Text(
-'View details',
-style: TextStyle(
-color: theme.colorScheme.primary,
-),
-),
-Icon(
-Icons.chevron_right,
-color: theme.colorScheme.primary,
-),
-],
-),
-],
-),
-),
-),
-);
-}
+  @override
+  Widget build(BuildContext context) {
+    Widget body;
 
-@override
-Widget build(BuildContext context) {
-Widget body;
+    if (_loading && _data == null) {
+      body = const Center(child: CircularProgressIndicator());
+    } else if (_error != null && _data == null) {
+      body = Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(_error!),
+          TextButton(onPressed: _load, child: const Text('Retry')),
+        ]),
+      );
+    } else {
+      final plans = _plans;
+      body = RefreshIndicator(
+        onRefresh: _load,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _banner(),
+            if (plans.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(32),
+                child: Center(child: Text('No membership is available right now.')),
+              ),
+            for (final p in plans)
+              Padding(padding: const EdgeInsets.only(top: 12), child: _planCard(p)),
+            const SizedBox(height: 12),
+            Text(
+              'Your membership starts when your order is paid. The credit and discounts are shown here once it is active.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      );
+    }
 
-if (_loading) {
-body = const Center(
-child: CircularProgressIndicator(),
-);
-} else if (_error != null) {
-body = Center(
-child: Padding(
-padding: const EdgeInsets.all(24),
-child: Column(
-mainAxisSize: MainAxisSize.min,
-children: [
-const Icon(Icons.error_outline, size: 40),
-const SizedBox(height: 12),
-Text(
-_error!,
-textAlign: TextAlign.center,
-),
-const SizedBox(height: 12),
-TextButton(
-onPressed: _load,
-child: const Text('Retry'),
-),
-],
-),
-),
-);
-} else if (_plans.isEmpty) {
-body = RefreshIndicator(
-onRefresh: _load,
-child: ListView(
-physics: const AlwaysScrollableScrollPhysics(),
-children: const [
-SizedBox(height: 180),
-Center(
-child: Text(
-'No membership plans available right now.',
-),
-),
-],
-),
-);
-} else {
-body = RefreshIndicator(
-onRefresh: _load,
-child: ListView.separated(
-physics: const AlwaysScrollableScrollPhysics(),
-padding: const EdgeInsets.all(16),
-itemCount: _plans.length,
-separatorBuilder: (_, __) =>
-const SizedBox(height: 12),
-itemBuilder: (_, index) => _planCard(_plans[index]),
-),
-);
-}
-
-return Scaffold(
-appBar: AppTopBar(user: widget.user),
-body: body,
-bottomNavigationBar: AppBottomBar(
-currentIndex: 2,
-user: widget.user,
-),
-);
-}
+    return Scaffold(
+      appBar: AppTopBar(user: widget.user),
+      body: body,
+      bottomNavigationBar: AppBottomBar(currentIndex: 2, user: widget.user),
+    );
+  }
 }
