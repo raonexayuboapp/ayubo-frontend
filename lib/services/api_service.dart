@@ -283,6 +283,27 @@ auth: true, body: body);
     final res = await _send('GET', '/api/membership-plans', auth: true);
     return res['data'] as Map<String, dynamic>;
   }
+
+  // ---------- admin: membership plans ----------
+
+  Future<List<Map<String, dynamic>>> adminMembershipPlans() async {
+    final res = await _send('GET', '/api/admin/membership-plans', auth: true);
+    final list = (res['data'] as Map<String, dynamic>)['plans'] as List<dynamic>;
+    return list.cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> adminMembershipPlan(int id) async {
+    final res = await _send('GET', '/api/admin/membership-plans/$id', auth: true);
+    return (res['data'] as Map<String, dynamic>)['plan'] as Map<String, dynamic>;
+  }
+
+  Future<void> adminCreateMembershipPlan(Map<String, dynamic> body) async {
+    await _send('POST', '/api/admin/membership-plans', auth: true, body: body);
+  }
+
+  Future<void> adminUpdateMembershipPlan(int id, Map<String, dynamic> body) async {
+    await _send('PATCH', '/api/admin/membership-plans/$id', auth: true, body: body);
+  }
 // ---------- products (customer) ----------
 
 Future<Map<String, dynamic>> listProducts({
