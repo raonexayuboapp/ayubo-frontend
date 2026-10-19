@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'admin_categories_screen.dart';
-import 'admin_plans_screen.dart';
+import 'admin_membership_plans_screen.dart';
 import 'admin_products_screen.dart';
 import 'admin_tax_rates_screen.dart';
 import 'admin_users_screen.dart';
@@ -29,7 +29,7 @@ class AdminMenuScreen extends StatelessWidget {
           _entry(context, Icons.inventory_2_outlined, 'Products', const AdminProductsScreen()),
           _entry(context, Icons.category_outlined, 'Categories', const AdminCategoriesScreen()),
           _entry(context, Icons.percent, 'Tax rates', const AdminTaxRatesScreen()),
-          _entry(context, Icons.card_membership_outlined, 'Membership plans', const AdminPlansScreen()),
+          _entry(context, Icons.card_membership_outlined, 'Membership plans', const AdminMembershipPlansScreen()),
         ],
       ),
     );

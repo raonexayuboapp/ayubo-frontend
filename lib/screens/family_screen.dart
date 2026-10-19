@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../utils/money.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/app_top_bar.dart';
+import 'membership_plan_screen.dart';
 
 class FamilyScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -14,29 +15,20 @@ class FamilyScreen extends StatefulWidget {
 }
 
 class _FamilyScreenState extends State<FamilyScreen> {
-  // ASSUMPTION, the same as on the server: a member whose status is one of these cannot join again.
-  // Confirm the status words with the supervisor. Any other status (for example when the credit ran out)
-  // lets the customer join again.
-  static const _blockingStatuses = {'active', 'suspended'};
-
   Map<String, dynamic>? _data;
   bool _loading = true;
   String? _error;
-  final Set<int> _joining = {}; // variant ids with a request in flight
 
-  List<Map<String, dynamic>> get _plans => ((_data?['plans'] as List<dynamic>?) ?? const []).cast<Map<String, dynamic>>();
+  List<Map<String, dynamic>> get _plans =>
+      ((_data?['plans'] as List<dynamic>?) ?? const []).cast<Map<String, dynamic>>();
 
   Map<String, dynamic>? get _membership => _data?['membership'] as Map<String, dynamic>?;
-
-  bool get _cannotJoin => _membership != null && _blockingStatuses.contains(_membership!['status']);
 
   @override
   void initState() {
     super.initState();
     _load();
   }
-
-  void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
   Future<void> _load() async {
     setState(() {
@@ -56,36 +48,28 @@ class _FamilyScreenState extends State<FamilyScreen> {
         _loading = false;
         if (_data == null) _error = e.message;
       });
-      if (_data != null) _snack(e.message);
+      if (_data != null) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
-  Future<void> _join(Map<String, dynamic> plan) async {
-    final variantId = plan['variant_id'] as int;
-    if (_joining.contains(variantId)) return;
+  Future<void> _open(Map<String, dynamic> plan) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MembershipPlanScreen(plan: plan, membership: _membership, user: widget.user),
+      ),
+    );
+    if (mounted) _load(); // the membership may have changed on the way (for example it was bought on the website)
+  }
 
-    setState(() => _joining.add(variantId));
-    try {
-      await ApiService.instance.addToCart(variantId, 1);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..clearSnackBars()
-        ..showSnackBar(SnackBar(
-          content: Text('"${plan['name']}" added to your cart.'),
-          action: SnackBarAction(
-            label: 'View cart',
-            onPressed: () {
-              if (mounted) AppBottomBar.open(context, 3, widget.user);
-            },
-          ),
-        ));
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      _snack(e.message);
-      _load(); // the membership may have changed (for example the customer joined on the website)
-    } finally {
-      if (mounted) setState(() => _joining.remove(variantId));
-    }
+  /// The highest discount among a plan's benefits, or null if none of them has one.
+  num? _topDiscount(Map<String, dynamic> plan) {
+    final discounts = (plan['benefits'] as List<dynamic>)
+        .cast<Map<String, dynamic>>()
+        .map((b) => b['discount_percent'] as num?)
+        .whereType<num>();
+
+    return discounts.isEmpty ? null : discounts.reduce((a, b) => a > b ? a : b);
   }
 
   Widget _banner() {
@@ -107,48 +91,35 @@ class _FamilyScreenState extends State<FamilyScreen> {
   Widget _planCard(Map<String, dynamic> p) {
     final theme = Theme.of(context);
     final description = p['description'] as String?;
-    final benefits = (p['benefits'] as List<dynamic>).cast<Map<String, dynamic>>();
-    final busy = _joining.contains(p['variant_id'] as int);
-    final price = formatCents(p['price_cents'] as int);
+    final top = _topDiscount(p);
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(p['name'] as String, style: theme.textTheme.titleLarge),
-          const SizedBox(height: 4),
-          Text(price, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-          Text('incl. VAT', style: theme.textTheme.bodySmall),
-          if (description != null && description.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(description),
-          ],
-          if (benefits.isNotEmpty) ...[
-            const Divider(height: 24),
-            Text('Benefits', style: theme.textTheme.titleSmall),
+      clipBehavior: Clip.antiAlias, // keeps the tap ripple inside the rounded corners
+      child: InkWell(
+        onTap: () => _open(p),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(p['name'] as String, style: theme.textTheme.titleLarge),
             const SizedBox(height: 4),
-            for (final b in benefits)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Icon(Icons.check_circle_outline, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(b['description'] as String)),
-                ]),
-              ),
-          ],
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: _cannotJoin || busy ? null : () => _join(p),
-              icon: busy
-                  ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.add_shopping_cart),
-              label: Text('Join for $price'),
-            ),
-          ),
-        ]),
+            Text(formatCents(p['price_cents'] as int),
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            Text('incl. VAT', style: theme.textTheme.bodySmall),
+            if (top != null) ...[
+              const SizedBox(height: 8),
+              Text('Member discount up to ${formatPercent(top)}%'),
+            ],
+            if (description != null && description.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(description, maxLines: 2, overflow: TextOverflow.ellipsis),
+            ],
+            const SizedBox(height: 8),
+            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+              Text('View details', style: TextStyle(color: theme.colorScheme.primary)),
+              Icon(Icons.chevron_right, color: theme.colorScheme.primary),
+            ]),
+          ]),
+        ),
       ),
     );
   }
@@ -179,13 +150,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
                 padding: EdgeInsets.all(32),
                 child: Center(child: Text('No membership is available right now.')),
               ),
-            for (final p in plans)
-              Padding(padding: const EdgeInsets.only(top: 12), child: _planCard(p)),
-            const SizedBox(height: 12),
-            Text(
-              'Your membership starts when your order is paid. The credit and discounts are shown here once it is active.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            for (final p in plans) Padding(padding: const EdgeInsets.only(top: 12), child: _planCard(p)),
           ],
         ),
       );

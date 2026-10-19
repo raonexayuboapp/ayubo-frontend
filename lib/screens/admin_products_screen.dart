@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
@@ -46,7 +47,8 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
         status: _status,
         page: _page,
       );
-      final list = (data['products'] as List<dynamic>).cast<Map<String, dynamic>>();
+      final list =
+      (data['products'] as List<dynamic>).cast<Map<String, dynamic>>();
       if (!mounted) return;
       setState(() {
         _products = reset ? list : [..._products, ...list];
@@ -65,7 +67,9 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
   Future<void> _openForm([int? productId]) async {
     final saved = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder: (_) => AdminProductFormScreen(productId: productId)),
+      MaterialPageRoute(
+        builder: (_) => AdminProductFormScreen(productId: productId),
+      ),
     );
     if (saved == true) _load(reset: true);
   }
@@ -79,7 +83,10 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
       body = Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Text(_error!),
-          TextButton(onPressed: () => _load(reset: true), child: const Text('Retry')),
+          TextButton(
+            onPressed: () => _load(reset: true),
+            child: const Text('Retry'),
+          ),
         ]),
       );
     } else if (_products.isEmpty) {
@@ -103,11 +110,28 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
           final p = _products[i];
           final price = p['price_cents'] as int?;
           return ListTile(
-            onTap: () => _openForm(p['id'] as int),
+            onTap: () {
+              if (p['product_type'] == 'membership') {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Memberships are managed under Admin, Membership plans.',
+                    ),
+                  ),
+                );
+                return;
+              }
+              _openForm(p['id'] as int);
+            },
             title: Text(p['name'] as String),
-            subtitle: Text('${p['slug']} · ${price == null ? 'no active variant' : formatCents(price)}'
-                ' · ${p['variant_count']} variant(s)'),
-            trailing: Chip(label: Text(p['status'] as String), visualDensity: VisualDensity.compact),
+            subtitle: Text(
+              '${p['slug']} · ${price == null ? 'no active variant' : formatCents(price)}'
+                  ' · ${p['variant_count']} variant(s)',
+            ),
+            trailing: Chip(
+              label: Text(p['status'] as String),
+              visualDensity: VisualDensity.compact,
+            ),
           );
         },
       );
