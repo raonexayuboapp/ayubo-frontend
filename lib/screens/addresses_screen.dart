@@ -1,314 +1,189 @@
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
+import '../utils/countries.dart';
 import 'address_form_screen.dart';
 
 class AddressesScreen extends StatefulWidget {
-const AddressesScreen({super.key});
+  final String defaultRecipient; // prefilled in the form for a new address
+  const AddressesScreen({super.key, this.defaultRecipient = ''});
 
-@override
-State<AddressesScreen> createState() => _AddressesScreenState();
+  @override
+  State<AddressesScreen> createState() => _AddressesScreenState();
 }
 
 class _AddressesScreenState extends State<AddressesScreen> {
-List<Map<String, dynamic>> _items = [];
-bool _loading = true;
-bool _deleting = false;
-String? _error;
+  static const _maxAddresses = 10; // the server enforces the same limit
+  static const _titles = {'shipping': 'Shipping addresses', 'billing': 'Billing addresses'};
 
-@override
-void initState() {
-super.initState();
-_load();
-}
+  List<Map<String, dynamic>> _items = [];
+  bool _loading = true;
+  String? _error;
+  final Set<int> _busy = {};
 
-Future<void> _load() async {
-if (!mounted) return;
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
 
-setState(() {
-_loading = true;
-_error = null;
-});
+  void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
-try {
-final items = await ApiService.instance.listAddresses();
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final items = await ApiService.instance.listAddresses();
+      if (!mounted) return;
+      setState(() {
+        _items = items;
+        _loading = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        if (_items.isEmpty) _error = e.message;
+      });
+      if (_items.isNotEmpty) _snack(e.message);
+    }
+  }
 
-if (!mounted) return;
+  Future<void> _openForm([Map<String, dynamic>? address]) async {
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddressFormScreen(address: address, defaultRecipient: widget.defaultRecipient),
+      ),
+    );
+    if (saved == true) _load();
+  }
 
-setState(() {
-_items = items;
-_loading = false;
-});
-} on ApiException catch (e) {
-if (!mounted) return;
+  Future<void> _delete(Map<String, dynamic> a) async {
+    final id = a['id'] as int;
+    if (_busy.contains(id)) return;
 
-setState(() {
-_error = e.message;
-_loading = false;
-});
-} catch (_) {
-if (!mounted) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete address?'),
+        content: Text('Remove the address for "${a['recipient']}" in ${a['city']}?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (ok != true) return;
 
-setState(() {
-_error = 'Unable to load addresses. Please try again.';
-_loading = false;
-});
-}
-}
+    setState(() => _busy.add(id));
+    try {
+      await ApiService.instance.deleteAddress(id);
+      await _load();
+    } on ApiException catch (e) {
+      if (mounted) _snack(e.message);
+    } finally {
+      if (mounted) setState(() => _busy.remove(id));
+    }
+  }
 
-Future<void> _openForm([Map<String, dynamic>? address]) async {
-final saved = await Navigator.push<bool>(
-context,
-MaterialPageRoute(
-builder: (_) => AddressFormScreen(address: address),
-),
-);
+  String _block(Map<String, dynamic> a) {
+    String? text(String key) {
+      final v = a[key] as String?;
+      return v == null || v.trim().isEmpty ? null : v.trim();
+    }
 
-if (saved == true && mounted) {
-await _load();
-}
-}
+    return [
+      a['recipient'] as String,
+      text('company'),
+      a['street'] as String,
+      text('address_line2'),
+      '${a['postal_code']} ${a['city']}',
+      text('region'),
+      countryName(a['country_code'] as String),
+    ].whereType<String>().join('\n');
+  }
 
-Future<void> _delete(Map<String, dynamic> address) async {
-if (_deleting) return;
+  Widget _card(Map<String, dynamic> a) {
+    final id = a['id'] as int;
 
-final confirmed = await showDialog<bool>(
-context: context,
-builder: (dialogContext) => AlertDialog(
-title: const Text('Delete address?'),
-content: Text(
-'Remove "${address['label'] ?? 'this address'}" '
-'from your saved addresses?',
-),
-actions: [
-TextButton(
-onPressed: () => Navigator.pop(dialogContext, false),
-child: const Text('Cancel'),
-),
-TextButton(
-onPressed: () => Navigator.pop(dialogContext, true),
-child: const Text('Delete'),
-),
-],
-),
-);
+    return Card(
+      key: ValueKey(id),
+      child: ListTile(
+        onTap: () => _openForm(a),
+        title: a['is_default'] == true
+            ? const Align(
+          alignment: Alignment.centerLeft,
+          child: Chip(label: Text('Default'), visualDensity: VisualDensity.compact),
+        )
+            : null,
+        subtitle: Text(_block(a)),
+        isThreeLine: true,
+        trailing: IconButton(
+          icon: const Icon(Icons.delete_outline),
+          tooltip: 'Delete',
+          onPressed: _busy.contains(id) ? null : () => _delete(a),
+        ),
+      ),
+    );
+  }
 
-if (confirmed != true || !mounted) return;
+  Widget _body() {
+    if (_loading && _items.isEmpty) return const Center(child: CircularProgressIndicator());
 
-final rawId = address['id'];
-final int? id = rawId is int
-? rawId
-    : int.tryParse(rawId?.toString() ?? '');
+    if (_error != null) {
+      return Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(_error!),
+          TextButton(onPressed: _load, child: const Text('Retry')),
+        ]),
+      );
+    }
 
-if (id == null || id < 1) {
-ScaffoldMessenger.of(context).showSnackBar(
-const SnackBar(content: Text('Invalid address ID.')),
-);
-return;
-}
+    if (_items.isEmpty) {
+      // A scrollable, so pull-to-refresh still works on an empty list.
+      return RefreshIndicator(
+        onRefresh: _load,
+        child: ListView(children: const [
+          SizedBox(height: 160),
+          Center(child: Text('No saved addresses yet.\nAdd one to check out faster.', textAlign: TextAlign.center)),
+        ]),
+      );
+    }
 
-setState(() {
-_deleting = true;
-});
+    final children = <Widget>[];
+    for (final type in _titles.keys) {
+      final group = _items.where((a) => a['address_type'] == type).toList();
+      if (group.isEmpty) continue;
 
-try {
-await ApiService.instance.deleteAddress(id);
+      children.add(Padding(
+        padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
+        child: Text(_titles[type]!, style: Theme.of(context).textTheme.titleSmall),
+      ));
+      children.addAll(group.map(_card));
+    }
 
-if (!mounted) return;
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(padding: const EdgeInsets.fromLTRB(12, 0, 12, 96), children: children),
+    );
+  }
 
-ScaffoldMessenger.of(context).showSnackBar(
-const SnackBar(content: Text('Address deleted.')),
-);
+  @override
+  Widget build(BuildContext context) {
+    final full = _items.length >= _maxAddresses;
 
-await _load();
-} on ApiException catch (e) {
-if (!mounted) return;
-
-ScaffoldMessenger.of(context).showSnackBar(
-SnackBar(content: Text(e.message)),
-);
-} catch (_) {
-if (!mounted) return;
-
-ScaffoldMessenger.of(context).showSnackBar(
-const SnackBar(
-content: Text('Unable to delete the address. Please try again.'),
-),
-);
-} finally {
-if (mounted) {
-setState(() {
-_deleting = false;
-});
-}
-}
-}
-
-String _textValue(dynamic value) {
-return value?.toString() ?? '';
-}
-
-String _addressSummary(Map<String, dynamic> address) {
-final recipient = _textValue(address['recipient_name']);
-final line1 = _textValue(address['line1']);
-final line2 = _textValue(address['line2']);
-final city = _textValue(address['city']);
-final district = _textValue(address['district']);
-final postalCode = _textValue(address['postal_code']);
-final countryCode = _textValue(address['country_code']);
-
-final lines = <String>[];
-
-if (recipient.isNotEmpty) {
-lines.add(recipient);
-}
-
-if (line1.isNotEmpty) {
-lines.add(line1);
-}
-
-if (line2.isNotEmpty) {
-lines.add(line2);
-}
-
-final locality = [
-city,
-district,
-postalCode,
-].where((part) => part.isNotEmpty).join(', ');
-
-if (locality.isNotEmpty) {
-lines.add(locality);
-}
-
-if (countryCode.isNotEmpty) {
-lines.add(countryCode);
-}
-
-return lines.join('\n');
-}
-
-bool _isDefault(Map<String, dynamic> address) {
-final value = address['is_default'];
-
-return value == true ||
-value == 1 ||
-value?.toString() == '1';
-}
-
-@override
-Widget build(BuildContext context) {
-Widget body;
-
-if (_loading) {
-body = const Center(
-child: CircularProgressIndicator(),
-);
-} else if (_error != null) {
-body = Center(
-child: Padding(
-padding: const EdgeInsets.all(24),
-child: Column(
-mainAxisSize: MainAxisSize.min,
-children: [
-const Icon(
-Icons.error_outline,
-size: 40,
-),
-const SizedBox(height: 12),
-Text(
-_error!,
-textAlign: TextAlign.center,
-),
-const SizedBox(height: 12),
-TextButton(
-onPressed: _load,
-child: const Text('Retry'),
-),
-],
-),
-),
-);
-} else if (_items.isEmpty) {
-body = RefreshIndicator(
-onRefresh: _load,
-child: ListView(
-physics: const AlwaysScrollableScrollPhysics(),
-children: const [
-SizedBox(height: 180),
-Icon(
-Icons.location_on_outlined,
-size: 48,
-),
-SizedBox(height: 12),
-Center(
-child: Text('No saved addresses yet.'),
-),
-],
-),
-);
-} else {
-body = RefreshIndicator(
-onRefresh: _load,
-child: ListView.separated(
-physics: const AlwaysScrollableScrollPhysics(),
-padding: const EdgeInsets.all(16),
-itemCount: _items.length,
-separatorBuilder: (_, __) => const SizedBox(height: 8),
-itemBuilder: (context, index) {
-final address = _items[index];
-final label = _textValue(address['label']);
-final isDefault = _isDefault(address);
-
-return Card(
-child: ListTile(
-onTap: _deleting ? null : () => _openForm(address),
-title: Row(
-children: [
-Expanded(
-child: Text(
-label.isEmpty ? 'Address' : label,
-maxLines: 1,
-overflow: TextOverflow.ellipsis,
-),
-),
-if (isDefault) ...[
-const SizedBox(width: 8),
-const Chip(
-label: Text('Default'),
-visualDensity: VisualDensity.compact,
-),
-],
-],
-),
-subtitle: Padding(
-padding: const EdgeInsets.only(top: 6),
-child: Text(_addressSummary(address)),
-),
-isThreeLine: true,
-trailing: IconButton(
-icon: const Icon(Icons.delete_outline),
-tooltip: 'Delete address',
-onPressed:
-_deleting ? null : () => _delete(address),
-),
-),
-);
-},
-),
-);
-}
-
-return Scaffold(
-appBar: AppBar(
-title: const Text('Saved addresses'),
-),
-body: body,
-floatingActionButton: FloatingActionButton.extended(
-onPressed: _loading || _deleting ? null : () => _openForm(),
-icon: const Icon(Icons.add),
-label: const Text('Add address'),
-),
-);
-}
+    return Scaffold(
+      appBar: AppBar(title: const Text('Saved addresses')),
+      body: _body(),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: full ? null : () => _openForm(),
+        tooltip: full ? 'You can save up to $_maxAddresses addresses' : null,
+        icon: const Icon(Icons.add),
+        label: const Text('Add address'),
+      ),
+    );
+  }
 }

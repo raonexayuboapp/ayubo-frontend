@@ -57,8 +57,10 @@ path,
 data: body,
 options: Options(method: method, headers: headers),
 );
-} on DioException {
-throw ApiException('Cannot reach the server. Check your connection.');
+} on DioException catch (e) {
+  throw ApiException(
+    'Network error: ${e.type} - ${e.message}',
+  );
 }
 
 final code = res.statusCode ?? 0;
