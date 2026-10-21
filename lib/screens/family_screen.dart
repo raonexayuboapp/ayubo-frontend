@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
 import '../utils/money.dart';
+import '../utils/membership_style.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/app_top_bar.dart';
+import '../widgets/benefit_line.dart';
 import 'membership_plan_screen.dart';
 
 class FamilyScreen extends StatefulWidget {
@@ -15,6 +17,8 @@ class FamilyScreen extends StatefulWidget {
 }
 
 class _FamilyScreenState extends State<FamilyScreen> {
+  static const _previewCount = 4; // benefits shown on a card; the detail page shows all of them
+
   Map<String, dynamic>? _data;
   bool _loading = true;
   String? _error;
@@ -52,31 +56,25 @@ class _FamilyScreenState extends State<FamilyScreen> {
     }
   }
 
-  Future<void> _open(Map<String, dynamic> plan) async {
+  Future<void> _open(Map<String, dynamic> plan, Color accent) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => MembershipPlanScreen(plan: plan, membership: _membership, user: widget.user),
+        builder: (_) => MembershipPlanScreen(plan: plan, membership: _membership, user: widget.user, accent: accent),
       ),
     );
     if (mounted) _load(); // the membership may have changed on the way (for example it was bought on the website)
-  }
-
-  /// The highest discount among a plan's benefits, or null if none of them has one.
-  num? _topDiscount(Map<String, dynamic> plan) {
-    final discounts = (plan['benefits'] as List<dynamic>)
-        .cast<Map<String, dynamic>>()
-        .map((b) => b['discount_percent'] as num?)
-        .whereType<num>();
-
-    return discounts.isEmpty ? null : discounts.reduce((a, b) => a > b ? a : b);
   }
 
   Widget _banner() {
     final m = _membership;
     if (m == null) return const SizedBox.shrink();
 
-    final (icon, text) = switch (m['status'] as String) {
+    final theme = Theme.of(context);
+    final status = m['status'] as String;
+    final benefits = ((m['benefits'] as List<dynamic>?) ?? const []).cast<Map<String, dynamic>>();
+
+    final (icon, text) = switch (status) {
       'active' => (
       Icons.verified_outlined,
       'You are an Ayubo Family member (${m['plan_name']}).\nMember number ${m['member_number']}'
@@ -85,33 +83,64 @@ class _FamilyScreenState extends State<FamilyScreen> {
       _ => (Icons.info_outline, 'Your membership is not active. You can join again below.'),
     };
 
-    return Card(child: ListTile(leading: Icon(icon), title: Text(text)));
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(icon),
+            const SizedBox(width: 12),
+            Expanded(child: Text(text)),
+          ]),
+          if (status == 'active' && benefits.isNotEmpty) ...[
+            const Divider(height: 24),
+            Text('Your benefits', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 8),
+            for (final b in benefits)
+              Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: BenefitLine(benefit: b)),
+          ],
+        ]),
+      ),
+    );
   }
 
-  Widget _planCard(Map<String, dynamic> p) {
+  Widget _planCard(Map<String, dynamic> p, int rank) {
     final theme = Theme.of(context);
-    final description = p['description'] as String?;
-    final top = _topDiscount(p);
+    final accent = tierColor(rank);
+    final tagline = p['description'] as String?;
+    final benefits = (p['benefits'] as List<dynamic>).cast<Map<String, dynamic>>();
+    final shown = benefits.take(_previewCount).toList();
+    final more = benefits.length - shown.length;
 
     return Card(
       clipBehavior: Clip.antiAlias, // keeps the tap ripple inside the rounded corners
       child: InkWell(
-        onTap: () => _open(p),
+        onTap: () => _open(p, accent),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(p['name'] as String, style: theme.textTheme.titleLarge),
+            Row(children: [
+              Icon(Icons.circle, size: 14, color: accent),
+              const SizedBox(width: 8),
+              Expanded(child: Text(p['name'] as String, style: theme.textTheme.titleLarge)),
+            ]),
             const SizedBox(height: 4),
             Text(formatCents(p['price_cents'] as int),
                 style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
             Text('incl. VAT', style: theme.textTheme.bodySmall),
-            if (top != null) ...[
+            if (tagline != null && tagline.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text('Member discount up to ${formatPercent(top)}%'),
+              Text(tagline, style: const TextStyle(fontStyle: FontStyle.italic)),
             ],
-            if (description != null && description.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(description, maxLines: 2, overflow: TextOverflow.ellipsis),
+            if (shown.isNotEmpty) ...[
+              const Divider(height: 24),
+              for (final b in shown)
+                Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: BenefitLine(benefit: b, color: accent)),
+              if (more > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, left: 30),
+                  child: Text('+ $more more', style: theme.textTheme.bodySmall),
+                ),
             ],
             const SizedBox(height: 8),
             Row(mainAxisAlignment: MainAxisAlignment.end, children: [
@@ -138,7 +167,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
         ]),
       );
     } else {
-      final plans = _plans;
+      final plans = _plans; // the server sorts them cheapest first, which decides each tier's colour
       body = RefreshIndicator(
         onRefresh: _load,
         child: ListView(
@@ -150,7 +179,8 @@ class _FamilyScreenState extends State<FamilyScreen> {
                 padding: EdgeInsets.all(32),
                 child: Center(child: Text('No membership is available right now.')),
               ),
-            for (final p in plans) Padding(padding: const EdgeInsets.only(top: 12), child: _planCard(p)),
+            for (var i = 0; i < plans.length; i++)
+              Padding(padding: const EdgeInsets.only(top: 12), child: _planCard(plans[i], i)),
           ],
         ),
       );

@@ -4,14 +4,22 @@ import '../services/api_service.dart';
 import '../utils/membership_status.dart';
 import '../utils/money.dart';
 import '../widgets/app_bottom_bar.dart';
+import '../widgets/benefit_line.dart';
 
-/// One plan in full, with its benefits and the Join button (which adds the membership to the cart).
+/// One plan in full, with every benefit and the Join button (which adds the membership to the cart).
 class MembershipPlanScreen extends StatefulWidget {
   final Map<String, dynamic> plan;
   final Map<String, dynamic>? membership; // the customer's own membership, if any
   final Map<String, dynamic> user;
+  final Color accent;
 
-  const MembershipPlanScreen({super.key, required this.plan, required this.membership, required this.user});
+  const MembershipPlanScreen({
+    super.key,
+    required this.plan,
+    required this.membership,
+    required this.user,
+    required this.accent,
+  });
 
   @override
   State<MembershipPlanScreen> createState() => _MembershipPlanScreenState();
@@ -51,7 +59,7 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
   Widget build(BuildContext context) {
     final p = widget.plan;
     final theme = Theme.of(context);
-    final description = p['description'] as String?;
+    final tagline = p['description'] as String?;
     final benefits = (p['benefits'] as List<dynamic>).cast<Map<String, dynamic>>();
     final blocked = joinBlockedMessage(widget.membership);
     final price = formatCents(p['price_cents'] as int);
@@ -61,30 +69,41 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
+          Row(children: [
+            Icon(Icons.circle, size: 18, color: widget.accent),
+            const SizedBox(width: 10),
+            Expanded(child: Text(p['name'] as String, style: theme.textTheme.headlineSmall)),
+          ]),
+          const SizedBox(height: 12),
           Text(price, style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold)),
           Text('incl. VAT', style: theme.textTheme.bodySmall),
-          if (description != null && description.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Text(description),
+          if (tagline != null && tagline.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(tagline, style: theme.textTheme.titleMedium?.copyWith(fontStyle: FontStyle.italic)),
           ],
           const SizedBox(height: 24),
-          Text('Benefits', style: theme.textTheme.titleMedium),
+          Text('What you get', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
-          if (benefits.isEmpty) const Text('No benefits are listed for this membership yet.'),
-          for (final b in benefits)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.check_circle_outline),
-              title: Text(b['description'] as String),
-              trailing: b['discount_percent'] == null
-                  ? null
-                  : Chip(label: Text('${formatPercent(b['discount_percent'] as num)}% off'), visualDensity: VisualDensity.compact),
+          Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: widget.accent, width: 1.5),
             ),
-          const SizedBox(height: 16),
-          Text(
-            'Your membership starts when your order is paid.',
-            style: theme.textTheme.bodySmall,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: benefits.isEmpty
+                  ? const Text('No benefits are listed for this membership yet.')
+                  : Column(children: [
+                for (final b in benefits)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: BenefitLine(benefit: b, color: widget.accent),
+                  ),
+              ]),
+            ),
           ),
+          const SizedBox(height: 16),
+          Text('Your membership starts when your order is paid.', style: theme.textTheme.bodySmall),
           const SizedBox(height: 24),
           FilledButton.icon(
             onPressed: blocked != null || _joining ? null : _join,
