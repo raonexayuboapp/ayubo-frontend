@@ -1,358 +1,231 @@
 import 'package:flutter/material.dart';
 
-import '../../services/api_service.dart';
-import '../../widgets/loading_button.dart';
+import '../services/api_service.dart';
+import '../utils/countries.dart';
+import '../widgets/loading_button.dart';
 
 class AddressFormScreen extends StatefulWidget {
-final Map<String, dynamic>? address;
+  final Map<String, dynamic>? address; // null = add, otherwise edit
+  final String defaultRecipient;
+  const AddressFormScreen({super.key, this.address, this.defaultRecipient = ''});
 
-const AddressFormScreen({
-super.key,
-this.address,
-});
-
-@override
-State<AddressFormScreen> createState() => _AddressFormScreenState();
+  @override
+  State<AddressFormScreen> createState() => _AddressFormScreenState();
 }
 
 class _AddressFormScreenState extends State<AddressFormScreen> {
-final Map<String, TextEditingController> _controllers = {};
+  final _form = GlobalKey<FormState>();
+  final _postalKey = GlobalKey<FormFieldState<String>>();
 
-final Map<String, String> _fields = {
-'label': 'Address label',
-'recipient_name': 'Recipient name',
-'line1': 'Address line 1',
-'line2': 'Address line 2 (optional)',
-'city': 'City',
-'district': 'District / Region',
-'postal_code': 'Postal code',
-};
+  late final _recipient = TextEditingController(
+      text: (widget.address?['recipient'] as String?) ?? widget.defaultRecipient);
+  late final _company = TextEditingController(text: (widget.address?['company'] as String?) ?? '');
+  late final _street = TextEditingController(text: (widget.address?['street'] as String?) ?? '');
+  late final _line2 = TextEditingController(text: (widget.address?['address_line2'] as String?) ?? '');
+  late final _postal = TextEditingController(text: (widget.address?['postal_code'] as String?) ?? '');
+  late final _city = TextEditingController(text: (widget.address?['city'] as String?) ?? '');
+  late final _region = TextEditingController(text: (widget.address?['region'] as String?) ?? '');
 
-final Map<String, int> _maxLen = {
-'label': 20,
-'recipient_name': 190,
-'line1': 190,
-'line2': 190,
-'city': 100,
-'district': 100,
-'postal_code': 20,
-};
+  late String _type = (widget.address?['address_type'] as String?) ?? 'shipping';
+  late final String _originalType = _type;
+  late String _country = (widget.address?['country_code'] as String?) ?? 'DE';
+  late bool _default = widget.address?['is_default'] == true;
+  late final bool _wasDefault = _default;
 
-final List<Map<String, String>> _countries = [
-{'code': 'LK', 'name': 'Sri Lanka'},
-{'code': 'DE', 'name': 'Germany'},
-{'code': 'IN', 'name': 'India'},
-{'code': 'US', 'name': 'United States'},
-{'code': 'GB', 'name': 'United Kingdom'},
-{'code': 'AU', 'name': 'Australia'},
-{'code': 'CA', 'name': 'Canada'},
-{'code': 'FR', 'name': 'France'},
-{'code': 'IT', 'name': 'Italy'},
-{'code': 'JP', 'name': 'Japan'},
-{'code': 'SG', 'name': 'Singapore'},
-{'code': 'AE', 'name': 'United Arab Emirates'},
-];
+  bool _saving = false;
+  String? _error;
+  Map<String, String> _serverErrors = {};
 
-String _countryCode = 'LK';
-bool _default = false;
-bool _saving = false;
+  bool get _editing => widget.address != null;
 
-String? _error;
-final Map<String, String> _fieldErrors = {};
+  @override
+  void dispose() {
+    for (final c in [_recipient, _company, _street, _line2, _postal, _city, _region]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
 
-bool get _isEditing => widget.address != null;
+  // ---------- validation (the server checks everything again) ----------
 
-@override
-void initState() {
-super.initState();
+  String? _vRequired(String? v, int max, String label) {
+    final s = (v ?? '').trim();
+    return s.isEmpty || s.length > max ? '$label must be 1 to $max characters.' : null;
+  }
 
-final address = widget.address;
+  String? _vOptional(String? v, int max) => (v ?? '').trim().length > max ? 'Maximum $max characters.' : null;
 
-for (final key in _fields.keys) {
-_controllers[key] = TextEditingController(
-text: address?[key]?.toString() ?? '',
-);
-}
+  String? _vPostal(String? v) {
+    final s = normalizePostal(v);
+    final country = countryByCode(_country);
+    final ok = s.length <= 20 && (country?.postal ?? genericPostal).hasMatch(s);
 
-final existingCountryCode =
-address?['country_code']?.toString().toUpperCase();
+    if (ok) return null;
+    return country?.example == null
+        ? 'Enter a valid postal code.'
+        : 'Enter a valid postal code, for example ${country!.example}.';
+  }
 
-if (existingCountryCode != null &&
-_countries.any(
-(country) => country['code'] == existingCountryCode,
-)) {
-_countryCode = existingCountryCode;
-}
+  // ---------- save ----------
 
-final defaultValue = address?['is_default'];
+  bool _isFieldKey(String k) => const {
+    'address_type', 'recipient', 'company', 'street', 'address_line2',
+    'postal_code', 'city', 'region', 'country_code', 'is_default',
+  }.contains(k);
 
-_default = defaultValue == true ||
-defaultValue == 1 ||
-defaultValue?.toString() == '1';
-}
+  Future<void> _save() async {
+    setState(() {
+      _error = null;
+      _serverErrors = {};
+    });
+    if (!_form.currentState!.validate()) return;
 
-@override
-void dispose() {
-for (final controller in _controllers.values) {
-controller.dispose();
-}
+    setState(() => _saving = true);
 
-super.dispose();
-}
+    String? orNull(String s) => s.trim().isEmpty ? null : s.trim();
 
-String _fieldLabel(String key) => _fields[key] ?? key;
+    final body = <String, dynamic>{
+      'address_type': _type,
+      'recipient': _recipient.text.trim(),
+      'company': orNull(_company.text),
+      'street': _street.text.trim(),
+      'address_line2': orNull(_line2.text),
+      'postal_code': normalizePostal(_postal.text),
+      'city': _city.text.trim(),
+      'region': orNull(_region.text),
+      'country_code': _country,
+      if (_default) 'is_default': true, // "not default" is never sent: the default moves by choosing another one
+    };
 
-String? _validateField(String key, String value) {
-final trimmed = value.trim();
+    try {
+      if (_editing) {
+        await ApiService.instance.updateAddress(widget.address!['id'] as int, body);
+      } else {
+        await ApiService.instance.createAddress(body);
+      }
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      final errs = e.fieldErrors;
+      final general = errs.entries.where((x) => !_isFieldKey(x.key)).map((x) => x.value).join('\n');
+      setState(() {
+        _serverErrors = errs;
+        _error = errs.isEmpty ? e.message : (general.isEmpty ? null : general);
+        _saving = false;
+      });
+    }
+  }
 
-if (key == 'line2' && trimmed.isEmpty) {
-return null;
-}
+  // ---------- UI ----------
 
-if (trimmed.isEmpty) {
-return '${_fieldLabel(key)} is required.';
-}
+  Widget _text(
+      String serverKey,
+      String label,
+      TextEditingController c,
+      String? Function(String?) validator, {
+        TextInputType? type,
+        Key? fieldKey,
+        TextCapitalization capitalization = TextCapitalization.words,
+      }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        key: fieldKey,
+        controller: c,
+        keyboardType: type,
+        textCapitalization: capitalization,
+        textInputAction: TextInputAction.next,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        validator: validator,
+        forceErrorText: _serverErrors[serverKey],
+        decoration: InputDecoration(labelText: label),
+      ),
+    );
+  }
 
-final maxLength = _maxLen[key];
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final typeChanged = _type != _originalType;
+    final countryItems = [
+      for (final c in countries) DropdownMenuItem<String>(value: c.code, child: Text('${c.name} (${c.code})')),
+      // An address made elsewhere may use a country that is not in our list: keep it selectable.
+      if (countryByCode(_country) == null) DropdownMenuItem<String>(value: _country, child: Text(_country)),
+    ];
 
-if (maxLength != null && trimmed.length > maxLength) {
-return '${_fieldLabel(key)} must not exceed $maxLength characters.';
-}
-
-if (key == 'postal_code' &&
-!RegExp(r'^[A-Za-z0-9 -]{3,20}$').hasMatch(trimmed)) {
-return 'Enter a valid postal code.';
-}
-
-return null;
-}
-
-bool _validateForm() {
-_fieldErrors.clear();
-
-for (final key in _fields.keys) {
-final controller = _controllers[key];
-
-if (controller == null) {
-_fieldErrors[key] = 'Unable to validate this field.';
-continue;
-}
-
-final error = _validateField(key, controller.text);
-
-if (error != null) {
-_fieldErrors[key] = error;
-}
-}
-
-if (!_countries.any(
-(country) => country['code'] == _countryCode,
-)) {
-_fieldErrors['country_code'] = 'Please select a country.';
-}
-
-return _fieldErrors.isEmpty;
-}
-
-Future<void> _save() async {
-if (_saving) return;
-
-FocusScope.of(context).unfocus();
-
-if (!_validateForm()) {
-setState(() {
-_error = 'Please correct the highlighted fields.';
-});
-return;
-}
-
-setState(() {
-_saving = true;
-_error = null;
-_fieldErrors.clear();
-});
-
-final Map<String, dynamic> body = {};
-
-for (final key in _fields.keys) {
-final controller = _controllers[key];
-
-if (controller == null) {
-setState(() {
-_saving = false;
-_error = 'Unable to read the address form.';
-});
-return;
-}
-
-final value = controller.text.trim();
-
-body[key] = key == 'line2' && value.isEmpty ? null : value;
-}
-
-body['country_code'] = _countryCode;
-body['is_default'] = _default;
-
-try {
-if (_isEditing) {
-final id = widget.address?['id'];
-
-if (id == null) {
-throw StateError('Address ID is missing.');
-}
-
-await ApiService.instance.updateAddress(id, body);
-} else {
-await ApiService.instance.createAddress(body);
-}
-
-if (!mounted) return;
-
-Navigator.of(context).pop(true);
-} on ApiException catch (e) {
-if (!mounted) return;
-
-setState(() {
-_error = e.message;
-
-if (e.fieldErrors != null) {
-_fieldErrors.addAll(e.fieldErrors!);
-}
-});
-} catch (_) {
-if (!mounted) return;
-
-setState(() {
-_error = 'Unable to save the address. Please try again.';
-});
-} finally {
-if (mounted) {
-setState(() {
-_saving = false;
-});
-}
-}
-}
-
-@override
-Widget build(BuildContext context) {
-final theme = Theme.of(context);
-
-return Scaffold(
-appBar: AppBar(
-title: Text(_isEditing ? 'Edit address' : 'Add address'),
-),
-body: SafeArea(
-child: ListView(
-padding: const EdgeInsets.all(16),
-children: [
-if (_error != null)
-Container(
-padding: const EdgeInsets.all(12),
-margin: const EdgeInsets.only(bottom: 16),
-decoration: BoxDecoration(
-color: theme.colorScheme.errorContainer,
-borderRadius: BorderRadius.circular(8),
-),
-child: Text(
-_error!,
-style: TextStyle(
-color: theme.colorScheme.onErrorContainer,
-),
-),
-),
-
-..._fields.entries.map((entry) {
-final key = entry.key;
-final label = entry.value;
-final isOptional = key == 'line2';
-
-return Padding(
-padding: const EdgeInsets.only(bottom: 16),
-child: TextFormField(
-controller: _controllers[key],
-enabled: !_saving,
-maxLength: _maxLen[key],
-keyboardType: key == 'postal_code'
-? TextInputType.text
-    : TextInputType.streetAddress,
-textCapitalization: key == 'postal_code'
-? TextCapitalization.characters
-    : TextCapitalization.words,
-decoration: InputDecoration(
-labelText: label,
-border: const OutlineInputBorder(),
-errorText: _fieldErrors[key],
-counterText: '',
-helperText: isOptional ? 'Optional' : null,
-),
-validator: (value) =>
-_validateField(key, value ?? ''),
-onChanged: (_) {
-if (_fieldErrors.containsKey(key) || _error != null) {
-setState(() {
-_fieldErrors.remove(key);
-_error = null;
-});
-}
-},
-),
-);
-}),
-
-Padding(
-padding: const EdgeInsets.only(bottom: 16),
-child: DropdownButtonFormField<String>(
-initialValue: _countryCode,
-isExpanded: true,
-decoration: InputDecoration(
-labelText: 'Country',
-border: const OutlineInputBorder(),
-errorText: _fieldErrors['country_code'],
-),
-items: _countries.map((country) {
-return DropdownMenuItem<String>(
-value: country['code']!,
-child: Text(country['name']!),
-);
-}).toList(),
-onChanged: _saving
-? null
-    : (value) {
-if (value == null) return;
-
-setState(() {
-_countryCode = value;
-_fieldErrors.remove('country_code');
-_error = null;
-});
-},
-),
-),
-
-SwitchListTile(
-contentPadding: EdgeInsets.zero,
-title: const Text('Set as default address'),
-value: _default,
-onChanged: _saving
-? null
-    : (value) {
-setState(() {
-_default = value;
-});
-},
-),
-
-const SizedBox(height: 24),
-
-LoadingButton(
-loading: _saving,
-onPressed: _save,
-label: _isEditing ? 'Save changes' : 'Add address',
-),
-],
-),
-),
-);
-}
+    return Scaffold(
+      appBar: AppBar(title: Text(_editing ? 'Edit address' : 'Add address')),
+      body: Form(
+        key: _form,
+        child: ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'shipping', label: Text('Shipping'), icon: Icon(Icons.local_shipping_outlined)),
+                ButtonSegment(value: 'billing', label: Text('Billing'), icon: Icon(Icons.receipt_long_outlined)),
+              ],
+              selected: {_type},
+              onSelectionChanged: (s) => setState(() {
+                _type = s.first;
+                // A moved address never keeps its default flag: it must be chosen again for the new type.
+                if (_editing) _default = _type == _originalType ? _wasDefault : false;
+              }),
+            ),
+            if (_serverErrors['address_type'] != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(_serverErrors['address_type']!, style: TextStyle(color: theme.colorScheme.error)),
+              ),
+            const SizedBox(height: 20),
+            _text('recipient', 'Recipient', _recipient, (v) => _vRequired(v, 190, 'Recipient')),
+            _text('company', 'Company (optional)', _company, (v) => _vOptional(v, 190)),
+            _text('street', 'Street and house number', _street, (v) => _vRequired(v, 190, 'Street')),
+            _text('address_line2', 'Address line 2 (optional)', _line2, (v) => _vOptional(v, 190)),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(
+                flex: 2,
+                child: _text('postal_code', 'Postal code', _postal, _vPostal,
+                    fieldKey: _postalKey, capitalization: TextCapitalization.characters),
+              ),
+              const SizedBox(width: 12),
+              Expanded(flex: 3, child: _text('city', 'City', _city, (v) => _vRequired(v, 100, 'City'))),
+            ]),
+            _text('region', 'Region (optional)', _region, (v) => _vOptional(v, 100)),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: DropdownButtonFormField<String>(
+                value: _country,
+                isExpanded: true,
+                decoration: InputDecoration(labelText: 'Country', errorText: _serverErrors['country_code']),
+                items: countryItems,
+                onChanged: (v) {
+                  setState(() => _country = v!);
+                  _postalKey.currentState?.validate(); // the postal code rule depends on the country
+                },
+              ),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('Use as my default ${_type == 'shipping' ? 'shipping' : 'billing'} address'),
+              subtitle: _wasDefault && !typeChanged
+                  ? const Text('To change the default, make another address the default.')
+                  : null,
+              value: _default,
+              // The default can only be moved by choosing another address as default.
+              onChanged: _wasDefault && !typeChanged ? null : (v) => setState(() => _default = v),
+            ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+              ),
+            const SizedBox(height: 16),
+            LoadingButton(label: 'Save address', loading: _saving, onPressed: _save),
+          ],
+        ),
+      ),
+    );
+  }
 }

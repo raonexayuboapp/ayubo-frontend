@@ -193,7 +193,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const AddressesScreen(),
+                  builder: (_) => AddressesScreen(
+                    defaultRecipient: '${widget.user['first_name']} ${widget.user['last_name']}'.trim(),
+                  ),
                 ),
               ),
             ),
