@@ -6,6 +6,7 @@ import '../widgets/app_bottom_bar.dart';
 import '../widgets/app_top_bar.dart';
 import '../widgets/product_image.dart';
 import '../widgets/quantity_stepper.dart';
+import '../widgets/shipping_estimate.dart';
 
 class CartScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -203,12 +204,12 @@ class _CartScreenState extends State<CartScreen> {
               row('incl. ${formatPercent(t['rate_percent'] as num)}% VAT', formatCents(t['tax_cents'] as int),
                   style: theme.textTheme.bodySmall),
             const SizedBox(height: 4),
-            Text(
-              blocking > 0
-                  ? 'Items marked in red are not included. Fix or remove them to continue.'
-                  : 'Shipping and discounts are added at checkout.',
-              style: theme.textTheme.bodySmall?.copyWith(color: blocking > 0 ? theme.colorScheme.error : null),
-            ),
+            ShippingEstimate(cartKey: '${totals['subtotal_cents']}|${totals['item_count']}|$blocking'),
+            if (blocking > 0)
+              Text(
+                'Items marked in red are not included. Fix or remove them to continue.',
+                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+              ),
             const SizedBox(height: 12),
             FilledButton(
               onPressed: canCheckout ? () => _snack('Checkout arrives with the next update.') : null,

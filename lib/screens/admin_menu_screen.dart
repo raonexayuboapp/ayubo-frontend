@@ -5,6 +5,7 @@ import 'admin_membership_plans_screen.dart';
 import 'admin_products_screen.dart';
 import 'admin_tax_rates_screen.dart';
 import 'admin_users_screen.dart';
+import 'admin_shipping_screen.dart';
 
 class AdminMenuScreen extends StatelessWidget {
   final int currentUserId;
@@ -30,6 +31,7 @@ class AdminMenuScreen extends StatelessWidget {
           _entry(context, Icons.category_outlined, 'Categories', const AdminCategoriesScreen()),
           _entry(context, Icons.percent, 'Tax rates', const AdminTaxRatesScreen()),
           _entry(context, Icons.card_membership_outlined, 'Membership plans', const AdminMembershipPlansScreen()),
+          _entry(context, Icons.local_shipping_outlined, 'Shipping', const AdminShippingScreen()),
         ],
       ),
     );
