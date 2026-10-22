@@ -500,4 +500,46 @@ body: form,
 );
 return (res['data'] as Map<String, dynamic>)['media'] as Map<String, dynamic>;
 }
+
+  // ---------- shipping ----------
+
+  /// The shipping quote for the cart. With no arguments the customer's default shipping address is used.
+  Future<Map<String, dynamic>> shippingQuote({int? addressId, String? country}) async {
+    final q = <String, String>{
+      if (addressId != null) 'address_id': '$addressId',
+      if (country != null) 'country': country,
+    };
+    final path = q.isEmpty
+        ? '/api/shipping/quote'
+        : Uri(path: '/api/shipping/quote', queryParameters: q).toString();
+
+    final res = await _send('GET', path, auth: true);
+    return (res['data'] as Map<String, dynamic>)['quote'] as Map<String, dynamic>;
+  }
+
+  Future<List<Map<String, dynamic>>> adminShippingMethods() async {
+    final res = await _send('GET', '/api/admin/shipping-methods', auth: true);
+    final list = (res['data'] as Map<String, dynamic>)['methods'] as List<dynamic>;
+    return list.cast<Map<String, dynamic>>();
+  }
+
+  Future<void> adminCreateShippingMethod(Map<String, dynamic> body) async {
+    await _send('POST', '/api/admin/shipping-methods', auth: true, body: body);
+  }
+
+  Future<void> adminUpdateShippingMethod(int id, Map<String, dynamic> body) async {
+    await _send('PATCH', '/api/admin/shipping-methods/$id', auth: true, body: body);
+  }
+
+  Future<void> adminCreateShippingRate(int methodId, Map<String, dynamic> body) async {
+    await _send('POST', '/api/admin/shipping-methods/$methodId/rates', auth: true, body: body);
+  }
+
+  Future<void> adminUpdateShippingRate(int id, Map<String, dynamic> body) async {
+    await _send('PATCH', '/api/admin/shipping-rates/$id', auth: true, body: body);
+  }
+
+  Future<void> adminDeleteShippingRate(int id) async {
+    await _send('DELETE', '/api/admin/shipping-rates/$id', auth: true);
+  }
 }
