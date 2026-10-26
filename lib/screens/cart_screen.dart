@@ -7,6 +7,7 @@ import '../widgets/app_top_bar.dart';
 import '../widgets/product_image.dart';
 import '../widgets/quantity_stepper.dart';
 import '../widgets/shipping_estimate.dart';
+import 'checkout_screen.dart';
 
 class CartScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -104,6 +105,11 @@ class _CartScreenState extends State<CartScreen> {
     } on ApiException catch (e) {
       if (mounted) _snack(e.message); // for example: it sold out in the meantime
     }
+  }
+
+  Future<void> _checkout() async {
+    await Navigator.push<void>(context, MaterialPageRoute(builder: (_) => CheckoutScreen(user: widget.user)));
+    if (mounted) _load(); // the cart may have become an order
   }
 
   Widget _line(Map<String, dynamic> item) {
@@ -212,7 +218,7 @@ class _CartScreenState extends State<CartScreen> {
               ),
             const SizedBox(height: 12),
             FilledButton(
-              onPressed: canCheckout ? () => _snack('Checkout arrives with the next update.') : null,
+              onPressed: canCheckout ? _checkout : null,
               child: const Text('Checkout'),
             ),
           ]),
