@@ -542,4 +542,22 @@ return (res['data'] as Map<String, dynamic>)['media'] as Map<String, dynamic>;
   Future<void> adminDeleteShippingRate(int id) async {
     await _send('DELETE', '/api/admin/shipping-rates/$id', auth: true);
   }
+
+  // ---------- checkout and orders ----------
+
+  /// Places the order. Answers {order, replayed}. The same checkout_key never creates a second order.
+  Future<Map<String, dynamic>> placeOrder(Map<String, dynamic> body) async {
+    final res = await _send('POST', '/api/checkout', auth: true, body: body);
+    return res['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> listOrders({int page = 1}) async {
+    final res = await _send('GET', '/api/orders?page=$page', auth: true);
+    return res['data'] as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> getOrder(int id) async {
+    final res = await _send('GET', '/api/orders/$id', auth: true);
+    return (res['data'] as Map<String, dynamic>)['order'] as Map<String, dynamic>;
+  }
 }
