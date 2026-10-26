@@ -9,6 +9,7 @@ import '../utils/navigation.dart';
 import '../widgets/password_field.dart';
 import 'login_screen.dart';
 import 'favourites_screen.dart';
+import 'orders_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -221,6 +222,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     email: widget.user['email'] as String,
                   ),
                 ),
+              ),
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.receipt_long_outlined),
+              title: const Text('My orders'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => OrdersScreen(user: widget.user)),
               ),
             ),
 
