@@ -61,7 +61,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
   Future<void> _open(Map<String, dynamic> o) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => OrderDetailScreen(orderId: o['id'] as int, number: o['number'] as String)),
+      MaterialPageRoute(
+        builder: (_) => OrderDetailScreen(orderId: o['id'] as int, number: o['number'] as String, user: widget.user),
+      ),
     );
     if (mounted) _load(reset: true); // the status may have moved while the customer looked at it
   }
