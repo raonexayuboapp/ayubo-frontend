@@ -7,6 +7,7 @@ String orderStatusLabel(String status) => switch (status) {
   'shipped' => 'Shipped',
   'delivered' => 'Delivered',
   'cancelled' => 'Cancelled',
+  'on_hold' => 'On hold',
   _ => status.replaceAll('_', ' '),
 };
 
@@ -15,6 +16,7 @@ String paymentStatusLabel(String status) => switch (status) {
   'paid' => 'Paid',
   'refunded' => 'Refunded',
   'partially_refunded' => 'Partly refunded',
+  'on_hold' => 'On hold',
   _ => status.replaceAll('_', ' '),
 };
 
