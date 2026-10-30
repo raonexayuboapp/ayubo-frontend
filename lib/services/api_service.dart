@@ -614,4 +614,23 @@ class ApiService {
       return (null, 'Cannot reach the server. Check your connection.');
     }
   }
+
+  // ---------- vouchers and loyalty points ----------
+
+  Future<Map<String, dynamic>> listVouchers({int page = 1}) async {
+    final res = await _send('GET', '/api/vouchers?page=$page', auth: true);
+    return res['data'] as Map<String, dynamic>;
+  }
+
+  /// One voucher with its transactions.
+  Future<Map<String, dynamic>> getVoucher(int id) async {
+    final res = await _send('GET', '/api/vouchers/$id', auth: true);
+    return (res['data'] as Map<String, dynamic>)['voucher'] as Map<String, dynamic>;
+  }
+
+  /// {balance, transactions, meta}
+  Future<Map<String, dynamic>> loyalty({int page = 1}) async {
+    final res = await _send('GET', '/api/loyalty?page=$page', auth: true);
+    return res['data'] as Map<String, dynamic>;
+  }
 }

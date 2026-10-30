@@ -10,6 +10,8 @@ import '../widgets/password_field.dart';
 import 'login_screen.dart';
 import 'favourites_screen.dart';
 import 'orders_screen.dart';
+import 'loyalty_screen.dart';
+import 'vouchers_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -233,6 +235,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 context,
                 MaterialPageRoute(builder: (_) => OrdersScreen(user: widget.user)),
               ),
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.card_giftcard_outlined),
+              title: const Text('My vouchers and credit'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const VouchersScreen())),
+            ),
+            ListTile(
+              leading: const Icon(Icons.stars_outlined),
+              title: const Text('My points'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoyaltyScreen())),
             ),
 
             ListTile(
