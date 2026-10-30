@@ -7,6 +7,7 @@ import '../widgets/app_bottom_bar.dart';
 import '../widgets/app_top_bar.dart';
 import '../widgets/benefit_line.dart';
 import 'membership_plan_screen.dart';
+import 'vouchers_screen.dart';
 
 class FamilyScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -73,6 +74,8 @@ class _FamilyScreenState extends State<FamilyScreen> {
     final theme = Theme.of(context);
     final status = m['status'] as String;
     final benefits = ((m['benefits'] as List<dynamic>?) ?? const []).cast<Map<String, dynamic>>();
+    final credit = (m['credit_cents'] as num?)?.toInt() ?? 0;
+    final discount = m['discount_percent'] as num?;
 
     final (icon, text) = switch (status) {
       'active' => (
@@ -80,8 +83,15 @@ class _FamilyScreenState extends State<FamilyScreen> {
       'You are an Ayubo Family member (${m['plan_name']}).\nMember number ${m['member_number']}'
       ),
       'suspended' => (Icons.pause_circle_outline, 'Your membership is suspended. Please contact support.'),
-      _ => (Icons.info_outline, 'Your membership is not active. You can join again below.'),
+      _ => (Icons.info_outline, 'Your membership is not active (your credit is used up). You can join again below.'),
     };
+
+    Widget figure(String value, String label) => Expanded(
+      child: Column(children: [
+        Text(value, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+        Text(label, style: theme.textTheme.bodySmall),
+      ]),
+    );
 
     return Card(
       child: Padding(
@@ -92,6 +102,13 @@ class _FamilyScreenState extends State<FamilyScreen> {
             const SizedBox(width: 12),
             Expanded(child: Text(text)),
           ]),
+          if (status == 'active') ...[
+            const Divider(height: 24),
+            Row(children: [
+              figure(formatCents(credit), 'shopping credit'),
+              if (discount != null) figure('${formatPercent(discount)}%', 'member discount'),
+            ]),
+          ],
           if (status == 'active' && benefits.isNotEmpty) ...[
             const Divider(height: 24),
             Text('Your benefits', style: theme.textTheme.titleSmall),
@@ -99,6 +116,18 @@ class _FamilyScreenState extends State<FamilyScreen> {
             for (final b in benefits)
               Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: BenefitLine(benefit: b)),
           ],
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () async {
+                await Navigator.push(context, MaterialPageRoute(builder: (_) => const VouchersScreen()));
+                if (mounted) _load(); // the credit may have changed
+              },
+              icon: const Icon(Icons.account_balance_wallet_outlined),
+              label: const Text('My vouchers and credit'),
+            ),
+          ),
         ]),
       ),
     );
