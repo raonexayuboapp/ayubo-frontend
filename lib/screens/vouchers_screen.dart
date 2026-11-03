@@ -5,6 +5,7 @@ import '../utils/dates.dart';
 import '../utils/money.dart';
 import '../widgets/voucher_state_chip.dart';
 import 'voucher_detail_screen.dart';
+import '../widgets/prompt_dialog.dart';
 
 /// Gift vouchers the customer bought or owns, and the shopping credit of their membership.
 class VouchersScreen extends StatefulWidget {
@@ -63,6 +64,31 @@ class _VouchersScreenState extends State<VouchersScreen> {
     );
     if (mounted) _load(reset: true);
   }
+
+    Future<void> _add() async {
+      final r = await showPrompt(
+        context,
+        title: 'Add a voucher',
+        message: 'Enter the code from your email or voucher card. The voucher is added to your account, and only you can use it from then on.',
+        confirmLabel: 'Add voucher',
+        fields: const [PromptField(key: 'code', label: 'Voucher code', required: true, maxLength: 40)],
+      );
+      if (r == null) return;
+
+      try {
+        final result = await ApiService.instance.claimVoucher(r['code']!);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Voucher added. Balance ${formatCents((result['balance_cents'] as num).toInt())}.')),
+        );
+        _load(reset: true);
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.fieldErrors.isNotEmpty ? e.fieldErrors.values.join('\n') : e.message)),
+        );
+      }
+    }
 
   Widget _card(Map<String, dynamic> v) {
     final theme = Theme.of(context);
@@ -138,6 +164,14 @@ class _VouchersScreenState extends State<VouchersScreen> {
       );
     }
 
-    return Scaffold(appBar: AppBar(title: const Text('My vouchers and credit')), body: body);
+    return Scaffold(
+       appBar: AppBar(title: const Text('My vouchers and credit')),
+       body: body,
+       floatingActionButton: FloatingActionButton.extended(
+          onPressed: _add,
+          icon: const Icon(Icons.add),
+          label: const Text('Add a voucher'),
+       ),
+    );
   }
 }

@@ -15,6 +15,19 @@ String voucherStateLabel(String state) {
   }
 }
 
+String voucherKindLabel(String kind) {
+  switch (kind) {
+    case 'issued':
+      return 'Issued by staff';
+    case 'purchased':
+      return 'Bought in the shop';
+    case 'membership_credit':
+      return 'Membership credit';
+    default:
+      return kind.replaceAll('_', ' ');
+  }
+}
+
 /// A small coloured pill for a voucher's state.
 class VoucherStateChip extends StatelessWidget {
   final String state;
