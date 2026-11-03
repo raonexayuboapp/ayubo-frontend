@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'cart_state.dart';
 
 class ApiException implements Exception {
@@ -39,40 +40,69 @@ class ApiService {
 // ---------- core request ----------
 
   Future<Map<String, dynamic>> _send(
-      String method,
-      String path, {
-        Object? body,
-        bool auth = false,
-      }) async {
+    String method,
+    String path, {
+    Object? body,
+    bool auth = false,
+  }) async {
     final headers = <String, dynamic>{};
+
     if (auth) {
       final token = await _storage.read(key: _tokenKey);
-      if (token != null) headers['Authorization'] = 'Bearer $token';
+      if (token != null) {
+        headers['Authorization'] = 'Bearer $token';
+      }
     }
+
+    debugPrint('API BASE URL: ${_dio.options.baseUrl}');
+    debugPrint('REQUEST URL: ${_dio.options.baseUrl}$path');
 
     final Response<dynamic> res;
+
     try {
-      res = await _dio.request<dynamic>(
-        path,
-        data: body,
-        options: Options(method: method, headers: headers),
-      );
-    } on DioException catch (e) {
-      throw ApiException(
-        'Network error: ${e.type} - ${e.message}',
-      );
-    }
+          res = await _dio.request<dynamic>(
+            path,
+            data: body,
+            options: Options(
+              method: method,
+              headers: headers,
+            ),
+          );
+        } on DioException catch (e) {
+          debugPrint('DIO ERROR TYPE: ${e.type}');
+          debugPrint('DIO ERROR MESSAGE: ${e.message}');
+          debugPrint('DIO ERROR DETAILS: ${e.error}');
+          debugPrint('DIO ERROR URL: ${e.requestOptions.uri}');
+
+          String message = 'Cannot reach the server. Please check your network connection.';
+
+          if (e.type == DioExceptionType.connectionTimeout ||
+              e.type == DioExceptionType.receiveTimeout ||
+              e.type == DioExceptionType.sendTimeout) {
+            message = 'Connection timed out. Please try again.';
+          } else if (e.type == DioExceptionType.connectionError) {
+            message = 'Unable to connect to server. Ensure your backend is running.';
+          } else if (e.message != null && e.message!.isNotEmpty) {
+            message = e.message!;
+          }
+
+          throw ApiException('Network error: $message');
+        }
 
     final code = res.statusCode ?? 0;
+
     final map = res.data is Map<String, dynamic>
         ? res.data as Map<String, dynamic>
         : <String, dynamic>{};
 
     if (code >= 200 && code < 300) return map;
 
-    if (auth && code == 401) await _storage.delete(key: _tokenKey);
+    if (auth && code == 401) {
+      await _storage.delete(key: _tokenKey);
+    }
 
     final errs = map['errors'];
+
     throw ApiException(
       (map['message'] as String?) ?? 'Something went wrong.',
       statusCode: code,
@@ -633,4 +663,56 @@ class ApiService {
     final res = await _send('GET', '/api/loyalty?page=$page', auth: true);
     return res['data'] as Map<String, dynamic>;
   }
+
+    // ---------- vouchers: spending, adding, staff ----------
+
+    /// What each typed code is worth. Nothing is changed or claimed. The codes travel in the body, never in a URL.
+    Future<List<Map<String, dynamic>>> checkVouchers(List<String> codes) async {
+      final res = await _send('POST', '/api/vouchers/check', auth: true, body: {'codes': codes});
+      return ((res['data'] as Map<String, dynamic>)['vouchers'] as List<dynamic>).cast<Map<String, dynamic>>();
+    }
+
+    /// Adds a voucher to the customer's account. Answers {claimed, voucher_id, balance_cents}.
+    Future<Map<String, dynamic>> claimVoucher(String code) async {
+      final res = await _send('POST', '/api/vouchers/claim', auth: true, body: {'code': code});
+      return res['data'] as Map<String, dynamic>;
+    }
+
+    Future<Map<String, dynamic>> adminListVouchers({
+      String state = '',
+      String kind = '',
+      String search = '',
+      int page = 1,
+    }) async {
+      final path = Uri(path: '/api/admin/vouchers', queryParameters: {
+        'page': '$page',
+        if (state.isNotEmpty) 'state': state,
+        if (kind.isNotEmpty) 'kind': kind,
+        if (search.isNotEmpty) 'q': search,
+      }).toString();
+
+      final res = await _send('GET', path, auth: true);
+      return res['data'] as Map<String, dynamic>;
+    }
+
+    /// One voucher with its transactions.
+    Future<Map<String, dynamic>> adminGetVoucher(int id) async {
+      final res = await _send('GET', '/api/admin/vouchers/$id', auth: true);
+      return (res['data'] as Map<String, dynamic>)['voucher'] as Map<String, dynamic>;
+    }
+
+    /// Issues vouchers. The answer holds the plain codes: they exist nowhere else.
+    Future<List<Map<String, dynamic>>> adminIssueVouchers(Map<String, dynamic> body) async {
+      final res = await _send('POST', '/api/admin/vouchers', auth: true, body: body);
+      return ((res['data'] as Map<String, dynamic>)['vouchers'] as List<dynamic>).cast<Map<String, dynamic>>();
+    }
+
+    Future<void> adminCancelVoucher(int id) async {
+      await _send('POST', '/api/admin/vouchers/$id/cancel', auth: true, body: {});
+    }
+
+    /// [date] is YYYY-MM-DD (valid until the end of that day), or null for no expiry.
+    Future<void> adminSetVoucherExpiry(int id, String? date) async {
+      await _send('PATCH', '/api/admin/vouchers/$id', auth: true, body: {'expires_at': date});
+    }
 }
