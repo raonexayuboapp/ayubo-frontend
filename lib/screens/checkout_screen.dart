@@ -38,6 +38,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _useMembership = false;
   bool _accepted = false;
 
+  // Voucher codes the customer typed that the server confirmed: {code, suffix, balance_cents, expires_at}.
+  // They live only in memory: never stored, never logged.
+  final _voucherInput = TextEditingController();
+  final List<Map<String, dynamic>> _vouchers = [];
+  bool _checkingVoucher = false;
+  String? _voucherError;
+
   bool _loading = true;
   bool _refreshing = false;
   bool _placing = false;
@@ -62,24 +69,25 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Map<String, dynamic>? get _membership => _preview?['membership'] as Map<String, dynamic>?;
 
   /// The price of the way the customer chose to pay.
-  /// The price of the way the customer chose to pay.
   Map<String, dynamic>? get _chosen {
-    final preview = _preview;
-    if (preview == null) return null;
-
-    if (_useMembership) {
-      final membership = preview['membership'] as Map<String, dynamic>?;
-      return membership?['pricing'] as Map<String, dynamic>?;
-    }
-
-    return preview['standalone'] as Map<String, dynamic>?;
+    final p = _preview;
+    if (p == null) return null;
+    return _useMembership ? _membership?['pricing'] as Map<String, dynamic>? : p['standalone'] as Map<String, dynamic>?;
   }
 
   int _cents(String key) => (_chosen?[key] as num?)?.toInt() ?? 0;
   int get _total => _cents('total_cents'); // what the order costs
   int get _discount => _cents('discount_cents');
   int get _credit => _cents('credit_cents'); // paid from the membership
-  int get _toPay => _cents('pay_cents'); // left to pay another way
+  /// Vouchers pay for products only: a gift voucher or a membership in the cart switches the section off.
+  bool get _vouchersAllowed => _items.every((i) => i['type'] == 'physical' || i['type'] == 'service');
+
+  int get _voucherBalance => _vouchers.fold<int>(0, (sum, v) => sum + (v['balance_cents'] as num).toInt());
+
+  /// What the vouchers will pay: the lesser of the order total and their balances (the server works it out exactly).
+  int get _voucherApplied => _vouchers.isEmpty ? 0 : (_voucherBalance < _total ? _voucherBalance : _total);
+
+  int get _toPay => _vouchers.isNotEmpty ? _total - _voucherApplied : _cents('pay_cents'); // left to pay another way
   int get _goods => (_preview?['goods_cents'] as num?)?.toInt() ?? 0;
   int get _shipping => (_preview?['shipping_cents'] as num?)?.toInt() ?? 0;
 
@@ -110,6 +118,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _voucherInput.dispose();
+    super.dispose();
   }
 
   void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
@@ -193,6 +207,176 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
+  Future<void> _addVoucher() async {
+    final typed = _voucherInput.text.trim();
+    if (typed.isEmpty || _checkingVoucher) return;
+
+    final code = typed.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    String? problem;
+    if (code.length != 16) {
+      problem = 'A voucher code has 16 letters and numbers.';
+    } else if (_vouchers.any((v) => v['code'] == code)) {
+      problem = 'You already added this voucher.';
+    } else if (_vouchers.length >= 5) {
+      problem = 'You can use up to 5 vouchers per order.';
+    }
+    if (problem != null) {
+      setState(() => _voucherError = problem);
+      return;
+    }
+
+    setState(() {
+      _checkingVoucher = true;
+      _voucherError = null;
+    });
+
+    try {
+      final result = (await ApiService.instance.checkVouchers([code])).first;
+      if (!mounted) return;
+
+      if (result['ok'] != true) {
+        setState(() {
+          _checkingVoucher = false;
+          _voucherError = result['message'] as String?;
+        });
+        return;
+      }
+
+      final hadMembership = _useMembership;
+      setState(() {
+        _vouchers.add({
+          'code': code,
+          'suffix': result['suffix'],
+          'balance_cents': result['balance_cents'],
+          'expires_at': result['expires_at'],
+        });
+        _voucherInput.clear();
+        _checkingVoucher = false;
+        _useMembership = false; // vouchers and membership credit cannot be combined
+      });
+      if (hadMembership) _snack('Paying with your membership was switched off: it cannot be combined with a voucher.');
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _checkingVoucher = false;
+        _voucherError = e.fieldErrors.isNotEmpty ? e.fieldErrors.values.join('\\n') : e.message;
+      });
+    }
+  }
+
+  void _removeVoucher(int index) => setState(() => _vouchers.removeAt(index));
+
+  /// After the server refused a voucher: show what each one is now (used elsewhere, expired…).
+  Future<void> _recheckVouchers() async {
+    if (_vouchers.isEmpty) return;
+
+    final codes = _vouchers.map((v) => v['code'] as String).toList();
+    try {
+      final results = await ApiService.instance.checkVouchers(codes);
+      if (!mounted) return;
+
+      setState(() {
+        final kept = <Map<String, dynamic>>[];
+        for (var i = 0; i < codes.length && i < results.length; i++) {
+          if (results[i]['ok'] == true) {
+            kept.add({
+              'code': codes[i],
+              'suffix': results[i]['suffix'],
+              'balance_cents': results[i]['balance_cents'],
+              'expires_at': results[i]['expires_at'],
+            });
+          } else {
+            _voucherError = 'Voucher •••• ${results[i]['suffix']}: ${results[i]['message']}';
+          }
+        }
+        _vouchers
+          ..clear()
+          ..addAll(kept);
+      });
+    } on ApiException {
+      // The next try shows the real error.
+    }
+  }
+
+  void _chooseMembership() {
+    final hadVouchers = _vouchers.isNotEmpty;
+    setState(() {
+      _useMembership = true;
+      _vouchers.clear();
+      _voucherError = null;
+    });
+    if (hadVouchers) _snack('Vouchers cannot be combined with membership credit. Your vouchers were removed from this order.');
+  }
+
+  List<Widget> _voucherSection() {
+    final theme = Theme.of(context);
+    final widgets = <Widget>[_heading('Voucher')];
+
+    if (!_vouchersAllowed) {
+      return [
+        ...widgets,
+        Text('Vouchers can only pay for products. Remove gift vouchers and memberships from your cart to use a voucher.',
+            style: theme.textTheme.bodySmall),
+      ];
+    }
+    if (_useMembership) {
+      return [
+        ...widgets,
+        Text('Vouchers cannot be combined with paying by membership. Choose "Pay normally" above to use a voucher.',
+            style: theme.textTheme.bodySmall),
+      ];
+    }
+
+    for (var i = 0; i < _vouchers.length; i++) {
+      final v = _vouchers[i];
+      final expires = v['expires_at'] as String?;
+
+      widgets.add(Card(
+        key: ValueKey(v['code']),
+        child: ListTile(
+          leading: const Icon(Icons.card_giftcard_outlined),
+          title: Text('Voucher •••• ${v['suffix']}'),
+          subtitle: Text('Balance ${formatCents((v['balance_cents'] as num).toInt())}'
+              '${expires == null ? '' : ' · valid until ${expires.substring(0, 10)}'}'),
+          trailing: IconButton(
+            tooltip: 'Remove',
+            icon: const Icon(Icons.close),
+            onPressed: _placing ? null : () => _removeVoucher(i),
+          ),
+        ),
+      ));
+    }
+
+    widgets.add(Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Expanded(
+        child: TextField(
+          controller: _voucherInput,
+          enabled: !_placing && !_checkingVoucher,
+          textCapitalization: TextCapitalization.characters,
+          autocorrect: false,
+          enableSuggestions: false,
+          onSubmitted: (_) => _addVoucher(),
+          decoration: const InputDecoration(labelText: 'Voucher code', hintText: 'XXXX-XXXX-XXXX-XXXX'),
+        ),
+      ),
+      const SizedBox(width: 8),
+      Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: FilledButton.tonal(
+          onPressed: _placing || _checkingVoucher ? null : _addVoucher,
+          child: _checkingVoucher
+              ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Add'),
+        ),
+      ),
+    ]));
+
+    final error = _voucherError ?? _serverErrors['voucher_codes'];
+    if (error != null) widgets.add(_errorText(error));
+
+    return widgets;
+  }
+
   Future<void> _addAddress(String type) async {
     final known = _addresses.map((a) => a['id']).toSet();
 
@@ -241,6 +425,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       'expected_total_cents': _total, // the total the customer is looking at
       'accept_terms': true,
       'pay_with_membership': _useMembership,
+      if (_vouchers.isNotEmpty) 'voucher_codes': [for (final v in _vouchers) v['code']],
       if (_requiresShipping) 'shipping_address_id': _shippingAddressId,
       if (_requiresShipping) 'shipping_method_id': _methodId,
       if (_billingAddressId != null) 'billing_address_id': _billingAddressId,
@@ -279,6 +464,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _formError = errs['cart'] ?? (errs.isEmpty ? e.message : null);
         _placing = false;
       });
+      if (errs.containsKey('voucher_codes')) {
+        setState(() => _voucherError = errs['voucher_codes']);
+        _recheckVouchers(); // a voucher may have changed (used elsewhere, expired): show what it is now
+      }
       if (errs.containsKey('cart') || errs.containsKey('pay_with_membership')) _load();
     }
   }
@@ -286,14 +475,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   // ---------- pieces of the screen ----------
 
   Widget _heading(String text) => Padding(
-    padding: const EdgeInsets.only(top: 24, bottom: 8),
-    child: Text(text, style: Theme.of(context).textTheme.titleMedium),
-  );
+        padding: const EdgeInsets.only(top: 24, bottom: 8),
+        child: Text(text, style: Theme.of(context).textTheme.titleMedium),
+      );
 
   Widget _errorText(String text) => Padding(
-    padding: const EdgeInsets.only(top: 4),
-    child: Text(text, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-  );
+        padding: const EdgeInsets.only(top: 4),
+        child: Text(text, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+      );
 
   /// A card that works like a radio button: the selected one has a thick outline. A null [onTap] disables it.
   Widget _choice({
@@ -374,9 +563,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             onTap: _placing
                 ? null
                 : () {
-              setState(() => _methodId = o['method_id'] as int);
-              _refresh(quote: false); // only the price changes
-            },
+                    setState(() => _methodId = o['method_id'] as int);
+                    _refresh(quote: false); // only the price changes
+                  },
             title: Text(o['name'] as String),
             subtitle: _hint(o) == null ? null : Text(_hint(o)!),
             trailing: Text(o['free'] == true ? 'Free' : formatCents(o['price_cents'] as int),
@@ -405,9 +594,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           onTap: _placing
               ? null
               : () {
-            setState(() => _shippingAddressId = a['id'] as int);
-            _refresh(); // the delivery options depend on the country
-          },
+                  setState(() => _shippingAddressId = a['id'] as int);
+                  _refresh(); // the delivery options depend on the country
+                },
           title: Text(a['recipient'] as String),
           subtitle: Text(addressOneLine(a)),
         ),
@@ -486,7 +675,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ),
       _choice(
         selected: _useMembership,
-        onTap: _placing || !available ? null : () => setState(() => _useMembership = true),
+        onTap: _placing || !available ? null : _chooseMembership,
         title: Text('Pay with my membership · ${formatPercent(percent)}% off'),
         subtitle: Text(line()),
       ),
@@ -517,6 +706,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           if (_credit > 0) ...[
             const SizedBox(height: 4),
             row('From your membership credit', '−${formatCents(_credit)}'),
+            row(_toPay == 0 ? 'Nothing left to pay' : 'To pay now', formatCents(_toPay), bold: _toPay > 0),
+          ],
+          if (_voucherApplied > 0) ...[
+            const SizedBox(height: 4),
+            row('From your vouchers', '−${formatCents(_voucherApplied)}'),
             row(_toPay == 0 ? 'Nothing left to pay' : 'To pay now', formatCents(_toPay), bold: _toPay > 0),
           ],
           const SizedBox(height: 4),
@@ -565,6 +759,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         if (_requiresShipping) ..._deliverySection(),
         ..._billingSection(),
         ..._paymentSection(),
+        ..._voucherSection(),
         _heading('Summary'),
         _summary(),
         const SizedBox(height: 8),
