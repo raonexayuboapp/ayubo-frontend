@@ -85,6 +85,24 @@ class _VoucherDetailScreenState extends State<VoucherDetailScreen> {
     final theme = Theme.of(context);
     final isCredit = v['kind'] == 'membership_credit';
     final expires = v['expires_at'] as String?;
+    final balance = (v['balance_cents'] as num?)?.toInt() ?? 0;
+    final original = (v['original_cents'] as num?)?.toInt() ?? 0;
+    final rawState = v['state'] as String? ?? 'available';
+    final isExpired = expires != null && DateTime.tryParse(expires)?.isBefore(DateTime.now()) == true;
+
+    final String effectiveState;
+    if (rawState == 'cancelled') {
+      effectiveState = 'cancelled';
+    } else if (rawState == 'expired' || isExpired) {
+      effectiveState = 'expired';
+    } else if (balance <= 0) {
+      effectiveState = 'used';
+    } else if (balance < original && balance > 0) {
+      effectiveState = 'partially_redeemed';
+    } else {
+      effectiveState = rawState == 'active' ? 'available' : rawState;
+    }
+
     final transactions = (v['transactions'] as List<dynamic>).cast<Map<String, dynamic>>();
 
     return RefreshIndicator(
@@ -98,13 +116,15 @@ class _VoucherDetailScreenState extends State<VoucherDetailScreen> {
               child: Column(children: [
                 Text(isCredit ? 'Membership credit' : 'Gift voucher •••• ${v['suffix']}', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
-                Text(formatCents(v['balance_cents'] as int),
+                Text(formatCents(balance),
                     style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold)),
                 Text('remaining balance', style: theme.textTheme.bodySmall),
                 const SizedBox(height: 8),
-                VoucherStateChip(state: v['state'] as String),
+                VoucherStateChip(state: effectiveState),
                 const Divider(height: 28),
-                _info('Original value', formatCents(v['original_cents'] as int)),
+                _info('Original value', formatCents(original)),
+                if (balance < original && balance > 0)
+                  _info('Redeemed so far', formatCents(original - balance)),
                 _info('Valid until', expires == null ? 'No expiry' : formatDate(expires)),
                 _info('Added', formatDate(v['created_at'] as String?)),
               ]),

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import '../services/api_service.dart';
 import '../utils/money.dart';
+import '../utils/receipt_download.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/app_header.dart';
 import 'order_detail_screen.dart';
@@ -28,7 +30,16 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
       context,
       MaterialPageRoute(builder: (_) => PaymentScreen(order: _order, user: widget.user)),
     );
-    if (updated != null && mounted) setState(() => _order = updated);
+    if (!mounted) return;
+    if (updated != null) {
+      setState(() => _order = updated);
+    } else {
+      // Re-fetch the order from API in case payment completed or status updated
+      try {
+        final fresh = await ApiService.instance.getOrder(_order['id'] as int);
+        if (mounted) setState(() => _order = fresh);
+      } catch (_) {}
+    }
   }
 
   void _openOrder() {
@@ -159,6 +170,18 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   child: Text(l10n?.viewOrder ?? 'View order', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: () => downloadReceipt(context, _order['id'] as int, _order['number'] as String),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: goldColor),
+                    foregroundColor: goldColor,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: const Icon(Icons.download_outlined, size: 20),
+                  label: Text(l10n?.receiptPdf ?? 'Download Receipt (PDF)', style: const TextStyle(fontWeight: FontWeight.w600)),
                 ),
               ],
               const SizedBox(height: 10),

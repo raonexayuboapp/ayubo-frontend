@@ -66,7 +66,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       context,
       MaterialPageRoute(builder: (_) => PaymentScreen(order: _order!, user: widget.user)),
     );
-    if (updated != null && mounted) setState(() => _order = updated);
+    if (!mounted) return;
+    if (updated != null) {
+      setState(() => _order = updated);
+    } else {
+      await _load();
+    }
   }
 
   Future<void> _cancel() async {

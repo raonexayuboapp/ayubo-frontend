@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
+import '../services/cart_state.dart';
 import '../utils/membership_status.dart';
 import '../utils/money.dart';
 import '../widgets/app_bottom_bar.dart';
@@ -49,13 +50,18 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
 
     setState(() => _joining = true);
     try {
+      final planId = (widget.plan['id'] as num?)?.toInt();
       final variantId = (widget.plan['variant_id'] as num?)?.toInt();
-      if (variantId == null) {
+      if (planId != null) {
+        await ApiService.instance.purchaseMembership(planId);
+      } else if (variantId != null) {
+        await ApiService.instance.addToCart(variantId, 1);
+      } else {
         _snack('This plan is not available for purchase online.');
         return;
       }
-      await ApiService.instance.addToCart(variantId, 1);
       if (!mounted) return;
+      CartState.instance.refresh();
       ScaffoldMessenger.of(context)
         ..clearSnackBars()
         ..showSnackBar(SnackBar(

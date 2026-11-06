@@ -77,13 +77,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Map<String, dynamic>? get _chosen {
     final p = _preview;
     if (p == null) return null;
-    return _useMembership
-        ? (_membership?['pricing'] as Map<String, dynamic>?)
-        : (p['standalone'] as Map<String, dynamic>?);
+    if (_useMembership) {
+      return _membership?['pricing'] as Map<String, dynamic>?;
+    }
+    if (_vouchers.isNotEmpty) {
+      final vPricing = (_preview?['voucher'] as Map<String, dynamic>?)?['pricing'] as Map<String, dynamic>?;
+      if (vPricing != null) return vPricing;
+    }
+    return p['standalone'] as Map<String, dynamic>?;
   }
 
   int _cents(String key) => (_chosen?[key] as num?)?.toInt() ?? 0;
-  int get _total => _cents('total_cents'); // what the order costs
+  int get _total => _chosen != null ? _cents('total_cents') : (_goods + _shipping);
   int get _discount => _cents('discount_cents');
   int get _credit => _cents('credit_cents'); // paid from the membership
   /// Vouchers pay for products only: a gift voucher or a membership in the cart switches the section off.
@@ -91,10 +96,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   int get _voucherBalance => _vouchers.fold<int>(0, (sum, v) => sum + (v['balance_cents'] as num).toInt());
 
-  /// What the vouchers will pay: the lesser of the order total and their balances (the server works it out exactly).
-  int get _voucherApplied => _vouchers.isEmpty ? 0 : (_voucherBalance < _total ? _voucherBalance : _total);
+  /// What the vouchers will pay: taken directly from backend calculation if available, or clamped to total.
+  int get _voucherApplied {
+    if (_vouchers.isEmpty) return 0;
+    final backendCovered = (_chosen?['voucher_cents'] as num?)?.toInt();
+    if (backendCovered != null) return backendCovered;
+    return _voucherBalance < _total ? _voucherBalance : _total;
+  }
 
-  int get _toPay => _vouchers.isNotEmpty ? _total - _voucherApplied : _cents('pay_cents'); // left to pay another way
+  int get _toPay => _chosen != null ? _cents('pay_cents') : (_total - _voucherApplied);
   int get _goods => (_preview?['goods_cents'] as num?)?.toInt() ?? 0;
   int get _shipping => (_preview?['shipping_cents'] as num?)?.toInt() ?? 0;
 
@@ -193,7 +203,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         method = options.isEmpty ? null : options.first['method_id'] as int; // the cheapest comes first
       }
 
-      final preview = await api.checkoutPreview(addressId: _shippingAddressId, methodId: method);
+      final String paymentSource = _useMembership
+          ? 'membership_credit'
+          : (_vouchers.isNotEmpty ? 'gift_voucher' : 'transaction');
+      final List<String>? voucherCodes =
+          _vouchers.isNotEmpty ? [for (final v in _vouchers) v['code'] as String] : null;
+
+      final preview = await api.checkoutPreview(
+        addressId: _shippingAddressId,
+        methodId: method,
+        paymentSource: paymentSource,
+        voucherCodes: voucherCodes,
+      );
       if (!mounted || request != _refreshRequest) return;
 
       setState(() {
@@ -262,6 +283,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _useMembership = false; // vouchers and membership credit cannot be combined
       });
       if (hadMembership) _snack('Paying with your membership was switched off: it cannot be combined with a voucher.');
+      await _refresh(quote: false);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -271,7 +293,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
-  void _removeVoucher(int index) => setState(() => _vouchers.removeAt(index));
+  void _removeVoucher(int index) {
+    setState(() => _vouchers.removeAt(index));
+    _refresh(quote: false);
+  }
 
   /// After the server refused a voucher: show what each one is now (used elsewhere, expired…).
   Future<void> _recheckVouchers() async {
@@ -300,6 +325,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ..clear()
           ..addAll(kept);
       });
+      await _refresh(quote: false);
     } on ApiException {
       // The next try shows the real error.
     }
@@ -313,6 +339,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _voucherError = null;
     });
     if (hadVouchers) _snack('Vouchers cannot be combined with membership credit. Your vouchers were removed from this order.');
+    _refresh(quote: false);
   }
 
   List<Widget> _voucherSection() {
@@ -442,6 +469,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       'checkout_key': _checkoutKey,
       'expected_total_cents': _total, // the total the customer is looking at
       'accept_terms': true,
+      'payment_source': _useMembership
+          ? 'membership_credit'
+          : (_vouchers.isNotEmpty ? 'gift_voucher' : 'transaction'),
       'pay_with_membership': _useMembership,
       if (_vouchers.isNotEmpty) 'voucher_codes': [for (final v in _vouchers) v['code']],
       if (_requiresShipping) 'shipping_address_id': _shippingAddressId,
@@ -698,7 +728,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _heading(l10n?.paymentMethod ?? 'How do you want to pay?'),
       _choice(
         selected: !_useMembership,
-        onTap: _placing ? null : () => setState(() => _useMembership = false),
+        onTap: _placing
+            ? null
+            : () {
+                setState(() => _useMembership = false);
+                _refresh(quote: false);
+              },
         title: Text(l10n?.payNormally ?? 'Pay normally'),
         subtitle: Text('${isDe ? 'Gesamtbetrag' : 'Total'} ${formatCents((standalone['total_cents'] as num).toInt())}'),
       ),

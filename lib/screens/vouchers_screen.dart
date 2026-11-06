@@ -108,7 +108,17 @@ class _VouchersScreenState extends State<VouchersScreen> {
     final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
     final isCredit = v['kind'] == 'membership_credit';
     final expires = v['expires_at'] as String?;
-    final value = formatCents(v['original_cents'] as int);
+    final balanceCents = (v['balance_cents'] as num?)?.toInt() ?? 0;
+    final originalCents = (v['original_cents'] as num?)?.toInt() ?? 0;
+    final rawState = v['state'] as String? ?? 'active';
+
+    final effectiveState = switch (rawState) {
+      'active' when balanceCents > 0 && balanceCents < originalCents => 'partially_redeemed',
+      'active' when balanceCents >= originalCents => 'available',
+      _ => rawState,
+    };
+
+    final value = formatCents(originalCents);
 
     return Card(
       key: ValueKey(v['id']),
@@ -121,10 +131,10 @@ class _VouchersScreenState extends State<VouchersScreen> {
         subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('${isDe ? 'Wert' : 'Value'} $value · ${expires == null ? (l10n?.neverExpires ?? 'no expiry') : (isDe ? 'gültig bis ${formatDate(expires)}' : 'valid until ${formatDate(expires)}') }'),
           const SizedBox(height: 4),
-          VoucherStateChip(state: v['state'] as String),
+          VoucherStateChip(state: effectiveState),
         ]),
         isThreeLine: true,
-        trailing: Text(formatCents(v['balance_cents'] as int),
+        trailing: Text(formatCents(balanceCents),
             style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
       ),
     );
