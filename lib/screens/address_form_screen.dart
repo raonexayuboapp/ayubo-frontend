@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 import '../utils/countries.dart';
+import '../widgets/app_header.dart';
 import '../widgets/loading_button.dart';
 
 class AddressFormScreen extends StatefulWidget {
@@ -77,8 +80,6 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
     super.dispose();
   }
 
-// ---------- validation (the server checks everything again) ----------
-
   String? _vRequired(String? v, int max, String label) {
     final s = (v ?? '').trim();
     return s.isEmpty || s.length > max
@@ -101,20 +102,18 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
         : 'Enter a valid postal code, for example ${country!.example}.';
   }
 
-// ---------- save ----------
-
   bool _isFieldKey(String k) => const {
-    'address_type',
-    'recipient',
-    'company',
-    'street',
-    'address_line2',
-    'postal_code',
-    'city',
-    'region',
-    'country_code',
-    'is_default',
-  }.contains(k);
+        'address_type',
+        'recipient',
+        'company',
+        'street',
+        'address_line2',
+        'postal_code',
+        'city',
+        'region',
+        'country_code',
+        'is_default',
+      }.contains(k);
 
   Future<void> _save() async {
     setState(() {
@@ -139,7 +138,6 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
       'region': orNull(_region.text),
       'country_code': _country,
       if (_default) 'is_default': true,
-// "not default" is never sent: the default moves by choosing another one.
     };
 
     try {
@@ -171,17 +169,19 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
     }
   }
 
-// ---------- UI ----------
-
   Widget _text(
-      String serverKey,
-      String label,
-      TextEditingController c,
-      String? Function(String?) validator, {
-        TextInputType? type,
-        Key? fieldKey,
-        TextCapitalization capitalization = TextCapitalization.words,
-      }) {
+    String serverKey,
+    String label,
+    TextEditingController c,
+    String? Function(String?) validator, {
+    TextInputType? type,
+    Key? fieldKey,
+    TextCapitalization capitalization = TextCapitalization.words,
+    IconData? icon,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
@@ -193,14 +193,46 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
         autovalidateMode: AutovalidateMode.onUserInteraction,
         validator: validator,
         forceErrorText: _serverErrors[serverKey],
-        decoration: InputDecoration(labelText: label),
+        style: TextStyle(color: scheme.onSurface),
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: icon != null
+              ? Icon(
+                  icon,
+                  color: AppTheme.primaryGreen,
+                  size: 20,
+                )
+              : null,
+          filled: true,
+          fillColor: isDark
+              ? AppTheme.bgDark.withValues(alpha: 0.5)
+              : AppTheme.bgLight,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(
+              color: scheme.outline.withValues(alpha: 0.15),
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(
+              color: AppTheme.primaryGreen,
+              width: 1.5,
+            ),
+          ),
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final typeChanged = _type != _originalType;
 
     final countryItems = [
@@ -209,7 +241,6 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
           value: c.code,
           child: Text('${c.name} (${c.code})'),
         ),
-// Keep an existing country selectable if it is not in our country list.
       if (countryByCode(_country) == null)
         DropdownMenuItem<String>(
           value: _country,
@@ -217,14 +248,21 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
         ),
     ];
 
+    final l10n = AppLocalizations.of(context);
+    final isDe = l10n?.localeName.startsWith('de') ?? false;
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_editing ? 'Edit address' : 'Add address'),
+      appBar: AppHeader(
+        title: _editing
+            ? (isDe ? 'Adresse bearbeiten' : 'Edit Address')
+            : (isDe ? 'Neue Adresse' : 'Add Address'),
+        subtitle: isDe ? 'Liefer- & Kontaktdaten' : 'Delivery & contact details',
+        showBackButton: true,
       ),
       body: Form(
         key: _form,
         child: ListView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           children: [
             SegmentedButton<String>(
               segments: const [
@@ -239,12 +277,28 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                   icon: Icon(Icons.receipt_long_outlined),
                 ),
               ],
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return AppTheme.brandGold.withValues(alpha: 0.25);
+                  }
+                  return isDark ? AppTheme.surfaceDark : Colors.white;
+                }),
+                foregroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return AppTheme.brandGoldDark;
+                  }
+                  return scheme.onSurface;
+                }),
+                side: WidgetStateProperty.all(
+                  BorderSide(
+                    color: AppTheme.brandGold.withValues(alpha: 0.4),
+                  ),
+                ),
+              ),
               selected: {_type},
               onSelectionChanged: (s) => setState(() {
                 _type = s.first;
-
-// A moved address never keeps its default flag:
-// it must be chosen again for the new type.
                 if (_editing) {
                   _default = _type == _originalType ? _wasDefault : false;
                 }
@@ -252,36 +306,41 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
             ),
             if (_serverErrors['address_type'] != null)
               Padding(
-                padding: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.only(top: 6),
                 child: Text(
                   _serverErrors['address_type']!,
-                  style: TextStyle(color: theme.colorScheme.error),
+                  style: TextStyle(color: scheme.error, fontSize: 12),
                 ),
               ),
-            const SizedBox(height: 20),
+
+            const SizedBox(height: 24),
+
             _text(
               'recipient',
-              'Recipient',
+              'Recipient Name',
               _recipient,
-                  (v) => _vRequired(v, 190, 'Recipient'),
+              (v) => _vRequired(v, 190, 'Recipient'),
+              icon: Icons.person_outline_rounded,
             ),
             _text(
               'company',
-              'Company (optional)',
+              'Company (Optional)',
               _company,
-                  (v) => _vOptional(v, 190),
+              (v) => _vOptional(v, 190),
+              icon: Icons.business_outlined,
             ),
             _text(
               'street',
-              'Street and house number',
+              'Street and House Number',
               _street,
-                  (v) => _vRequired(v, 190, 'Street'),
+              (v) => _vRequired(v, 190, 'Street'),
+              icon: Icons.home_outlined,
             ),
             _text(
               'address_line2',
-              'Address line 2 (optional)',
+              'Address Line 2 (Optional)',
               _line2,
-                  (v) => _vOptional(v, 190),
+              (v) => _vOptional(v, 190),
             ),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,7 +349,7 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                   flex: 2,
                   child: _text(
                     'postal_code',
-                    'Postal code',
+                    'Postal Code',
                     _postal,
                     _vPostal,
                     fieldKey: _postalKey,
@@ -304,63 +363,129 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                     'city',
                     'City',
                     _city,
-                        (v) => _vRequired(v, 100, 'City'),
+                    (v) => _vRequired(v, 100, 'City'),
                   ),
                 ),
               ],
             ),
             _text(
               'region',
-              'Region (optional)',
+              'Region / State (Optional)',
               _region,
-                  (v) => _vOptional(v, 100),
+              (v) => _vOptional(v, 100),
             ),
+
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: DropdownButtonFormField<String>(
                 value: _country,
                 isExpanded: true,
+                style: TextStyle(color: scheme.onSurface, fontSize: 14),
+                dropdownColor: isDark ? AppTheme.surfaceDark : Colors.white,
                 decoration: InputDecoration(
                   labelText: 'Country',
+                  prefixIcon: const Icon(
+                    Icons.public_rounded,
+                    color: AppTheme.primaryGreen,
+                    size: 20,
+                  ),
+                  filled: true,
+                  fillColor: isDark
+                      ? AppTheme.bgDark.withValues(alpha: 0.5)
+                      : AppTheme.bgLight,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(
+                      color: scheme.outline.withValues(alpha: 0.15),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(
+                      color: AppTheme.primaryGreen,
+                      width: 1.5,
+                    ),
+                  ),
                   errorText: _serverErrors['country_code'],
                 ),
                 items: countryItems,
                 onChanged: (v) {
                   if (v == null) return;
                   setState(() => _country = v);
-// Postal-code validation depends on the selected country.
                   _postalKey.currentState?.validate();
                 },
               ),
             ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                'Use as my default '
-                    '${_type == 'shipping' ? 'shipping' : 'billing'} address',
-              ),
-              subtitle: _wasDefault && !typeChanged
-                  ? const Text(
-                'To change the default, make another address the default.',
-              )
-                  : null,
-              value: _default,
-// The default can only be moved by choosing another address.
-              onChanged: _wasDefault && !typeChanged
-                  ? null
-                  : (v) => setState(() => _default = v),
-            ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(
-                  _error!,
-                  style: TextStyle(color: theme.colorScheme.error),
+
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: isDark ? AppTheme.surfaceDark : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
                 ),
               ),
-            const SizedBox(height: 16),
+              child: SwitchListTile.adaptive(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                activeColor: AppTheme.brandGold,
+                activeTrackColor: AppTheme.primaryGreen,
+                title: Text(
+                  'Use as default ${_type == 'shipping' ? 'shipping' : 'billing'} address',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+                subtitle: _wasDefault && !typeChanged
+                    ? Text(
+                        'To change default, mark another address as default.',
+                        style: TextStyle(
+                          color: scheme.onSurface.withValues(alpha: 0.55),
+                          fontSize: 12,
+                        ),
+                      )
+                    : null,
+                value: _default,
+                onChanged: _wasDefault && !typeChanged
+                    ? null
+                    : (v) => setState(() => _default = v),
+              ),
+            ),
+
+            if (_error != null) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: scheme.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: scheme.error.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline_rounded, size: 18, color: scheme.error),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _error!,
+                        style: TextStyle(
+                          color: scheme.error,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 8),
+
             LoadingButton(
-              label: 'Save address',
+              label: 'Save Address',
               loading: _saving,
               onPressed: _save,
             ),

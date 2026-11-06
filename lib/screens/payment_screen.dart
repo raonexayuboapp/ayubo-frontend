@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
 import '../utils/money.dart';
+import '../widgets/app_header.dart';
+
+typedef PaymentData = Map<String, dynamic>;
 
 /// Pays an unpaid order. It starts the payment and shows what the server says to do next.
 /// Pops with the updated order when the payment worked, or with nothing when the customer leaves.
@@ -15,7 +18,7 @@ class PaymentScreen extends StatefulWidget {
 }
 
 class _PaymentScreenState extends State<PaymentScreen> {
-  Map<String, dynamic>? _data; // {payment, action}
+  PaymentData? _data; // {payment, action}
   bool _loading = true;
   bool _busy = false;
   String? _error;
@@ -47,10 +50,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
   }
 
-  /// The development payment page: the two buttons stand in for the provider's page.
+  /// Development payment flow trigger
   Future<void> _dev(String pathKey, {required bool succeeds}) async {
     if (_busy) return;
-    final action = _data!['action'] as Map<String, dynamic>;
+    final action = _data!['action'] as PaymentData;
 
     setState(() {
       _busy = true;
@@ -61,12 +64,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
       if (!mounted) return;
 
       if (succeeds) {
-        Navigator.pop(context, order); // the customer sees the paid order
+        Navigator.pop(context, order);
         return;
       }
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('The payment failed. You can try again.')));
-      await _start(); // a failed payment is finished: the next try is a new one
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('The payment failed. You can try again.')),
+      );
+      await _start();
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -78,70 +83,141 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   Widget _content() {
     final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
 
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) {
+      return Center(child: CircularProgressIndicator(color: goldColor, strokeWidth: 2));
+    }
 
     if (_error != null && _data == null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text(_error!, textAlign: TextAlign.center),
-            TextButton(onPressed: _start, child: const Text('Try again')),
-          ]),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
+              const SizedBox(height: 12),
+              Text(_error!, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: _start,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Try again'),
+                style: TextButton.styleFrom(foregroundColor: goldColor),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    final payment = _data!['payment'] as Map<String, dynamic>;
-    final action = _data!['action'] as Map<String, dynamic>;
+    final payment = _data!['payment'] as PaymentData;
+    final action = _data!['action'] as PaymentData;
     final amount = (payment['amount_cents'] as num).toInt();
     final orderTotal = ((widget.order['totals'] as Map<String, dynamic>)['total_cents'] as num).toInt();
 
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
-        Text('Order ${widget.order['number']}', style: theme.textTheme.bodyMedium),
-        const SizedBox(height: 8),
-        Text(formatCents(amount), style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold)),
+        Text(
+          'Order ${widget.order['number']}',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          formatCents(amount),
+          style: theme.textTheme.displaySmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: goldColor,
+          ),
+        ),
         if (amount < orderTotal)
           Padding(
             padding: const EdgeInsets.only(top: 4),
-            child: Text('The other ${formatCents(orderTotal - amount)} was paid with your membership credit.',
-                style: theme.textTheme.bodySmall),
+            child: Text(
+              'The remaining ${formatCents(orderTotal - amount)} was covered using your membership credit.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
           ),
         const SizedBox(height: 24),
         if (action['type'] == 'dev_confirm') ...[
-          Card(
-            color: theme.colorScheme.tertiaryContainer,
-            child: const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('Development payment page. No real money is taken. '
-                  'The real payment page of the shop\'s payment provider replaces this screen.'),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: goldColor.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.developer_mode, color: goldColor, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Development mode sandbox. No real transaction takes place.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-          FilledButton(
+          const SizedBox(height: 24),
+          ElevatedButton(
             onPressed: _busy ? null : () => _dev('confirm_path', succeeds: true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: goldColor,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
             child: _busy
-                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : Text('Pay ${formatCents(amount)}'),
+                ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: goldColor))
+                : Text('Pay ${formatCents(amount)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           OutlinedButton(
             onPressed: _busy ? null : () => _dev('fail_path', succeeds: false),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: theme.colorScheme.error,
+              side: BorderSide(color: theme.colorScheme.error.withValues(alpha: 0.5)),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
             child: const Text('Simulate a failed payment'),
           ),
         ] else
-          const Text('This way of paying is not supported in the app yet. Please try again after the next update.'),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Text(
+              'This payment gateway mode is not supported in the mobile client yet. Please try again after updating.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+          ),
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(top: 12),
-            child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+            child: Text(
+              _error!,
+              style: TextStyle(color: theme.colorScheme.error, fontSize: 13),
+            ),
           ),
-        const SizedBox(height: 16),
-        Text('Your items stay reserved for a short time. If you leave now you can pay later from My orders.',
-            style: theme.textTheme.bodySmall),
+        const SizedBox(height: 24),
+        Text(
+          'Your items stay reserved for a short time. If you leave now, you can complete the payment later from My Orders.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+          ),
+        ),
       ],
     );
   }
@@ -149,8 +225,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: !_busy, // do not leave while a payment is being confirmed
-      child: Scaffold(appBar: AppBar(title: const Text('Payment')), body: _content()),
+      canPop: !_busy,
+      child: Scaffold(
+        appBar: AppHeader(
+          title: 'Payment',
+          subtitle: 'Order #${widget.order['id']}',
+          user: widget.user,
+          showBackButton: !_busy,
+        ),
+        body: _content(),
+      ),
     );
   }
 }

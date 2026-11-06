@@ -4,11 +4,18 @@ import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
 import '../utils/navigation.dart';
+import '../widgets/app_header.dart';
 import 'login_screen.dart';
 
 class VerifyScreen extends StatefulWidget {
   final String email;
-  const VerifyScreen({super.key, required this.email});
+  final bool returnUserOnSuccess;
+
+  const VerifyScreen({
+    super.key,
+    required this.email,
+    this.returnUserOnSuccess = false,
+  });
 
   @override
   State<VerifyScreen> createState() => _VerifyScreenState();
@@ -56,10 +63,19 @@ class _VerifyScreenState extends State<VerifyScreen> {
       );
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
-      goTo(context, const LoginScreen());
       messenger.showSnackBar(
         const SnackBar(content: Text('Email verified. Please log in.')),
       );
+      if (widget.returnUserOnSuccess && Navigator.canPop(context)) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const LoginScreen(returnUserOnSuccess: true),
+          ),
+        );
+      } else {
+        goTo(context, const LoginScreen());
+      }
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -88,7 +104,12 @@ class _VerifyScreenState extends State<VerifyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Verify your email')),
+      appBar: const AppHeader(
+        title: 'Verify Email',
+        subtitle: 'Enter 6-digit verification code',
+        showBackButton: true,
+        showProfile: false,
+      ),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [

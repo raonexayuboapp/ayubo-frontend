@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../utils/money.dart';
 
+typedef StockHistoryData = Map<String, dynamic>;
+
 /// Every stock movement of one variant, newest first.
 class AdminStockHistoryScreen extends StatefulWidget {
   final int variantId;
@@ -21,7 +23,7 @@ class _AdminStockHistoryScreenState extends State<AdminStockHistoryScreen> {
     'sale': 'Sale',
   };
 
-  List<Map<String, dynamic>> _items = [];
+  List<StockHistoryData> _items = [];
   int _page = 1;
   int _total = 0;
   bool _loading = true;
@@ -41,7 +43,7 @@ class _AdminStockHistoryScreenState extends State<AdminStockHistoryScreen> {
     });
     try {
       final data = await ApiService.instance.adminStockMovements(widget.variantId, page: _page);
-      final list = (data['movements'] as List<dynamic>).cast<Map<String, dynamic>>();
+      final list = (data['movements'] as List<dynamic>).cast<StockHistoryData>();
       if (!mounted) return;
       setState(() {
         _items = reset ? list : [..._items, ...list];
@@ -75,33 +77,71 @@ class _AdminStockHistoryScreenState extends State<AdminStockHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
+
     Widget body;
 
     if (_loading && _items.isEmpty) {
-      body = const Center(child: CircularProgressIndicator());
+      body = Center(child: CircularProgressIndicator(color: goldColor, strokeWidth: 2));
     } else if (_error != null) {
       body = Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(_error!),
-          TextButton(onPressed: () => _load(reset: true), child: const Text('Retry')),
-        ]),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
+              const SizedBox(height: 12),
+              Text(_error!, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: () => _load(reset: true),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Retry'),
+                style: TextButton.styleFrom(foregroundColor: goldColor),
+              ),
+            ],
+          ),
+        ),
       );
     } else if (_items.isEmpty) {
-      body = const Center(child: Text('No stock movements yet.'));
+      body = Center(
+        child: Text(
+          'No stock movements yet.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+          ),
+        ),
+      );
     } else {
       final hasMore = _items.length < _total;
-      body = ListView.builder(
+      body = ListView.separated(
+        padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: _items.length + (hasMore ? 1 : 0),
+        separatorBuilder: (_, __) => Divider(
+          height: 1,
+          indent: 20,
+          endIndent: 20,
+          color: theme.dividerColor.withValues(alpha: 0.15),
+        ),
         itemBuilder: (_, i) {
           if (i == _items.length) {
-            return TextButton(
-              onPressed: _loading
-                  ? null
-                  : () {
-                _page++;
-                _load(reset: false);
-              },
-              child: const Text('Load more'),
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: _loading
+                    ? CircularProgressIndicator(color: goldColor, strokeWidth: 2)
+                    : TextButton(
+                        onPressed: () {
+                          _page++;
+                          _load(reset: false);
+                        },
+                        child: Text(
+                          'Load more',
+                          style: TextStyle(color: goldColor, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+              ),
             );
           }
 
@@ -112,17 +152,26 @@ class _AdminStockHistoryScreenState extends State<AdminStockHistoryScreen> {
 
           return ListTile(
             key: ValueKey(m['id']),
-            title: Text(_reasons[reason] ?? reason),
-            subtitle: Text([
-              '${m['location_code']}',
-              _when(m['created_at'] as String),
-              if (m['order_item_id'] != null) 'order line ${m['order_item_id']}',
-            ].join(' · ')),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            title: Text(
+              _reasons[reason] ?? reason,
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              [
+                '${m['location_code']}',
+                _when(m['created_at'] as String),
+                if (m['order_item_id'] != null) 'order line ${m['order_item_id']}',
+              ].join(' · '),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
+            ),
             trailing: Text(
               '${positive ? '+' : ''}${formatQuantity(delta)}',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: positive ? Colors.green.shade700 : theme.colorScheme.error,
+                color: positive ? Colors.green.shade600 : theme.colorScheme.error,
               ),
             ),
           );
@@ -131,7 +180,10 @@ class _AdminStockHistoryScreenState extends State<AdminStockHistoryScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text('History · ${widget.title}')),
+      appBar: AppBar(
+        title: Text('History · ${widget.title}'),
+        elevation: 0,
+      ),
       body: body,
     );
   }

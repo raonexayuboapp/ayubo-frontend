@@ -4,6 +4,8 @@ import '../services/api_service.dart';
 import '../utils/countries.dart';
 import '../utils/money.dart';
 
+typedef QuoteData = Map<String, dynamic>;
+
 /// The shipping line of the cart footer. It asks the server for a quote whenever [cartKey] changes, which is
 /// whenever the cart changes. It is an estimate: the customer picks a delivery method at checkout.
 class ShippingEstimate extends StatefulWidget {
@@ -15,8 +17,8 @@ class ShippingEstimate extends StatefulWidget {
 }
 
 class _ShippingEstimateState extends State<ShippingEstimate> {
-  Map<String, dynamic>? _quote;
-  int _request = 0; // an answer that belongs to an older cart is ignored
+  QuoteData? _quote;
+  int _request = 0;
 
   @override
   void initState() {
@@ -37,7 +39,6 @@ class _ShippingEstimateState extends State<ShippingEstimate> {
       if (!mounted || request != _request) return;
       setState(() => _quote = quote);
     } on ApiException {
-      // A stale estimate would mislead, so show none until the next successful quote.
       if (mounted && request == _request) setState(() => _quote = null);
     }
   }
@@ -48,9 +49,10 @@ class _ShippingEstimateState extends State<ShippingEstimate> {
     if (quote == null) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
     final country = quote['country_code'] as String?;
     final to = country == null ? '' : countryName(country);
-    final options = (quote['options'] as List<dynamic>).cast<Map<String, dynamic>>();
+    final options = (quote['options'] as List<dynamic>).cast<QuoteData>();
 
     String? line;
     String? hint;
@@ -58,14 +60,14 @@ class _ShippingEstimateState extends State<ShippingEstimate> {
 
     switch (quote['status'] as String) {
       case 'ok':
-        final first = options.first; // the cheapest option comes first
+        final first = options.first;
         final price = first['price_cents'] as int;
         final free = first['free'] == true;
         line = free
             ? 'Free shipping to $to'
             : options.length == 1
-            ? 'Shipping to $to: ${formatCents(price)}'
-            : 'Shipping to $to from ${formatCents(price)}';
+                ? 'Shipping to $to: ${formatCents(price)}'
+                : 'Shipping to $to from ${formatCents(price)}';
 
         final next = first['next_band'] as Map<String, dynamic>?;
         if (next != null) {
@@ -83,17 +85,50 @@ class _ShippingEstimateState extends State<ShippingEstimate> {
         line = 'No delivery price is set for this order. Please contact support.';
         problem = true;
       default:
-        return const SizedBox.shrink(); // empty cart, or nothing that has to be shipped
+        return const SizedBox.shrink();
     }
 
-    final color = problem ? theme.colorScheme.error : null;
+    final color = problem
+        ? theme.colorScheme.error
+        : theme.colorScheme.onSurface.withValues(alpha: 0.8);
 
     return Padding(
       padding: const EdgeInsets.only(top: 4),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(line, style: theme.textTheme.bodyMedium?.copyWith(color: color)),
-        if (hint != null) Text(hint, style: theme.textTheme.bodySmall),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                problem ? Icons.error_outline_rounded : Icons.local_shipping_outlined,
+                size: 16,
+                color: problem ? theme.colorScheme.error : goldColor,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  line,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (hint != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 22, top: 2),
+              child: Text(
+                hint,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: goldColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

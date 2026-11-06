@@ -17,6 +17,12 @@ class CartState {
 
   /// Fetches the cart so the badge is right after the app starts or the user logs in.
   Future<void> refresh() async {
+    // Avoid triggering authenticated API calls for guests
+    if (!await ApiService.instance.hasToken()) {
+      count.value = 0;
+      return;
+    }
+
     try {
       await ApiService.instance.getCart(); // getCart updates the count itself
     } on ApiException {

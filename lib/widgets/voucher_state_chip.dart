@@ -1,6 +1,22 @@
 import 'package:flutter/material.dart';
+import '../utils/money.dart';
 
-String voucherStateLabel(String state) {
+String voucherStateLabel(String state, [String? locale]) {
+  final loc = locale ?? currentAppLocale;
+  if (loc.startsWith('de')) {
+    switch (state) {
+      case 'active':
+        return 'Aktiv';
+      case 'used':
+        return 'Eingelöst';
+      case 'expired':
+        return 'Abgelaufen';
+      case 'cancelled':
+        return 'Storniert';
+      default:
+        return state.replaceAll('_', ' ');
+    }
+  }
   switch (state) {
     case 'active':
       return 'Active';
@@ -15,7 +31,20 @@ String voucherStateLabel(String state) {
   }
 }
 
-String voucherKindLabel(String kind) {
+String voucherKindLabel(String kind, [String? locale]) {
+  final loc = locale ?? currentAppLocale;
+  if (loc.startsWith('de')) {
+    switch (kind) {
+      case 'issued':
+        return 'Vom Personal ausgestellt';
+      case 'purchased':
+        return 'Im Shop gekauft';
+      case 'membership_credit':
+        return 'Mitgliedschaftsguthaben';
+      default:
+        return kind.replaceAll('_', ' ');
+    }
+  }
   switch (kind) {
     case 'issued':
       return 'Issued by staff';
@@ -35,24 +64,42 @@ class VoucherStateChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final s = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-    Color background = s.surfaceContainerHighest;
-    Color foreground = s.onSurface;
-    if (state == 'active') {
-      background = s.primaryContainer;
-      foreground = s.onPrimaryContainer;
-    } else if (state == 'expired' || state == 'cancelled') {
-      background = s.errorContainer;
-      foreground = s.onErrorContainer;
-    }
+    final (background, foreground) = switch (state) {
+      'active' => (
+          Colors.green.shade600.withValues(alpha: isDark ? 0.2 : 0.12),
+          isDark ? Colors.green.shade400 : Colors.green.shade700,
+        ),
+      'expired' || 'cancelled' => (
+          theme.colorScheme.error.withValues(alpha: 0.12),
+          theme.colorScheme.error,
+        ),
+      _ => (
+          theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          theme.colorScheme.onSurface.withValues(alpha: 0.7),
+        ),
+    };
 
-    return Chip(
-      label: Text(voucherStateLabel(state), style: TextStyle(fontSize: 12, color: foreground)),
-      backgroundColor: background,
-      side: BorderSide.none,
-      visualDensity: VisualDensity.compact,
-      padding: EdgeInsets.zero,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: foreground.withValues(alpha: 0.25),
+          width: 0.8,
+        ),
+      ),
+      child: Text(
+        voucherStateLabel(state),
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: foreground,
+          fontWeight: FontWeight.w600,
+          fontSize: 11,
+        ),
+      ),
     );
   }
 }

@@ -5,16 +5,17 @@ import '../utils/money.dart';
 import '../widgets/benefit_line.dart';
 import '../widgets/loading_button.dart';
 
+typedef PlanData = Map<String, dynamic>;
+
 String _euros(int cents) => '${cents ~/ 100}.${(cents % 100).toString().padLeft(2, '0')}';
 
 /// One editable benefit: a shopping credit, a discount, or a perk (text only).
-/// The kind is chosen when the benefit is added and never changes: to change it, remove it and add a new one.
 class _BenefitRow {
   final String kind; // credit | discount | perk
   final String? code; // set for a benefit that already exists on the server
-  final TextEditingController amount; // euros (credit) or percent (discount); unused for a perk
+  final TextEditingController amount; // euros (credit) or percent (discount)
   final TextEditingController description;
-  bool descriptionTouched; // once the admin words the line themselves, it is no longer filled in automatically
+  bool descriptionTouched;
 
   _BenefitRow({
     required this.kind,
@@ -28,7 +29,7 @@ class _BenefitRow {
     amount.addListener(_suggest);
   }
 
-  factory _BenefitRow.fromJson(Map<String, dynamic> b) {
+  factory _BenefitRow.fromJson(PlanData b) {
     final kind = b['kind'] as String;
     var amount = '';
     if (kind == 'credit') {
@@ -39,14 +40,13 @@ class _BenefitRow {
 
     return _BenefitRow(
       kind: kind,
-      code: b['code'] as String,
+      code: b['code'] as String?,
       initialAmount: amount,
-      initialDescription: b['description'] as String,
+      initialDescription: (b['description'] as String?) ?? '',
       touched: true,
     );
   }
 
-  /// The line suggested for the amount typed in, or '' when there is nothing sensible to suggest.
   String suggestion() {
     if (kind == 'credit') {
       final cents = parseEuroToCents(amount.text);
@@ -80,7 +80,7 @@ class AdminMembershipPlanFormScreen extends StatefulWidget {
 }
 
 class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormScreen> {
-  static const _maxCents = 100000000; // the server's limit: 1,000,000.00
+  static const _maxCents = 100000000; // 1,000,000.00
   static const _maxBenefits = 20;
 
   final _form = GlobalKey<FormState>();
@@ -90,11 +90,11 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
   final _price = TextEditingController();
 
   bool _active = true;
-  bool _hasProduct = true; // false: a plan made elsewhere that has no product yet
+  bool _hasProduct = true;
   int? _taxRateId;
   int? _originalTaxRateId;
   int? _originalPriceCents;
-  List<Map<String, dynamic>> _taxRates = [];
+  List<PlanData> _taxRates = [];
   final List<_BenefitRow> _benefits = [];
 
   bool _loadingData = true;
@@ -105,7 +105,6 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
 
   bool get _editing => widget.planId != null;
 
-  /// A price is mandatory when creating, and when the plan already has a product.
   bool get _priceRequired => !_editing || _hasProduct;
 
   bool _has(String kind) => _benefits.any((b) => b.kind == kind);
@@ -136,10 +135,10 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
       ]);
       if (!mounted) return;
 
-      final taxRates = [...(results[0] as List<Map<String, dynamic>>)];
+      final taxRates = (results[0] as List<dynamic>).cast<PlanData>();
 
       if (_editing) {
-        final p = results[1] as Map<String, dynamic>;
+        final p = results[1] as PlanData;
 
         _code.text = p['code'] as String;
         _name.text = p['name'] as String;
@@ -150,10 +149,10 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
         _price.text = _originalPriceCents == null ? '' : _euros(_originalPriceCents!);
         _taxRateId = p['tax_rate_id'] as int?;
         _originalTaxRateId = _taxRateId;
-        _benefits.addAll((p['benefits'] as List<dynamic>).cast<Map<String, dynamic>>().map(_BenefitRow.fromJson));
+        _benefits.addAll(
+          (p['benefits'] as List<dynamic>).cast<PlanData>().map(_BenefitRow.fromJson),
+        );
 
-        // The plan's own rate may have ended. Keep it in the list so the dropdown stays valid;
-        // it is only sent to the server if the admin picks a different one.
         if (_taxRateId != null && !taxRates.any((t) => t['id'] == _taxRateId)) {
           taxRates.add({
             'id': _taxRateId,
@@ -179,7 +178,7 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
     }
   }
 
-  // ---------- validation (the server checks everything again) ----------
+  // ---------- validation ----------
 
   String? _vCode(String? v) {
     final s = (v ?? '').trim();
@@ -230,7 +229,6 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
   void _removeBenefit(int i) {
     final row = _benefits[i];
     setState(() => _benefits.removeAt(i));
-    // Dispose after the frame: the removed fields are still on screen until it finishes.
     WidgetsBinding.instance.addPostFrameCallback((_) => row.dispose());
   }
 
@@ -248,7 +246,7 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
 
   bool _isFieldKey(String k) =>
       const {'code', 'name', 'description', 'price_cents', 'tax_rate_id'}.contains(k) ||
-          RegExp(r'^benefits\.\d+\.').hasMatch(k);
+      RegExp(r'^benefits\.\d+\.').hasMatch(k);
 
   Future<void> _save() async {
     setState(() {
@@ -262,8 +260,6 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
     String? orNull(String s) => s.trim().isEmpty ? null : s.trim();
 
     final priceText = _price.text.trim();
-    // Price and tax rate are only sent when they changed, so a stale form cannot overwrite another admin's edit
-    // and a plan whose tax rate has ended can still be renamed.
     final sendPrice = priceText.isNotEmpty && (!_editing || parseEuroToCents(priceText) != _originalPriceCents);
     final sendTax = !_editing || (_hasProduct ? _taxRateId != _originalTaxRateId : sendPrice);
 
@@ -272,10 +268,8 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
       'name': _name.text.trim(),
       'description': orNull(_desc.text),
       'active': _active,
-      if (sendPrice) 'price_cents': parseEuroToCents(priceText)!, // safe: validate() accepted it
+      if (sendPrice) 'price_cents': parseEuroToCents(priceText)!,
       if (sendTax) 'tax_rate_id': _taxRateId,
-      // The whole list, in display order. An existing benefit sends its code back, which is how the server
-      // keeps anything another system stored in it.
       'benefits': [
         for (final b in _benefits)
           {
@@ -283,7 +277,7 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
             if (b.code != null) 'code': b.code,
             'description': b.description.text.trim(),
             if (b.kind == 'credit') 'credit_cents': parseEuroToCents(b.amount.text)!,
-            if (b.kind == 'discount') 'discount_percent': b.amount.text.trim().replaceAll(',', '.'), // text keeps it exact
+            if (b.kind == 'discount') 'discount_percent': b.amount.text.trim().replaceAll(',', '.'),
           },
       ],
     };
@@ -311,15 +305,15 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
   // ---------- UI ----------
 
   Widget _text(
-      String serverKey,
-      String label,
-      TextEditingController c,
-      String? Function(String?) validator, {
-        int maxLines = 1,
-        TextInputType? type,
-        String? helper,
-        bool enabled = true,
-      }) {
+    String serverKey,
+    String label,
+    TextEditingController c,
+    String? Function(String?) validator, {
+    int maxLines = 1,
+    TextInputType? type,
+    String? helper,
+    bool enabled = true,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
@@ -331,7 +325,11 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
         autovalidateMode: AutovalidateMode.onUserInteraction,
         validator: validator,
         forceErrorText: _serverErrors[serverKey],
-        decoration: InputDecoration(labelText: label, helperText: helper, helperMaxLines: 3),
+        decoration: InputDecoration(
+          labelText: label,
+          helperText: helper,
+          helperMaxLines: 3,
+        ),
       ),
     );
   }
@@ -339,6 +337,7 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
   Widget _benefitCard(int i) {
     final b = _benefits[i];
     final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
     String? server(String f) => _serverErrors['benefits.$i.$f'];
 
     final label = switch (b.kind) {
@@ -349,65 +348,84 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
 
     return Card(
       key: ObjectKey(b),
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.2)),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(children: [
-          Row(children: [
-            Icon(benefitIcon(b.kind), size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(label, style: theme.textTheme.titleSmall)),
-            IconButton(
-              tooltip: 'Move up',
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.arrow_upward, size: 20),
-              onPressed: i == 0 ? null : () => _move(i, -1),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(benefitIcon(b.kind), size: 20, color: goldColor),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Move up',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.arrow_upward, size: 18),
+                  onPressed: i == 0 ? null : () => _move(i, -1),
+                ),
+                IconButton(
+                  tooltip: 'Move down',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.arrow_downward, size: 18),
+                  onPressed: i == _benefits.length - 1 ? null : () => _move(i, 1),
+                ),
+                IconButton(
+                  tooltip: 'Remove benefit',
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(Icons.delete_outline, size: 18, color: theme.colorScheme.error),
+                  onPressed: () => _removeBenefit(i),
+                ),
+              ],
             ),
-            IconButton(
-              tooltip: 'Move down',
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.arrow_downward, size: 20),
-              onPressed: i == _benefits.length - 1 ? null : () => _move(i, 1),
-            ),
-            IconButton(
-              tooltip: 'Remove benefit',
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.delete_outline, size: 20),
-              onPressed: () => _removeBenefit(i),
-            ),
-          ]),
-          if (server('kind') != null)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(server('kind')!, style: TextStyle(color: theme.colorScheme.error)),
-            ),
-          if (b.kind != 'perk') ...[
-            const SizedBox(height: 8),
+            if (server('kind') != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(server('kind')!, style: TextStyle(color: theme.colorScheme.error)),
+              ),
+            if (b.kind != 'perk') ...[
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: b.amount,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                validator: (v) => _vAmount(b, v),
+                forceErrorText: server(b.kind == 'credit' ? 'credit_cents' : 'discount_percent'),
+                decoration: InputDecoration(
+                  labelText: b.kind == 'credit' ? 'Credit amount (€)' : 'Discount (%)',
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
             TextFormField(
-              controller: b.amount,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              controller: b.description,
+              minLines: 1,
+              maxLines: 2,
+              maxLength: 300,
+              onChanged: (_) => b.descriptionTouched = true,
               autovalidateMode: AutovalidateMode.onUserInteraction,
-              validator: (v) => _vAmount(b, v),
-              forceErrorText: server(b.kind == 'credit' ? 'credit_cents' : 'discount_percent'),
-              decoration: InputDecoration(labelText: b.kind == 'credit' ? 'Credit amount (€)' : 'Discount (%)'),
+              validator: _vBenefitDescription,
+              forceErrorText: server('description'),
+              decoration: InputDecoration(
+                labelText: 'Line shown to customers',
+                helperText: b.kind == 'perk'
+                    ? 'e.g. Access to exclusive offers'
+                    : 'Filled in from the amount, you can reword it.',
+                helperMaxLines: 2,
+              ),
             ),
           ],
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: b.description,
-            minLines: 1,
-            maxLines: 2,
-            maxLength: 300,
-            onChanged: (_) => b.descriptionTouched = true, // the admin worded it: stop suggesting
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            validator: _vBenefitDescription,
-            forceErrorText: server('description'),
-            decoration: InputDecoration(
-              labelText: 'Line shown to customers',
-              helperText: b.kind == 'perk' ? 'e.g. Access to exclusive offers' : 'Filled in from the amount, you can reword it.',
-              helperMaxLines: 2,
-            ),
-          ),
-        ]),
+        ),
       ),
     );
   }
@@ -415,27 +433,46 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
 
     if (_loadingData) {
-      return Scaffold(appBar: AppBar(), body: const Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        appBar: AppBar(title: Text(_editing ? 'Edit plan' : 'New plan')),
+        body: Center(child: CircularProgressIndicator(color: goldColor)),
+      );
     }
+
     if (_loadError != null) {
       return Scaffold(
-        appBar: AppBar(),
+        appBar: AppBar(title: Text(_editing ? 'Edit plan' : 'New plan')),
         body: Center(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text(_loadError!),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _loadingData = true;
-                  _loadError = null;
-                });
-                _init();
-              },
-              child: const Text('Retry'),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+                const SizedBox(height: 12),
+                Text(_loadError!, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _loadingData = true;
+                      _loadError = null;
+                    });
+                    _init();
+                  },
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Retry'),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: goldColor),
+                    foregroundColor: goldColor,
+                  ),
+                ),
+              ],
             ),
-          ]),
+          ),
         ),
       );
     }
@@ -444,17 +481,31 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
     final full = _benefits.length >= _maxBenefits;
 
     return Scaffold(
-      appBar: AppBar(title: Text(_editing ? 'Edit plan' : 'New plan')),
+      appBar: AppBar(
+        title: Text(_editing ? 'Edit plan' : 'New plan'),
+      ),
       body: Form(
         key: _form,
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            _text('code', 'Code', _code, _vCode,
-                enabled: !_editing, helper: _editing ? 'The code cannot be changed.' : 'e.g. entry or gold'),
+            _text(
+              'code',
+              'Code',
+              _code,
+              _vCode,
+              enabled: !_editing,
+              helper: _editing ? 'The code cannot be changed.' : 'e.g. entry or gold',
+            ),
             _text('name', 'Name', _name, _vName, helper: 'e.g. Entry Membership'),
-            _text('description', 'Short description (shown under the name)', _desc, _vDesc,
-                maxLines: 2, helper: 'e.g. Perfect for getting to know each other'),
+            _text(
+              'description',
+              'Short description (shown under the name)',
+              _desc,
+              _vDesc,
+              maxLines: 2,
+              helper: 'e.g. Perfect for getting to know each other',
+            ),
             if (_editing && !_hasProduct)
               Padding(
                 padding: const EdgeInsets.only(bottom: 16),
@@ -463,8 +514,13 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
                   style: TextStyle(color: theme.colorScheme.error),
                 ),
               ),
-            _text('price_cents', 'Price (€, incl. VAT)', _price, _vPrice,
-                type: const TextInputType.numberWithOptions(decimal: true)),
+            _text(
+              'price_cents',
+              'Price (€, incl. VAT)',
+              _price,
+              _vPrice,
+              type: const TextInputType.numberWithOptions(decimal: true),
+            ),
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: DropdownButtonFormField<int>(
@@ -475,8 +531,8 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
                   helperText: _taxRates.isEmpty
                       ? 'No tax rate exists yet. Create one under Admin, Tax rates.'
                       : endedRateSelected
-                      ? 'This rate has ended. It still works for this plan, but a current rate should replace it.'
-                      : null,
+                          ? 'This rate has ended. It still works for this plan, but a current rate should replace it.'
+                          : null,
                   helperMaxLines: 3,
                   errorText: _serverErrors['tax_rate_id'],
                 ),
@@ -485,7 +541,9 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
                   for (final t in _taxRates)
                     DropdownMenuItem<int>(
                       value: t['id'] as int,
-                      child: Text('${t['code']} (${t['rate_percent']}%)${t['ended'] == true ? ' · ended' : ''}'),
+                      child: Text(
+                        '${t['code']} (${t['rate_percent']}%)${t['ended'] == true ? ' · ended' : ''}',
+                      ),
                     ),
                 ],
                 onChanged: (v) => setState(() => _taxRateId = v),
@@ -493,45 +551,71 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Available to buy'),
-              subtitle: const Text('Turning this off hides the plan. Existing members keep their membership.'),
+              activeColor: goldColor,
+              title: Text(
+                'Available to buy',
+                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                'Turning this off hides the plan. Existing members keep their membership.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
+              ),
               value: _active,
               onChanged: (v) => setState(() => _active = v),
             ),
             const Divider(height: 32),
-            Text('Benefits', style: theme.textTheme.titleMedium),
+            Text(
+              'Benefits',
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 4),
             Text(
               'What a member gets, in the order customers read it. Use the arrows to reorder. '
-                  'A plan can have one shopping credit and one discount, plus any number of perks.',
-              style: theme.textTheme.bodySmall,
+              'A plan can have one shopping credit and one discount, plus any number of perks.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             for (var i = 0; i < _benefits.length; i++) _benefitCard(i),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              OutlinedButton.icon(
-                onPressed: full || _has('credit') ? null : () => _addBenefit('credit'),
-                icon: const Icon(Icons.account_balance_wallet_outlined),
-                label: const Text('Shopping credit'),
-              ),
-              OutlinedButton.icon(
-                onPressed: full || _has('discount') ? null : () => _addBenefit('discount'),
-                icon: const Icon(Icons.sell_outlined),
-                label: const Text('Discount'),
-              ),
-              OutlinedButton.icon(
-                onPressed: full ? null : () => _addBenefit('perk'),
-                icon: const Icon(Icons.check_circle_outline),
-                label: const Text('Perk'),
-              ),
-            ]),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: full || _has('credit') ? null : () => _addBenefit('credit'),
+                  icon: const Icon(Icons.account_balance_wallet_outlined, size: 18),
+                  label: const Text('Shopping credit'),
+                  style: OutlinedButton.styleFrom(side: BorderSide(color: goldColor)),
+                ),
+                OutlinedButton.icon(
+                  onPressed: full || _has('discount') ? null : () => _addBenefit('discount'),
+                  icon: const Icon(Icons.sell_outlined, size: 18),
+                  label: const Text('Discount'),
+                  style: OutlinedButton.styleFrom(side: BorderSide(color: goldColor)),
+                ),
+                OutlinedButton.icon(
+                  onPressed: full ? null : () => _addBenefit('perk'),
+                  icon: const Icon(Icons.check_circle_outline, size: 18),
+                  label: const Text('Perk'),
+                  style: OutlinedButton.styleFrom(side: BorderSide(color: goldColor)),
+                ),
+              ],
+            ),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
               ),
             const SizedBox(height: 24),
-            LoadingButton(label: _editing ? 'Save changes' : 'Create plan', loading: _saving, onPressed: _save),
+            LoadingButton(
+              label: _editing ? 'Save changes' : 'Create plan',
+              loading: _saving,
+              onPressed: _save,
+            ),
           ],
         ),
       ),

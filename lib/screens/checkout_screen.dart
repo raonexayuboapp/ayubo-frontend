@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/cart_state.dart';
 import '../utils/address_text.dart';
 import '../utils/countries.dart';
 import '../utils/money.dart';
 import '../utils/request_key.dart';
+import '../widgets/app_header.dart';
 import '../widgets/product_image.dart';
 import 'address_form_screen.dart';
 import 'order_placed_screen.dart';
 
-/// German law requires this button to say that the order obliges the customer to pay. When online payment goes
-/// live, change it (for example "Order with obligation to pay").
-const _placeOrderLabel = 'Place order';
+/// German law (§ 312j Abs. 3 BGB) requires this button to say that the order obliges the customer to pay ("Zahlungspflichtig bestellen").
+String _placeOrderText(BuildContext context) {
+  final l10n = AppLocalizations.of(context);
+  final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
+  return isDe ? 'Zahlungspflichtig bestellen' : (l10n?.placeOrder ?? 'Place order');
+}
 
 class CheckoutScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -72,7 +77,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Map<String, dynamic>? get _chosen {
     final p = _preview;
     if (p == null) return null;
-    return _useMembership ? _membership?['pricing'] as Map<String, dynamic>? : p['standalone'] as Map<String, dynamic>?;
+    return _useMembership
+        ? (_membership?['pricing'] as Map<String, dynamic>?)
+        : (p['standalone'] as Map<String, dynamic>?);
   }
 
   int _cents(String key) => (_chosen?[key] as num?)?.toInt() ?? 0;
@@ -310,19 +317,27 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   List<Widget> _voucherSection() {
     final theme = Theme.of(context);
-    final widgets = <Widget>[_heading('Voucher')];
+    final l10n = AppLocalizations.of(context);
+    final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
+    final widgets = <Widget>[_heading(l10n?.giftVouchers ?? 'Vouchers')];
 
     if (!_vouchersAllowed) {
       return [
         ...widgets,
-        Text('Vouchers can only pay for products. Remove gift vouchers and memberships from your cart to use a voucher.',
+        Text(
+            isDe
+                ? 'Gutscheine können nur für Produkte verwendet werden. Bitte entfernen Sie Geschenkgutscheine und Mitgliedschaften aus Ihrem Warenkorb.'
+                : 'Vouchers can only pay for products. Remove gift vouchers and memberships from your cart to use a voucher.',
             style: theme.textTheme.bodySmall),
       ];
     }
     if (_useMembership) {
       return [
         ...widgets,
-        Text('Vouchers cannot be combined with paying by membership. Choose "Pay normally" above to use a voucher.',
+        Text(
+            isDe
+                ? 'Gutscheine können nicht mit der Bezahlung über eine Mitgliedschaft kombiniert werden. Wählen Sie oben "Regulär bezahlen", um einen Gutschein einzulösen.'
+                : 'Vouchers cannot be combined with paying by membership. Choose "Pay normally" above to use a voucher.',
             style: theme.textTheme.bodySmall),
       ];
     }
@@ -335,11 +350,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         key: ValueKey(v['code']),
         child: ListTile(
           leading: const Icon(Icons.card_giftcard_outlined),
-          title: Text('Voucher •••• ${v['suffix']}'),
-          subtitle: Text('Balance ${formatCents((v['balance_cents'] as num).toInt())}'
-              '${expires == null ? '' : ' · valid until ${expires.substring(0, 10)}'}'),
+          title: Text(isDe ? 'Gutschein •••• ${v['suffix']}' : 'Voucher •••• ${v['suffix']}'),
+          subtitle: Text('${isDe ? 'Guthaben' : 'Balance'} ${formatCents((v['balance_cents'] as num).toInt())}'
+              '${expires == null ? '' : (isDe ? ' · gültig bis ${expires.substring(0, 10)}' : ' · valid until ${expires.substring(0, 10)}') }'),
           trailing: IconButton(
-            tooltip: 'Remove',
+            tooltip: l10n?.remove ?? 'Remove',
             icon: const Icon(Icons.close),
             onPressed: _placing ? null : () => _removeVoucher(i),
           ),
@@ -356,7 +371,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           autocorrect: false,
           enableSuggestions: false,
           onSubmitted: (_) => _addVoucher(),
-          decoration: const InputDecoration(labelText: 'Voucher code', hintText: 'XXXX-XXXX-XXXX-XXXX'),
+          decoration: InputDecoration(
+            labelText: l10n?.voucherCode ?? 'Voucher code',
+            hintText: 'XXXX-XXXX-XXXX-XXXX',
+          ),
         ),
       ),
       const SizedBox(width: 8),
@@ -366,7 +384,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           onPressed: _placing || _checkingVoucher ? null : _addVoucher,
           child: _checkingVoucher
               ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Add'),
+              : Text(l10n?.add ?? 'Add'),
         ),
       ),
     ]));
@@ -582,11 +600,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   List<Widget> _deliverySection() {
+    final l10n = AppLocalizations.of(context);
     final shipping = _ofType('shipping');
 
     return [
-      _heading('Delivery address'),
-      if (shipping.isEmpty) const Text('Add the address we should deliver to.'),
+      _heading(l10n?.shippingAddress ?? 'Delivery address'),
+      if (shipping.isEmpty) Text(l10n?.addDeliveryAddress ?? 'Add the address we should deliver to.'),
       for (final a in shipping)
         _choice(
           key: ValueKey('s${a['id']}'),
@@ -603,10 +622,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       TextButton.icon(
         onPressed: _placing ? null : () => _addAddress('shipping'),
         icon: const Icon(Icons.add),
-        label: const Text('Add delivery address'),
+        label: Text(l10n?.addDeliveryAddress ?? 'Add delivery address'),
       ),
       if (_serverErrors['shipping_address_id'] != null) _errorText(_serverErrors['shipping_address_id']!),
-      _heading('Delivery method'),
+      _heading(l10n?.shippingMethod ?? 'Delivery method'),
       if (_refreshing) const LinearProgressIndicator(),
       ..._methodChoices(),
       if (_serverErrors['shipping_method_id'] != null) _errorText(_serverErrors['shipping_method_id']!),
@@ -614,14 +633,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   List<Widget> _billingSection() {
+    final l10n = AppLocalizations.of(context);
     final billing = _ofType('billing');
 
     return [
-      _heading('Billing address'),
+      _heading(l10n?.billingAddress ?? 'Billing address'),
       _choice(
         selected: _billingAddressId == null,
         onTap: _placing ? null : () => setState(() => _billingAddressId = null),
-        title: Text(_requiresShipping ? 'Same as the delivery address' : 'My default billing address (if I have one)'),
+        title: Text(_requiresShipping
+            ? (l10n?.sameAsDeliveryAddress ?? 'Same as the delivery address')
+            : (l10n?.defaultBillingAddress ?? 'My default billing address (if I have one)')),
       ),
       for (final a in billing)
         _choice(
@@ -634,7 +656,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       TextButton.icon(
         onPressed: _placing ? null : () => _addAddress('billing'),
         icon: const Icon(Icons.add),
-        label: const Text('Add billing address'),
+        label: Text(l10n?.addBillingAddress ?? 'Add billing address'),
       ),
       if (_serverErrors['billing_address_id'] != null) _errorText(_serverErrors['billing_address_id']!),
     ];
@@ -642,6 +664,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   /// "Pay normally" or "Pay with my membership". Only members see it.
   List<Widget> _paymentSection() {
+    final l10n = AppLocalizations.of(context);
+    final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
     final m = _membership;
     final preview = _preview;
     if (m == null || preview == null || m['discount_percent'] == null) return const []; // not a member
@@ -660,23 +684,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final total = formatCents((pricing['total_cents'] as num).toInt());
       final left = formatCents(balance - credit);
 
+      if (isDe) {
+        return pay == 0
+            ? 'Gesamtbetrag $total, vollständig aus Ihrem Guthaben. Verbleibendes Guthaben: $left.'
+            : '${formatCents(credit)} aus Ihrem Guthaben, ${formatCents(pay)} anderweitig zu zahlen. Verbleibend: $left.';
+      }
       return pay == 0
           ? 'Total $total, all from your credit. Credit left: $left.'
           : '${formatCents(credit)} from your credit, ${formatCents(pay)} to pay another way. Credit left: $left.';
     }
 
     return [
-      _heading('How do you want to pay?'),
+      _heading(l10n?.paymentMethod ?? 'How do you want to pay?'),
       _choice(
         selected: !_useMembership,
         onTap: _placing ? null : () => setState(() => _useMembership = false),
-        title: const Text('Pay normally'),
-        subtitle: Text('Total ${formatCents((standalone['total_cents'] as num).toInt())}'),
+        title: Text(l10n?.payNormally ?? 'Pay normally'),
+        subtitle: Text('${isDe ? 'Gesamtbetrag' : 'Total'} ${formatCents((standalone['total_cents'] as num).toInt())}'),
       ),
       _choice(
         selected: _useMembership,
         onTap: _placing || !available ? null : _chooseMembership,
-        title: Text('Pay with my membership · ${formatPercent(percent)}% off'),
+        title: Text('${l10n?.payWithMembership ?? 'Pay with my membership'} · ${formatPercent(percent)}% ${isDe ? 'Rabatt' : 'off'}'),
         subtitle: Text(line()),
       ),
       if (_serverErrors['pay_with_membership'] != null) _errorText(_serverErrors['pay_with_membership']!),
@@ -685,6 +714,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Widget _summary() {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
+    final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
 
     Widget row(String label, String value, {bool bold = false}) {
       final style = bold ? theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold) : null;
@@ -698,36 +729,46 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          row('Items', formatCents(_goods)),
-          if (_discount > 0) row('Member discount', '−${formatCents(_discount)}'),
-          if (_requiresShipping) row('Shipping', _methodId == null ? '–' : (_shipping == 0 ? 'Free' : formatCents(_shipping))),
+          row(isDe ? 'Artikel' : 'Items', formatCents(_goods)),
+          if (_discount > 0) row(isDe ? 'Mitgliederrabatt' : 'Member discount', '−${formatCents(_discount)}'),
+          if (_requiresShipping)
+            row(
+              l10n?.shipping ?? 'Shipping',
+              _methodId == null ? '–' : (_shipping == 0 ? (l10n?.shippingFree ?? 'Free') : formatCents(_shipping)),
+            ),
           const Divider(height: 20),
-          row('Total', formatCents(_total), bold: true),
+          row(l10n?.total ?? 'Total', formatCents(_total), bold: true),
           if (_credit > 0) ...[
             const SizedBox(height: 4),
-            row('From your membership credit', '−${formatCents(_credit)}'),
-            row(_toPay == 0 ? 'Nothing left to pay' : 'To pay now', formatCents(_toPay), bold: _toPay > 0),
+            row(isDe ? 'Aus Ihrem Guthaben' : 'From your membership credit', '−${formatCents(_credit)}'),
+            row(_toPay == 0 ? (isDe ? 'Nichts mehr zu zahlen' : 'Nothing left to pay') : (isDe ? 'Jetzt zu zahlen' : 'To pay now'), formatCents(_toPay), bold: _toPay > 0),
           ],
           if (_voucherApplied > 0) ...[
             const SizedBox(height: 4),
-            row('From your vouchers', '−${formatCents(_voucherApplied)}'),
-            row(_toPay == 0 ? 'Nothing left to pay' : 'To pay now', formatCents(_toPay), bold: _toPay > 0),
+            row(isDe ? 'Aus Ihren Gutscheinen' : 'From your vouchers', '−${formatCents(_voucherApplied)}'),
+            row(_toPay == 0 ? (isDe ? 'Nichts mehr zu zahlen' : 'Nothing left to pay') : (isDe ? 'Jetzt zu zahlen' : 'To pay now'), formatCents(_toPay), bold: _toPay > 0),
           ],
           const SizedBox(height: 4),
-          Text('All prices include VAT. The VAT breakdown is shown on your order.', style: theme.textTheme.bodySmall),
+          Text(
+            l10n?.vatNotice ?? 'All prices include VAT. The VAT breakdown is shown on your order.',
+            style: theme.textTheme.bodySmall,
+          ),
         ]),
       ),
     );
   }
 
   Widget _body() {
+    final l10n = AppLocalizations.of(context);
+    final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
+
     if (_loading) return const Center(child: CircularProgressIndicator());
 
     if (_loadError != null) {
       return Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Text(_loadError!),
-          TextButton(onPressed: _load, child: const Text('Retry')),
+          TextButton(onPressed: _load, child: Text(l10n?.retry ?? 'Retry')),
         ]),
       );
     }
@@ -735,8 +776,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (_items.isEmpty) {
       return Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('Your cart is empty.'),
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Back')),
+          Text(l10n?.cartEmpty ?? 'Your cart is empty.'),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n?.back ?? 'Back')),
         ]),
       );
     }
@@ -746,21 +787,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
-        _heading('Your order'),
+        _heading(isDe ? 'Ihre Bestellung' : 'Your order'),
         ..._itemRows(),
         if (_cart?['can_checkout'] != true)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Row(children: [
-              Expanded(child: Text('Some items in your cart cannot be ordered.', style: TextStyle(color: theme.colorScheme.error))),
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Back to cart')),
+              Expanded(
+                child: Text(
+                  isDe
+                      ? 'Einige Artikel in Ihrem Warenkorb können nicht bestellt werden.'
+                      : 'Some items in your cart cannot be ordered.',
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(isDe ? 'Zurück zum Warenkorb' : 'Back to cart'),
+              ),
             ]),
           ),
         if (_requiresShipping) ..._deliverySection(),
         ..._billingSection(),
         ..._paymentSection(),
         ..._voucherSection(),
-        _heading('Summary'),
+        _heading(l10n?.orderSummary ?? 'Summary'),
         _summary(),
         const SizedBox(height: 8),
         CheckboxListTile(
@@ -768,7 +819,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           controlAffinity: ListTileControlAffinity.leading,
           value: _accepted,
           onChanged: _placing ? null : (v) => setState(() => _accepted = v ?? false),
-          title: const Text('I accept the terms and conditions and the cancellation policy.'),
+          title: Text(l10n?.termsAndConditions ?? 'I accept the terms and conditions and the cancellation policy.'),
         ),
         if (_serverErrors['accept_terms'] != null) _errorText(_serverErrors['accept_terms']!),
         if (_formError != null) ...[
@@ -776,8 +827,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           if (_serverErrors.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text('You can safely press the button again: the same order is never created twice.',
-                  style: theme.textTheme.bodySmall),
+              child: Text(
+                isDe
+                    ? 'Sie können bedenkenlos erneut bestellen: Dieselbe Bestellung wird nie doppelt angelegt.'
+                    : 'You can safely press the button again: the same order is never created twice.',
+                style: theme.textTheme.bodySmall,
+              ),
             ),
         ],
       ],
@@ -805,7 +860,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               onPressed: _canPlace ? _place : null,
               child: _placing
                   ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : Text('$_placeOrderLabel · ${formatCents(_total)}'),
+                  : Text('${_placeOrderText(context)} · ${formatCents(_total)}'),
             ),
           ]),
         ),
@@ -815,11 +870,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final isDe = l10n?.localeName.startsWith('de') ?? false;
+
     // While the order is being sent, leaving would hide whether it worked.
     return PopScope(
       canPop: !_placing,
       child: Scaffold(
-        appBar: AppBar(title: const Text('Checkout')),
+        appBar: AppHeader(
+          title: l10n?.checkout ?? 'Checkout',
+          subtitle: isDe ? 'Sichere Kasse' : 'Secure Checkout',
+          user: widget.user,
+          showBackButton: !_placing,
+        ),
         body: _body(),
         bottomNavigationBar: _bottomBar(),
       ),

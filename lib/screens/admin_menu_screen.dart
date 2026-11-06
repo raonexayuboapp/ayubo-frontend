@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/app_header.dart';
 import 'admin_categories_screen.dart';
 import 'admin_membership_plans_screen.dart';
 import 'admin_products_screen.dart';
@@ -50,8 +51,11 @@ class AdminMenuScreen extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Admin Console'),
+      appBar: const AppHeader(
+        title: 'Admin Console',
+        subtitle: 'Store Operations & Catalog',
+        showBackButton: true,
+        showAdmin: false,
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),

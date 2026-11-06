@@ -5,6 +5,8 @@ import '../utils/money.dart';
 import '../utils/request_key.dart';
 import 'admin_stock_history_screen.dart';
 
+typedef StockData = Map<String, dynamic>;
+
 /// Stock of ONE variant, per location, with the three admin operations.
 class AdminStockScreen extends StatefulWidget {
   final int variantId;
@@ -16,8 +18,8 @@ class AdminStockScreen extends StatefulWidget {
 }
 
 class _AdminStockScreenState extends State<AdminStockScreen> {
-  Map<String, dynamic>? _data;
-  List<Map<String, dynamic>> _locations = [];
+  StockData? _data;
+  List<StockData> _locations = [];
   bool _loading = true;
   String? _error;
 
@@ -40,8 +42,8 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
       ]);
       if (!mounted) return;
       setState(() {
-        _data = results[0] as Map<String, dynamic>;
-        _locations = results[1] as List<Map<String, dynamic>>;
+        _data = results[0] as StockData;
+        _locations = (results[1] as List<dynamic>).cast<StockData>();
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -56,7 +58,7 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
   }
 
   Future<void> _operate(String kind) async {
-    final balances = (_data!['balances'] as List<dynamic>).cast<Map<String, dynamic>>();
+    final balances = (_data!['balances'] as List<dynamic>).cast<StockData>();
 
     final message = await showDialog<String>(
       context: context,
@@ -79,115 +81,229 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
     if (created == true) _load();
   }
 
-  Widget _totalsCard(Map<String, dynamic> totals) {
-    Widget cell(String label, num value, {bool bold = false}) => Expanded(
-      child: Column(children: [
-        Text(formatQuantity(value),
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: bold ? FontWeight.bold : null)),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
-      ]),
-    );
+  Widget _totalsCard(StockData totals) {
+    final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Row(children: [
+    Widget cell(String label, num value, {bool isHighlight = false}) => Expanded(
+          child: Column(
+            children: [
+              Text(
+                formatQuantity(value),
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
+                  color: isHighlight ? goldColor : theme.colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+            ],
+          ),
+        );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.dividerColor.withValues(alpha: 0.15),
+        ),
+      ),
+      child: Row(
+        children: [
           cell('On hand', totals['on_hand'] as num),
           cell('Reserved', totals['reserved'] as num),
-          cell('Available', totals['available'] as num, bold: true),
-        ]),
+          cell('Available', totals['available'] as num, isHighlight: true),
+        ],
       ),
     );
   }
 
-  Widget _balanceTile(Map<String, dynamic> b) {
+  Widget _balanceTile(StockData b) {
+    final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
+
     return ListTile(
       key: ValueKey(b['location_id']),
-      contentPadding: EdgeInsets.zero,
-      title: Text('${b['code']} · ${b['name']}'),
-      subtitle: Text('On hand ${formatQuantity(b['on_hand'] as num)} · Reserved ${formatQuantity(b['reserved'] as num)}'),
-      trailing: Text(formatQuantity(b['available'] as num),
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      title: Text(
+        '${b['code']} · ${b['name']}',
+        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(
+        'On hand ${formatQuantity(b['on_hand'] as num)} · Reserved ${formatQuantity(b['reserved'] as num)}',
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+        ),
+      ),
+      trailing: Text(
+        formatQuantity(b['available'] as num),
+        style: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.bold,
+          color: goldColor,
+        ),
+      ),
     );
   }
 
   Widget _body() {
-    if (_loading && _data == null) return const Center(child: CircularProgressIndicator());
+    final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
+
+    if (_loading && _data == null) {
+      return Center(child: CircularProgressIndicator(color: goldColor, strokeWidth: 2));
+    }
 
     if (_error != null) {
       return Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(_error!),
-          TextButton(onPressed: _load, child: const Text('Retry')),
-        ]),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
+              const SizedBox(height: 12),
+              Text(_error!, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: _load,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Retry'),
+                style: TextButton.styleFrom(foregroundColor: goldColor),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
     final data = _data!;
-    final variant = data['variant'] as Map<String, dynamic>;
-    final balances = (data['balances'] as List<dynamic>).cast<Map<String, dynamic>>();
-    final totals = data['totals'] as Map<String, dynamic>;
+    final variant = data['variant'] as StockData;
+    final balances = (data['balances'] as List<dynamic>).cast<StockData>();
+    final totals = data['totals'] as StockData;
     final tracks = variant['product_type'] == 'physical';
-    final theme = Theme.of(context);
 
     return RefreshIndicator(
       onRefresh: _load,
+      color: goldColor,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         children: [
-          Text((variant['product_name'] as String?) ?? variant['sku'] as String, style: theme.textTheme.titleLarge),
-          Text('SKU ${variant['sku']}'),
+          Text(
+            (variant['product_name'] as String?) ?? variant['sku'] as String,
+            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'SKU ${variant['sku']}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
           const SizedBox(height: 16),
           if (!tracks)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('This product type (service, voucher or course) does not track stock.'),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.dividerColor.withValues(alpha: 0.15)),
+              ),
+              child: Text(
+                'This product type (service, voucher or course) does not track stock.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
               ),
             )
           else ...[
             _totalsCard(totals),
             const SizedBox(height: 16),
             if (_locations.isEmpty)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const Text('No stock location exists yet. Add one (for example MAIN) before you record stock.'),
-                    const SizedBox(height: 8),
-                    FilledButton.icon(
-                      onPressed: _addLocation,
-                      icon: const Icon(Icons.add_business_outlined),
-                      label: const Text('Add location'),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: theme.dividerColor.withValues(alpha: 0.15)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'No stock location exists yet. Add one (for example MAIN) before you record stock.',
+                      style: theme.textTheme.bodyMedium,
                     ),
-                  ]),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: _addLocation,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: goldColor,
+                        elevation: 0,
+                      ),
+                      icon: const Icon(Icons.add_business_outlined, size: 18),
+                      label: const Text('Add location', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ],
                 ),
               )
             else
-              Wrap(spacing: 8, runSpacing: 8, children: [
-                FilledButton.icon(
-                  onPressed: () => _operate('receive'),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Receive'),
-                ),
-                FilledButton.tonalIcon(
-                  onPressed: () => _operate('adjust'),
-                  icon: const Icon(Icons.tune),
-                  label: const Text('Adjust'),
-                ),
-                FilledButton.tonalIcon(
-                  onPressed: () => _operate('count'),
-                  icon: const Icon(Icons.fact_check_outlined),
-                  label: const Text('Count'),
-                ),
-              ]),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _operate('receive'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: goldColor,
+                        elevation: 0,
+                      ),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Receive', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _operate('adjust'),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: goldColor),
+                        foregroundColor: goldColor,
+                      ),
+                      icon: const Icon(Icons.tune, size: 18),
+                      label: const Text('Adjust'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _operate('count'),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: goldColor),
+                        foregroundColor: goldColor,
+                      ),
+                      icon: const Icon(Icons.fact_check_outlined, size: 18),
+                      label: const Text('Count'),
+                    ),
+                  ),
+                ],
+              ),
             const SizedBox(height: 16),
             for (final b in balances) _balanceTile(b),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
               'Reserved stock is held for orders that are not paid yet. It is not available to other customers '
-                  'and cannot be removed here.',
-              style: theme.textTheme.bodySmall,
+              'and cannot be removed here.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
             ),
           ],
         ],
@@ -197,14 +313,15 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final variant = _data?['variant'] as Map<String, dynamic>?;
+    final variant = _data?['variant'] as StockData?;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(variant == null ? widget.title : '${variant['sku']} · Stock'),
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.history),
+            icon: const Icon(Icons.history, size: 20),
             tooltip: 'History',
             onPressed: () => Navigator.push(
               context,
@@ -214,7 +331,7 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.add_business_outlined),
+            icon: const Icon(Icons.add_business_outlined, size: 20),
             tooltip: 'Add location',
             onPressed: _data == null ? null : _addLocation,
           ),
@@ -225,12 +342,13 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
   }
 }
 
-/// Receive, adjust or count. It owns its controller and its request key.
+// ---------------------------------------------------------------------------
+
 class _StockDialog extends StatefulWidget {
-  final String kind; // receive | adjust | count
+  final String kind;
   final int variantId;
-  final List<Map<String, dynamic>> locations; // never empty: the screen only offers the buttons when one exists
-  final List<Map<String, dynamic>> balances;
+  final List<StockData> locations;
+  final List<StockData> balances;
 
   const _StockDialog({
     required this.kind,
@@ -251,8 +369,6 @@ class _StockDialogState extends State<_StockDialog> {
   String? _error;
   Map<String, String> _serverErrors = {};
 
-  // One key per distinct request. The same request sent again (after a dropped connection) reuses its key,
-  // a request with other values gets a new one.
   String? _key;
   String? _signature;
 
@@ -263,28 +379,28 @@ class _StockDialogState extends State<_StockDialog> {
   }
 
   String get _title => switch (widget.kind) {
-    'receive' => 'Receive stock',
-    'adjust' => 'Adjust stock',
-    _ => 'Count stock',
-  };
+        'receive' => 'Receive stock',
+        'adjust' => 'Adjust stock',
+        _ => 'Count stock',
+      };
 
   String get _label => switch (widget.kind) {
-    'receive' => 'Quantity received',
-    'adjust' => 'Change (+ or -)',
-    _ => 'Counted on the shelf',
-  };
+        'receive' => 'Quantity received',
+        'adjust' => 'Change (+ or -)',
+        _ => 'Counted on the shelf',
+      };
 
   String get _helper => switch (widget.kind) {
-    'receive' => 'Goods that arrived at this location.',
-    'adjust' => 'Use a minus sign to remove, for example -2 for damaged goods.',
-    _ => 'The system works out the difference to what is recorded.',
-  };
+        'receive' => 'Goods that arrived at this location.',
+        'adjust' => 'Use a minus sign to remove, for example -2 for damaged goods.',
+        _ => 'The system works out the difference to what is recorded.',
+      };
 
   String get _field => switch (widget.kind) {
-    'receive' => 'quantity',
-    'adjust' => 'delta',
-    _ => 'on_hand',
-  };
+        'receive' => 'quantity',
+        'adjust' => 'delta',
+        _ => 'on_hand',
+      };
 
   String _normalized(String? v) => (v ?? '').trim().replaceAll(',', '.').replaceFirst(RegExp(r'^\+'), '');
 
@@ -327,7 +443,6 @@ class _StockDialogState extends State<_StockDialog> {
     setState(() => _saving = true);
 
     try {
-      // The quantity is sent as TEXT, so no floating-point rounding can change it on the way.
       final result = await ApiService.instance.adminStockOperation(widget.variantId, widget.kind, {
         'location_id': _locationId,
         _field: qty,
@@ -340,8 +455,8 @@ class _StockDialogState extends State<_StockDialog> {
         result['already_applied'] == true
             ? 'This was already recorded.'
             : result['changed'] == false
-            ? 'No change: the count already matched.'
-            : 'Stock updated.',
+                ? 'No change: the count already matched.'
+                : 'Stock updated.',
       );
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -361,58 +476,85 @@ class _StockDialogState extends State<_StockDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
+
     return AlertDialog(
-      title: Text(_title),
+      backgroundColor: theme.colorScheme.surface,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text(
+        _title,
+        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+      ),
       content: SingleChildScrollView(
         child: Form(
           key: _form,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            DropdownButtonFormField<int>(
-              value: _locationId,
-              isExpanded: true,
-              decoration: InputDecoration(labelText: 'Location', errorText: _serverErrors['location']),
-              items: [
-                for (final l in widget.locations)
-                  DropdownMenuItem(value: l['id'] as int, child: Text('${l['code']} · ${l['name']}')),
-              ],
-              onChanged: _saving ? null : (v) => setState(() => _locationId = v!),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _qty,
-              enabled: !_saving,
-              autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              validator: _validate,
-              forceErrorText: _serverErrors['qty'],
-              onFieldSubmitted: (_) => _submit(),
-              decoration: InputDecoration(labelText: _label, helperText: _helper, helperMaxLines: 2),
-            ),
-            if (widget.kind == 'count')
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('Currently recorded here: ${formatQuantity(_recorded())}',
-                      style: Theme.of(context).textTheme.bodySmall),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<int>(
+                value: _locationId,
+                isExpanded: true,
+                decoration: InputDecoration(labelText: 'Location', errorText: _serverErrors['location']),
+                items: [
+                  for (final l in widget.locations)
+                    DropdownMenuItem(value: l['id'] as int, child: Text('${l['code']} · ${l['name']}')),
+                ],
+                onChanged: _saving ? null : (v) => setState(() => _locationId = v!),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _qty,
+                enabled: !_saving,
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                validator: _validate,
+                forceErrorText: _serverErrors['qty'],
+                onFieldSubmitted: (_) => _submit(),
+                decoration: InputDecoration(labelText: _label, helperText: _helper, helperMaxLines: 2),
+              ),
+              if (widget.kind == 'count')
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Currently recorded here: ${formatQuantity(_recorded())}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-              ),
-          ]),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(_error!, style: TextStyle(color: theme.colorScheme.error, fontSize: 13)),
+                ),
+            ],
+          ),
         ),
       ),
       actions: [
-        TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context),
+          child: Text(
+            'Cancel',
+            style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+          ),
+        ),
+        ElevatedButton(
           onPressed: _saving ? null : _submit,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: goldColor,
+            elevation: 0,
+          ),
           child: _saving
-              ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Save'),
+              ? SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: goldColor))
+              : const Text('Save', style: TextStyle(fontWeight: FontWeight.bold)),
         ),
       ],
     );
@@ -466,45 +608,69 @@ class _NewLocationDialogState extends State<_NewLocationDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
+
     return AlertDialog(
-      title: const Text('New stock location'),
+      backgroundColor: theme.colorScheme.surface,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text(
+        'New stock location',
+        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+      ),
       content: Form(
         key: _form,
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextFormField(
-            controller: _code,
-            textCapitalization: TextCapitalization.characters,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            validator: (v) => RegExp(r'^[A-Z][A-Z0-9_-]{1,39}$').hasMatch((v ?? '').trim().toUpperCase())
-                ? null
-                : '2 to 40 characters: letters, numbers, - and _',
-            forceErrorText: _serverErrors['code'],
-            decoration: const InputDecoration(labelText: 'Code', helperText: 'e.g. MAIN'),
-          ),
-          TextFormField(
-            controller: _name,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            validator: (v) {
-              final s = (v ?? '').trim();
-              return s.isEmpty || s.length > 100 ? 'Name must be 1 to 100 characters.' : null;
-            },
-            forceErrorText: _serverErrors['name'],
-            decoration: const InputDecoration(labelText: 'Name', helperText: 'e.g. Main warehouse'),
-          ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _code,
+              textCapitalization: TextCapitalization.characters,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              validator: (v) => RegExp(r'^[A-Z][A-Z0-9_-]{1,39}$').hasMatch((v ?? '').trim().toUpperCase())
+                  ? null
+                  : '2 to 40 characters: letters, numbers, - and _',
+              forceErrorText: _serverErrors['code'],
+              decoration: const InputDecoration(labelText: 'Code', helperText: 'e.g. MAIN'),
             ),
-        ]),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _name,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              validator: (v) {
+                final s = (v ?? '').trim();
+                return s.isEmpty || s.length > 100 ? 'Name must be 1 to 100 characters.' : null;
+              },
+              forceErrorText: _serverErrors['name'],
+              decoration: const InputDecoration(labelText: 'Name', helperText: 'e.g. Main warehouse'),
+            ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(_error!, style: TextStyle(color: theme.colorScheme.error, fontSize: 13)),
+              ),
+          ],
+        ),
       ),
       actions: [
-        TextButton(onPressed: _saving ? null : () => Navigator.pop(context, false), child: const Text('Cancel')),
-        FilledButton(
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context, false),
+          child: Text(
+            'Cancel',
+            style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+          ),
+        ),
+        ElevatedButton(
           onPressed: _saving ? null : _save,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: goldColor,
+            elevation: 0,
+          ),
           child: _saving
-              ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Create'),
+              ? SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: goldColor))
+              : const Text('Create', style: TextStyle(fontWeight: FontWeight.bold)),
         ),
       ],
     );

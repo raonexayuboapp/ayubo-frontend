@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 import '../utils/dates.dart';
 import '../utils/money.dart';
+import '../widgets/app_header.dart';
+import '../widgets/prompt_dialog.dart';
 import '../widgets/voucher_state_chip.dart';
 import 'voucher_detail_screen.dart';
-import '../widgets/prompt_dialog.dart';
 
 /// Gift vouchers the customer bought or owns, and the shopping credit of their membership.
 class VouchersScreen extends StatefulWidget {
@@ -65,33 +68,44 @@ class _VouchersScreenState extends State<VouchersScreen> {
     if (mounted) _load(reset: true);
   }
 
-    Future<void> _add() async {
-      final r = await showPrompt(
-        context,
-        title: 'Add a voucher',
-        message: 'Enter the code from your email or voucher card. The voucher is added to your account, and only you can use it from then on.',
-        confirmLabel: 'Add voucher',
-        fields: const [PromptField(key: 'code', label: 'Voucher code', required: true, maxLength: 40)],
-      );
-      if (r == null) return;
+  Future<void> _add() async {
+    final l10n = AppLocalizations.of(context);
+    final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
 
-      try {
-        final result = await ApiService.instance.claimVoucher(r['code']!);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Voucher added. Balance ${formatCents((result['balance_cents'] as num).toInt())}.')),
-        );
-        _load(reset: true);
-      } on ApiException catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.fieldErrors.isNotEmpty ? e.fieldErrors.values.join('\n') : e.message)),
-        );
-      }
+    final r = await showPrompt(
+      context,
+      title: isDe ? 'Gutschein hinzufügen' : 'Add a voucher',
+      message: isDe
+          ? 'Geben Sie den Gutscheincode aus Ihrer E-Mail oder von Ihrer Gutscheinkarte ein. Der Gutschein wird Ihrem Konto gutgeschrieben.'
+          : 'Enter the code from your email or voucher card. The voucher is added to your account, and only you can use it from then on.',
+      confirmLabel: isDe ? 'Gutschein einlösen' : 'Add voucher',
+      fields: [PromptField(key: 'code', label: l10n?.voucherCode ?? 'Voucher code', required: true, maxLength: 40)],
+    );
+    if (r == null) return;
+
+    try {
+      final result = await ApiService.instance.claimVoucher(r['code']!);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isDe
+              ? 'Gutschein hinzugefügt. Guthaben: ${formatCents((result['balance_cents'] as num).toInt())}.'
+              : 'Voucher added. Balance ${formatCents((result['balance_cents'] as num).toInt())}.'),
+        ),
+      );
+      _load(reset: true);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.fieldErrors.isNotEmpty ? e.fieldErrors.values.join('\n') : e.message)),
+      );
     }
+  }
 
   Widget _card(Map<String, dynamic> v) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
+    final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
     final isCredit = v['kind'] == 'membership_credit';
     final expires = v['expires_at'] as String?;
     final value = formatCents(v['original_cents'] as int);
@@ -101,9 +115,11 @@ class _VouchersScreenState extends State<VouchersScreen> {
       child: ListTile(
         onTap: () => _open(v),
         leading: Icon(isCredit ? Icons.account_balance_wallet_outlined : Icons.card_giftcard_outlined),
-        title: Text(isCredit ? 'Membership credit' : 'Gift voucher •••• ${v['suffix']}'),
+        title: Text(isCredit
+            ? (isDe ? 'Mitgliedschaftsguthaben' : 'Membership credit')
+            : (isDe ? 'Geschenkgutschein •••• ${v['suffix']}' : 'Gift voucher •••• ${v['suffix']}')),
         subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Value $value · ${expires == null ? 'no expiry' : 'valid until ${formatDate(expires)}'}'),
+          Text('${isDe ? 'Wert' : 'Value'} $value · ${expires == null ? (l10n?.neverExpires ?? 'no expiry') : (isDe ? 'gültig bis ${formatDate(expires)}' : 'valid until ${formatDate(expires)}') }'),
           const SizedBox(height: 4),
           VoucherStateChip(state: v['state'] as String),
         ]),
@@ -116,6 +132,7 @@ class _VouchersScreenState extends State<VouchersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     Widget body;
 
     if (_loading && _items.isEmpty) {
@@ -124,18 +141,21 @@ class _VouchersScreenState extends State<VouchersScreen> {
       body = Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Text(_error!),
-          TextButton(onPressed: () => _load(reset: true), child: const Text('Retry')),
+          TextButton(onPressed: () => _load(reset: true), child: Text(l10n?.retry ?? 'Retry')),
         ]),
       );
     } else if (_items.isEmpty) {
       // A scrollable, so pull-to-refresh still works on an empty list.
       body = RefreshIndicator(
         onRefresh: () => _load(reset: true),
-        child: ListView(children: const [
-          SizedBox(height: 160),
+        child: ListView(children: [
+          const SizedBox(height: 160),
           Center(
-            child: Text('You have no vouchers yet.\nGift vouchers you buy and your membership credit appear here.',
-                textAlign: TextAlign.center),
+            child: Text(
+              l10n?.noVouchersYet ??
+                  'You have no vouchers yet.\nGift vouchers you buy and your membership credit appear here.',
+              textAlign: TextAlign.center,
+            ),
           ),
         ]),
       );
@@ -155,7 +175,7 @@ class _VouchersScreenState extends State<VouchersScreen> {
                   _page++;
                   _load(reset: false);
                 },
-                child: const Text('Load more'),
+                child: Text(l10n?.loadMore ?? 'Load more'),
               );
             }
             return _card(_items[i]);
@@ -164,14 +184,26 @@ class _VouchersScreenState extends State<VouchersScreen> {
       );
     }
 
+    final isDe = l10n?.localeName.startsWith('de') ?? false;
+
     return Scaffold(
-       appBar: AppBar(title: const Text('My vouchers and credit')),
-       body: body,
-       floatingActionButton: FloatingActionButton.extended(
-          onPressed: _add,
-          icon: const Icon(Icons.add),
-          label: const Text('Add a voucher'),
-       ),
+      appBar: AppHeader(
+        title: l10n?.myVouchers ?? 'My Vouchers & Credit',
+        subtitle: isDe ? 'Guthaben & Geschenkgutscheine' : 'Wallet balance & gift vouchers',
+        showBackButton: true,
+      ),
+      body: body,
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppTheme.primaryGreen,
+        foregroundColor: AppTheme.brandGold,
+        elevation: 2,
+        onPressed: _add,
+        icon: const Icon(Icons.qr_code_rounded, size: 18),
+        label: Text(
+          l10n?.claimVoucher ?? 'Add a voucher',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
     );
   }
 }

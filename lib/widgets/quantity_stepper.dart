@@ -19,23 +19,64 @@ class QuantityStepper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      IconButton(
-        tooltip: 'Fewer',
-        visualDensity: VisualDensity.compact,
-        icon: const Icon(Icons.remove_circle_outline),
-        onPressed: enabled && value > min ? () => onChanged(value - 1) : null,
+    final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
+
+    final canDecrease = enabled && value > min;
+    final canIncrease = enabled && value < max;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.dividerColor.withValues(alpha: 0.15),
+        ),
       ),
-      SizedBox(
-        width: 28,
-        child: Text('$value', textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: 'Fewer',
+            visualDensity: VisualDensity.compact,
+            iconSize: 18,
+            padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            icon: Icon(
+              Icons.remove_rounded,
+              color: canDecrease
+                  ? theme.colorScheme.onSurface
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.25),
+            ),
+            onPressed: canDecrease ? () => onChanged(value - 1) : null,
+          ),
+          SizedBox(
+            width: 32,
+            child: Text(
+              '$value',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: goldColor,
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'More',
+            visualDensity: VisualDensity.compact,
+            iconSize: 18,
+            padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            icon: Icon(
+              Icons.add_rounded,
+              color: canIncrease
+                  ? theme.colorScheme.onSurface
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.25),
+            ),
+            onPressed: canIncrease ? () => onChanged(value + 1) : null,
+          ),
+        ],
       ),
-      IconButton(
-        tooltip: 'More',
-        visualDensity: VisualDensity.compact,
-        icon: const Icon(Icons.add_circle_outline),
-        onPressed: enabled && value < max ? () => onChanged(value + 1) : null,
-      ),
-    ]);
+    );
   }
 }

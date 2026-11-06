@@ -4,6 +4,8 @@ import '../services/api_service.dart';
 import '../utils/category_tree.dart';
 import '../widgets/loading_button.dart';
 
+typedef CategoryData = Map<String, dynamic>;
+
 class AdminCategoryFormScreen extends StatefulWidget {
   final int? categoryId; // null = create, otherwise edit
   const AdminCategoryFormScreen({super.key, this.categoryId});
@@ -21,8 +23,8 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
 
   int? _parentId;
   bool _active = true;
-  List<Map<String, dynamic>> _all = [];
-  Set<int> _blocked = {}; // the category itself and everything below it can not be its parent
+  List<CategoryData> _all = [];
+  Set<int> _blocked = {}; // category itself and descendants cannot be parent
 
   bool _loadingData = true;
   String? _loadError;
@@ -55,11 +57,10 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
       ]);
       if (!mounted) return;
 
-      final all = results[0] as List<Map<String, dynamic>>;
+      final all = (results[0] as List<dynamic>).cast<CategoryData>();
 
       if (_editing) {
-        final c = results[1] as Map<String, dynamic>;
-        // An empty translations object can arrive as a list, so check the type first.
+        final c = results[1] as CategoryData;
         final tr = c['translations'];
         final de = tr is Map<String, dynamic> ? tr['de'] as Map<String, dynamic>? : null;
 
@@ -85,10 +86,10 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
     }
   }
 
-  // ---------- validation (the server checks everything again) ----------
+  // ---------- validation ----------
 
   String? _vSlug(String? v) => RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)*$').hasMatch((v ?? '').trim()) &&
-      (v ?? '').trim().length <= 190
+          (v ?? '').trim().length <= 190
       ? null
       : 'Lowercase letters and numbers separated by single hyphens.';
 
@@ -107,7 +108,8 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
   // ---------- save ----------
 
   bool _isFieldKey(String k) =>
-      const {'slug', 'parent_id', 'sort_order', 'active'}.contains(k) || k.startsWith('translations.de.');
+      const {'slug', 'parent_id', 'sort_order', 'active'}.contains(k) ||
+      k.startsWith('translations.de.');
 
   Future<void> _save() async {
     setState(() {
@@ -122,10 +124,13 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
     final body = <String, dynamic>{
       'slug': _slug.text.trim(),
       'parent_id': _parentId,
-      'sort_order': int.parse(_sort.text.trim()), // safe: validate() accepted it
+      'sort_order': int.parse(_sort.text.trim()),
       'active': _active,
       'translations': {
-        'de': {'name': _name.text.trim(), 'description': description.isEmpty ? null : description},
+        'de': {
+          'name': _name.text.trim(),
+          'description': description.isEmpty ? null : description,
+        },
       },
     };
 
@@ -140,7 +145,8 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       final errs = e.fieldErrors;
-      final general = errs.entries.where((x) => !_isFieldKey(x.key)).map((x) => x.value).join('\n');
+      final general =
+          errs.entries.where((x) => !_isFieldKey(x.key)).map((x) => x.value).join('\n');
       setState(() {
         _serverErrors = errs;
         _error = errs.isEmpty ? e.message : (general.isEmpty ? null : general);
@@ -152,14 +158,14 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
   // ---------- UI ----------
 
   Widget _text(
-      String serverKey,
-      String label,
-      TextEditingController c,
-      String? Function(String?) validator, {
-        int maxLines = 1,
-        TextInputType? type,
-        String? helper,
-      }) {
+    String serverKey,
+    String label,
+    TextEditingController c,
+    String? Function(String?) validator, {
+    int maxLines = 1,
+    TextInputType? type,
+    String? helper,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(
@@ -170,39 +176,65 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
         autovalidateMode: AutovalidateMode.onUserInteraction,
         validator: validator,
         forceErrorText: _serverErrors[serverKey],
-        decoration: InputDecoration(labelText: label, helperText: helper),
+        decoration: InputDecoration(
+          labelText: label,
+          helperText: helper,
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
+
     if (_loadingData) {
-      return Scaffold(appBar: AppBar(), body: const Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        appBar: AppBar(title: Text(_editing ? 'Edit category' : 'New category')),
+        body: Center(child: CircularProgressIndicator(color: goldColor)),
+      );
     }
+
     if (_loadError != null) {
       return Scaffold(
-        appBar: AppBar(),
+        appBar: AppBar(title: Text(_editing ? 'Edit category' : 'New category')),
         body: Center(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text(_loadError!),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _loadingData = true;
-                  _loadError = null;
-                });
-                _init();
-              },
-              child: const Text('Retry'),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+                const SizedBox(height: 12),
+                Text(_loadError!, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _loadingData = true;
+                      _loadError = null;
+                    });
+                    _init();
+                  },
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Retry'),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: goldColor),
+                    foregroundColor: goldColor,
+                  ),
+                ),
+              ],
             ),
-          ]),
+          ),
         ),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(_editing ? 'Edit category' : 'New category')),
+      appBar: AppBar(
+        title: Text(_editing ? 'Edit category' : 'New category'),
+      ),
       body: Form(
         key: _form,
         child: ListView(
@@ -215,9 +247,15 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
               padding: const EdgeInsets.only(bottom: 16),
               child: DropdownButtonFormField<int?>(
                 value: _parentId,
-                decoration: InputDecoration(labelText: 'Parent category', errorText: _serverErrors['parent_id']),
+                decoration: InputDecoration(
+                  labelText: 'Parent category',
+                  errorText: _serverErrors['parent_id'],
+                ),
                 items: [
-                  const DropdownMenuItem<int?>(value: null, child: Text('None (top level)')),
+                  const DropdownMenuItem<int?>(
+                    value: null,
+                    child: Text('None (top level)'),
+                  ),
                   for (final (c, depth) in flattenCategories(_all))
                     if (!_blocked.contains(c['id']))
                       DropdownMenuItem<int?>(
@@ -228,21 +266,38 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
                 onChanged: (v) => setState(() => _parentId = v),
               ),
             ),
-            _text('sort_order', 'Sort order', _sort, _vSort,
-                type: TextInputType.number, helper: 'Lower numbers are shown first.'),
+            _text(
+              'sort_order',
+              'Sort order',
+              _sort,
+              _vSort,
+              type: TextInputType.number,
+              helper: 'Lower numbers are shown first.',
+            ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Visible to customers'),
+              activeColor: goldColor,
+              title: Text(
+                'Visible to customers',
+                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
               value: _active,
               onChanged: (v) => setState(() => _active = v),
             ),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
               ),
-            const SizedBox(height: 16),
-            LoadingButton(label: _editing ? 'Save changes' : 'Create category', loading: _saving, onPressed: _save),
+            const SizedBox(height: 24),
+            LoadingButton(
+              label: _editing ? 'Save changes' : 'Create category',
+              loading: _saving,
+              onPressed: _save,
+            ),
           ],
         ),
       ),

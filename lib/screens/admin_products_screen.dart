@@ -1,9 +1,10 @@
-
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
 import '../utils/money.dart';
 import 'admin_product_form_screen.dart';
+
+typedef ProductListData = Map<String, dynamic>;
 
 class AdminProductsScreen extends StatefulWidget {
   const AdminProductsScreen({super.key});
@@ -16,7 +17,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
   static const _statuses = ['', 'draft', 'published', 'archived'];
 
   final _search = TextEditingController();
-  List<Map<String, dynamic>> _products = [];
+  List<ProductListData> _products = [];
   String _status = '';
   int _page = 1;
   int _total = 0;
@@ -47,8 +48,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
         status: _status,
         page: _page,
       );
-      final list =
-      (data['products'] as List<dynamic>).cast<Map<String, dynamic>>();
+      final list = (data['products'] as List<dynamic>).cast<ProductListData>();
       if (!mounted) return;
       setState(() {
         _products = reset ? list : [..._products, ...list];
@@ -74,111 +74,243 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
     if (saved == true) _load(reset: true);
   }
 
+  Widget _buildStatusBadge(BuildContext context, String status) {
+    final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
+
+    Color textColor;
+    Color bgColor;
+
+    switch (status) {
+      case 'published':
+        textColor = goldColor;
+        bgColor = goldColor.withValues(alpha: 0.12);
+        break;
+      case 'archived':
+        textColor = theme.colorScheme.onSurface.withValues(alpha: 0.4);
+        bgColor = theme.colorScheme.onSurface.withValues(alpha: 0.05);
+        break;
+      default: // draft
+        textColor = theme.colorScheme.onSurface.withValues(alpha: 0.7);
+        bgColor = theme.colorScheme.onSurface.withValues(alpha: 0.08);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        status.isEmpty ? 'draft' : status,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: textColor,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.3,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
+
     Widget body;
     if (_loading && _products.isEmpty) {
-      body = const Center(child: CircularProgressIndicator());
+      body = Center(child: CircularProgressIndicator(color: goldColor, strokeWidth: 2));
     } else if (_error != null && _products.isEmpty) {
       body = Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(_error!),
-          TextButton(
-            onPressed: () => _load(reset: true),
-            child: const Text('Retry'),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
+              const SizedBox(height: 12),
+              Text(_error!, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: () => _load(reset: true),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Retry'),
+                style: TextButton.styleFrom(foregroundColor: goldColor),
+              ),
+            ],
           ),
-        ]),
+        ),
       );
     } else if (_products.isEmpty) {
-      body = const Center(child: Text('No products found.'));
+      body = Center(
+        child: Text(
+          'No products found.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+          ),
+        ),
+      );
     } else {
       final hasMore = _products.length < _total;
-      body = ListView.builder(
+      body = ListView.separated(
+        padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: _products.length + (hasMore ? 1 : 0),
+        separatorBuilder: (_, __) => Divider(
+          height: 1,
+          indent: 20,
+          endIndent: 20,
+          color: theme.dividerColor.withValues(alpha: 0.15),
+        ),
         itemBuilder: (_, i) {
           if (i == _products.length) {
-            return TextButton(
-              onPressed: _loading
-                  ? null
-                  : () {
-                _page++;
-                _load(reset: false);
-              },
-              child: const Text('Load more'),
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: _loading
+                    ? CircularProgressIndicator(color: goldColor, strokeWidth: 2)
+                    : TextButton(
+                        onPressed: () {
+                          _page++;
+                          _load(reset: false);
+                        },
+                        child: Text(
+                          'Load more',
+                          style: TextStyle(color: goldColor, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+              ),
             );
           }
           final p = _products[i];
           final price = p['price_cents'] as int?;
+          final status = p['status'] as String? ?? 'draft';
+
           return ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
             onTap: () {
               if (p['product_type'] == 'membership') {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text(
-                      'Memberships are managed under Admin, Membership plans.',
-                    ),
+                    content: Text('Memberships are managed under Admin, Membership plans.'),
                   ),
                 );
                 return;
               }
               _openForm(p['id'] as int);
             },
-            title: Text(p['name'] as String),
-            subtitle: Text(
-              '${p['slug']} · ${price == null ? 'no active variant' : formatCents(price)}'
-                  ' · ${p['variant_count']} variant(s)',
+            leading: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.inventory_2_outlined,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                size: 20,
+              ),
             ),
-            trailing: Chip(
-              label: Text(p['status'] as String),
-              visualDensity: VisualDensity.compact,
+            title: Text(
+              p['name'] as String,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 2.0),
+              child: Text(
+                '${price == null ? 'No active variant' : formatCents(price)} · ${p['variant_count']} variant(s)',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
+            trailing: _buildStatusBadge(context, status),
           );
         },
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text('Products ($_total)')),
-      body: Column(children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-          child: TextField(
-            controller: _search,
-            textInputAction: TextInputAction.search,
-            onSubmitted: (_) => _load(reset: true),
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search),
-              hintText: 'Search name, slug or SKU',
+      appBar: AppBar(
+        title: Text('Products ($_total)'),
+        elevation: 0,
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+            child: TextField(
+              controller: _search,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => _load(reset: true),
+              style: theme.textTheme.bodyMedium,
+              decoration: InputDecoration(
+                prefixIcon: Icon(Icons.search, size: 20, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                hintText: 'Search products, SKU...',
+                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                suffixIcon: _search.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          _search.clear();
+                          _load(reset: true);
+                        },
+                      )
+                    : null,
+              ),
             ),
           ),
-        ),
-        SizedBox(
-          height: 52,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            children: [
-              for (final s in _statuses)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(s.isEmpty ? 'All' : s),
-                    selected: _status == s,
-                    onSelected: (_) {
-                      setState(() => _status = s);
-                      _load(reset: true);
-                    },
+          SizedBox(
+            height: 38,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              children: [
+                for (final s in _statuses)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(s.isEmpty ? 'All' : s),
+                      selected: _status == s,
+                      showCheckmark: false,
+                      side: BorderSide(
+                        color: _status == s
+                            ? goldColor
+                            : theme.colorScheme.onSurface.withValues(alpha: 0.15),
+                      ),
+                      selectedColor: goldColor.withValues(alpha: 0.15),
+                      labelStyle: TextStyle(
+                        fontSize: 13,
+                        color: _status == s
+                            ? goldColor
+                            : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                        fontWeight: _status == s ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                      onSelected: (_) {
+                        setState(() => _status = s);
+                        _load(reset: true);
+                      },
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
-        ),
-        Expanded(child: body),
-      ]),
+          const SizedBox(height: 8),
+          Expanded(child: body),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openForm(),
-        icon: const Icon(Icons.add),
-        label: const Text('New product'),
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: goldColor,
+        elevation: 2,
+        icon: const Icon(Icons.add, size: 20),
+        label: const Text(
+          'New product',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }

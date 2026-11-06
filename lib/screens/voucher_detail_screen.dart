@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../utils/dates.dart';
 import '../utils/money.dart';
+import '../widgets/app_header.dart';
 import '../widgets/voucher_state_chip.dart';
 
 class VoucherDetailScreen extends StatefulWidget {
@@ -149,6 +150,13 @@ class _VoucherDetailScreenState extends State<VoucherDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(appBar: AppBar(title: const Text('Voucher')), body: _body());
+    return Scaffold(
+      appBar: const AppHeader(
+        title: 'Gift Voucher',
+        subtitle: 'Details & Balance',
+        showBackButton: true,
+      ),
+      body: _body(),
+    );
   }
 }
