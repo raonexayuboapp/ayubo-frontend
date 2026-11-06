@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
 
+typedef UserData = Map<String, dynamic>;
+
 class AdminUsersScreen extends StatefulWidget {
   final int currentUserId;
   const AdminUsersScreen({super.key, required this.currentUserId});
@@ -12,7 +14,7 @@ class AdminUsersScreen extends StatefulWidget {
 
 class _AdminUsersScreenState extends State<AdminUsersScreen> {
   final _search = TextEditingController();
-  List<Map<String, dynamic>> _users = [];
+  List<UserData> _users = [];
   int _page = 1;
   int _total = 0;
   bool _loading = true;
@@ -38,7 +40,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     });
     try {
       final data = await ApiService.instance.adminListUsers(search: _search.text.trim(), page: _page);
-      final list = (data['users'] as List<dynamic>).cast<Map<String, dynamic>>();
+      final list = (data['users'] as List<dynamic>).cast<UserData>();
       final meta = data['meta'] as Map<String, dynamic>;
       if (!mounted) return;
       setState(() {
@@ -55,15 +57,41 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     }
   }
 
-  Future<void> _apply(Map<String, dynamic> user, String title, Map<String, dynamic> body) async {
+  Future<void> _apply(UserData user, String title, Map<String, dynamic> body) async {
+    final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
+
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(title),
-        content: Text('${user['first_name']} ${user['last_name']} (${user['email']})'),
+        backgroundColor: theme.colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          title,
+          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          '${user['first_name']} ${user['last_name']} (${user['email']})',
+          style: theme.textTheme.bodyMedium,
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Confirm')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: goldColor,
+              elevation: 0,
+            ),
+            child: const Text('Confirm', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
         ],
       ),
     );
@@ -82,19 +110,26 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     }
   }
 
-  void _actions(Map<String, dynamic> user) {
-    if (user['id'] == widget.currentUserId) return; // the server also blocks this
+  void _actions(UserData user) {
+    if (user['id'] == widget.currentUserId) return;
     final active = user['is_active'] == true;
     final isAdmin = user['role'] == 'admin';
+    final theme = Theme.of(context);
 
     showModalBottomSheet<void>(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(active ? Icons.block : Icons.check_circle_outline),
+              leading: Icon(
+                active ? Icons.block : Icons.check_circle_outline,
+                color: active ? theme.colorScheme.error : theme.colorScheme.primary,
+              ),
               title: Text(active ? 'Disable account' : 'Enable account'),
               onTap: () {
                 Navigator.pop(context);
@@ -103,7 +138,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.admin_panel_settings_outlined),
+              leading: Icon(
+                Icons.admin_panel_settings_outlined,
+                color: theme.colorScheme.secondary,
+              ),
               title: Text(isAdmin ? 'Remove admin role' : 'Make admin'),
               onTap: () {
                 Navigator.pop(context);
@@ -117,50 +155,174 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     );
   }
 
+  Widget _buildRoleBadge(BuildContext context, String role) {
+    final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: goldColor.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: goldColor.withValues(alpha: 0.3)),
+      ),
+      child: Text(
+        role.toUpperCase(),
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: goldColor,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDisabledBadge(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.error.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        'Disabled',
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.error,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
     final hasMore = _users.length < _total;
 
     Widget body;
     if (_loading && _users.isEmpty) {
-      body = const Center(child: CircularProgressIndicator());
+      body = Center(child: CircularProgressIndicator(color: goldColor, strokeWidth: 2));
     } else if (_error != null && _users.isEmpty) {
       body = Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(_error!),
-          TextButton(onPressed: () => _load(reset: true), child: const Text('Retry')),
-        ]),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
+              const SizedBox(height: 12),
+              Text(_error!, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: () => _load(reset: true),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Retry'),
+                style: TextButton.styleFrom(foregroundColor: goldColor),
+              ),
+            ],
+          ),
+        ),
       );
     } else if (_users.isEmpty) {
-      body = const Center(child: Text('No users found.'));
+      body = Center(
+        child: Text(
+          'No users found.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+          ),
+        ),
+      );
     } else {
-      body = ListView.builder(
+      body = ListView.separated(
+        padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: _users.length + (hasMore ? 1 : 0),
+        separatorBuilder: (_, __) => Divider(
+          height: 1,
+          indent: 20,
+          endIndent: 20,
+          color: theme.dividerColor.withValues(alpha: 0.15),
+        ),
         itemBuilder: (_, i) {
           if (i == _users.length) {
-            return TextButton(
-              onPressed: _loading
-                  ? null
-                  : () {
-                _page++;
-                _load(reset: false);
-              },
-              child: const Text('Load more'),
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: _loading
+                    ? CircularProgressIndicator(color: goldColor, strokeWidth: 2)
+                    : TextButton(
+                        onPressed: () {
+                          _page++;
+                          _load(reset: false);
+                        },
+                        child: Text(
+                          'Load more',
+                          style: TextStyle(color: goldColor, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+              ),
             );
           }
           final u = _users[i];
+          final isCurrentUser = u['id'] == widget.currentUserId;
+
           return ListTile(
-            onTap: () => _actions(u),
-            title: Text('${u['first_name']} ${u['last_name']}'),
-            subtitle: Text('${u['email']}\n${u['mobile_number']}'),
-            isThreeLine: true,
-            trailing: Wrap(
-              spacing: 4,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            onTap: isCurrentUser ? null : () => _actions(u),
+            leading: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                u['role'] == 'admin' ? Icons.admin_panel_settings_outlined : Icons.person_outline,
+                color: u['role'] == 'admin' ? goldColor : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                size: 20,
+              ),
+            ),
+            title: Row(
               children: [
-                if (u['role'] == 'admin')
-                  const Chip(label: Text('Admin'), visualDensity: VisualDensity.compact),
-                if (u['is_active'] != true)
-                  const Chip(label: Text('Disabled'), visualDensity: VisualDensity.compact),
+                Flexible(
+                  child: Text(
+                    '${u['first_name']} ${u['last_name']}',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (isCurrentUser) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    '(You)',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: goldColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            subtitle: Text(
+              '${u['email']}\n${u['mobile_number']}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
+            ),
+            isThreeLine: true,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (u['role'] == 'admin') ...[
+                  _buildRoleBadge(context, 'Admin'),
+                  const SizedBox(width: 4),
+                ],
+                if (u['is_active'] != true) ...[
+                  _buildDisabledBadge(context),
+                ],
               ],
             ),
           );
@@ -169,18 +331,32 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text('Users ($_total)')),
+      appBar: AppBar(
+        title: Text('Users ($_total)'),
+        elevation: 0,
+      ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
             child: TextField(
               controller: _search,
               textInputAction: TextInputAction.search,
               onSubmitted: (_) => _load(reset: true),
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: 'Search name, email or mobile',
+              style: theme.textTheme.bodyMedium,
+              decoration: InputDecoration(
+                prefixIcon: Icon(Icons.search, size: 20, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                hintText: 'Search name, email or mobile...',
+                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                suffixIcon: _search.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          _search.clear();
+                          _load(reset: true);
+                        },
+                      )
+                    : null,
               ),
             ),
           ),

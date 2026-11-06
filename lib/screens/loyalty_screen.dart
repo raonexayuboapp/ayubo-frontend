@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../utils/dates.dart';
+import '../utils/money.dart';
+import '../widgets/app_header.dart';
+
+typedef LoyaltyTransactionData = Map<String, dynamic>;
 
 class LoyaltyScreen extends StatefulWidget {
   const LoyaltyScreen({super.key});
@@ -11,7 +16,7 @@ class LoyaltyScreen extends StatefulWidget {
 }
 
 class _LoyaltyScreenState extends State<LoyaltyScreen> {
-  List<Map<String, dynamic>> _items = [];
+  List<LoyaltyTransactionData> _items = [];
   int _balance = 0;
   int _page = 1;
   int _total = 0;
@@ -32,7 +37,7 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
     });
     try {
       final data = await ApiService.instance.loyalty(page: _page);
-      final list = (data['transactions'] as List<dynamic>).cast<Map<String, dynamic>>();
+      final list = (data['transactions'] as List<dynamic>).cast<LoyaltyTransactionData>();
       if (!mounted) return;
       setState(() {
         _balance = (data['balance'] as num).toInt();
@@ -55,11 +60,13 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
   }
 
   String _label(String type) {
+    final l10n = AppLocalizations.of(context);
+    final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
     switch (type) {
       case 'earn':
-        return 'Points earned';
+        return l10n?.pointsEarned ?? (isDe ? 'Punkte gesammelt' : 'Points earned');
       case 'reverse':
-        return 'Points taken back (refund)';
+        return l10n?.pointsRefunded ?? (isDe ? 'Punkte zurückgebucht (Erstattung)' : 'Points taken back (refund)');
       default:
         return type.replaceAll('_', ' ');
     }
@@ -67,83 +74,216 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
 
   Widget _header() {
     final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
+    final l10n = AppLocalizations.of(context);
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(children: [
-          Icon(Icons.stars_outlined, size: 36, color: theme.colorScheme.primary),
-          const SizedBox(height: 8),
-          Text('$_balance', style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold)),
-          Text('points', style: theme.textTheme.bodySmall),
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: goldColor.withValues(alpha: 0.3),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: goldColor.withValues(alpha: 0.05),
+            blurRadius: 16,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: goldColor.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.stars_rounded,
+              size: 40,
+              color: goldColor,
+            ),
+          ),
           const SizedBox(height: 12),
-          Text('You earn points on the money you pay for an order. Points are added when the order is paid.',
-              textAlign: TextAlign.center, style: theme.textTheme.bodySmall),
-        ]),
+          Text(
+            '$_balance',
+            style: theme.textTheme.displaySmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+          Text(
+            l10n?.availablePoints ?? 'AVAILABLE POINTS',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: goldColor,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Divider(color: theme.dividerColor.withValues(alpha: 0.15)),
+          const SizedBox(height: 8),
+          Text(
+            l10n?.loyaltyExplanation ??
+                'You earn points on the money you pay for an order. Points are added when the order is paid.',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _row(Map<String, dynamic> t) {
+  Widget _row(LoyaltyTransactionData t) {
     final theme = Theme.of(context);
     final points = t['points'] as int;
     final positive = points > 0;
     final order = t['order_number'] as String?;
+    final l10n = AppLocalizations.of(context);
+    final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
 
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      dense: true,
-      title: Text(_label(t['type'] as String)),
-      subtitle: Text([if (order != null) 'Order $order', formatDate(t['created_at'] as String?)].join(' · ')),
-      trailing: Text(
-        '${positive ? '+' : '−'}${points.abs()}',
-        style: theme.textTheme.titleSmall?.copyWith(
-          fontWeight: FontWeight.bold,
-          color: positive ? Colors.green.shade700 : theme.colorScheme.error,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: theme.dividerColor.withValues(alpha: 0.12),
         ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _label(t['type'] as String),
+                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  [
+                    if (order != null) (isDe ? 'Bestellung $order' : 'Order $order'),
+                    formatDate(t['created_at'] as String?),
+                  ].join(' · '),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '${positive ? '+' : '−'}${points.abs()}',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: positive ? Colors.green.shade600 : theme.colorScheme.error,
+            ),
+          ),
+        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
+    final l10n = AppLocalizations.of(context);
+
     Widget body;
 
     if (_loading && _items.isEmpty && _total == 0 && _balance == 0) {
-      body = const Center(child: CircularProgressIndicator());
+      body = Center(child: CircularProgressIndicator(color: goldColor, strokeWidth: 2));
     } else if (_error != null) {
       body = Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(_error!),
-          TextButton(onPressed: () => _load(reset: true), child: const Text('Retry')),
-        ]),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
+              const SizedBox(height: 12),
+              Text(_error!, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: () => _load(reset: true),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: Text(l10n?.retry ?? 'Retry'),
+                style: TextButton.styleFrom(foregroundColor: goldColor),
+              ),
+            ],
+          ),
+        ),
       );
     } else {
       final hasMore = _items.length < _total;
       body = RefreshIndicator(
         onRefresh: () => _load(reset: true),
+        color: goldColor,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           children: [
             _header(),
-            const Padding(padding: EdgeInsets.only(top: 24, bottom: 8), child: Text('History')),
-            if (_items.isEmpty) const Text('No points yet. Your first order will earn some.'),
+            Padding(
+              padding: const EdgeInsets.only(top: 24, bottom: 12),
+              child: Text(
+                l10n?.transactionHistory ?? 'Transaction History',
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ),
+            if (_items.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: Text(
+                    l10n?.noPointsYet ?? 'No points yet. Your first order will earn some.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ),
+              ),
             for (final t in _items) _row(t),
             if (hasMore)
-              TextButton(
-                onPressed: _loading
-                    ? null
-                    : () {
-                  _page++;
-                  _load(reset: false);
-                },
-                child: const Text('Load more'),
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Center(
+                  child: _loading
+                      ? CircularProgressIndicator(color: goldColor, strokeWidth: 2)
+                      : TextButton(
+                          onPressed: () {
+                            _page++;
+                            _load(reset: false);
+                          },
+                          child: Text(
+                            l10n?.loadMore ?? 'Load more',
+                            style: TextStyle(color: goldColor, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                ),
               ),
           ],
         ),
       );
     }
 
-    return Scaffold(appBar: AppBar(title: const Text('My points')), body: body);
+    final isDe = l10n?.localeName.startsWith('de') ?? false;
+
+    return Scaffold(
+      appBar: AppHeader(
+        title: l10n?.loyaltyRewards ?? 'Ayubo Loyalty Rewards',
+        subtitle: isDe ? 'Punkte & Belohnungsstufen' : 'Points & reward tiers',
+        showBackButton: true,
+      ),
+      body: body,
+    );
   }
 }

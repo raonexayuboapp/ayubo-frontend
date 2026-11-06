@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/money.dart';
 import 'cart_state.dart';
 
 class ApiException implements Exception {
@@ -45,7 +46,9 @@ class ApiService {
     Object? body,
     bool auth = false,
   }) async {
-    final headers = <String, dynamic>{};
+    final headers = <String, dynamic>{
+      'Accept-Language': currentAppLocale,
+    };
 
     if (auth) {
       final token = await _storage.read(key: _tokenKey);
@@ -347,6 +350,7 @@ class ApiService {
     final path = Uri(path: '/api/products', queryParameters: {
       'page': '$page',
       'sort': sort,
+      'lang': currentAppLocale,
       if (search.isNotEmpty) 'search': search,
       if (categoryId != null) 'category_id': '$categoryId',
     }).toString();
@@ -355,12 +359,12 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> getProduct(int id) async {
-    final res = await _send('GET', '/api/products/$id', auth: true);
+    final res = await _send('GET', '/api/products/$id?lang=$currentAppLocale', auth: true);
     return (res['data'] as Map<String, dynamic>)['product'] as Map<String, dynamic>;
   }
 
   Future<List<Map<String, dynamic>>> listCategories() async {
-    final res = await _send('GET', '/api/categories', auth: true);
+    final res = await _send('GET', '/api/categories?lang=$currentAppLocale', auth: true);
     final list =
     (res['data'] as Map<String, dynamic>)['categories'] as List<dynamic>;
     return list.cast<Map<String, dynamic>>();
@@ -715,4 +719,60 @@ class ApiService {
     Future<void> adminSetVoucherExpiry(int id, String? date) async {
       await _send('PATCH', '/api/admin/vouchers/$id', auth: true, body: {'expires_at': date});
     }
+
+// ---------- gift vouchers customers can buy ----------
+
+      /// The voucher amounts on sale: [{variant_id, name, price_cents, currency}], cheapest first. Public.
+      Future<List<Map<String, dynamic>>> giftVoucherAmounts() async {
+        final res = await _send('GET', '/api/gift-vouchers', auth: false);
+        return ((res['data'] as Map<String, dynamic>)['amounts'] as List<dynamic>).cast<Map<String, dynamic>>();
+      }
+
+      /// Puts vouchers into the cart. The caller refreshes the cart badge.
+      Future<void> addGiftVouchersToCart(int variantId, int quantity) async {
+        await _send('POST', '/api/cart/items', auth: true, body: {'variant_id': variantId, 'quantity': quantity});
+      }
+
+      /// Staff: the tax rates to choose from when creating a voucher amount.
+      Future<List<Map<String, dynamic>>> voucherTaxRates() async {
+        final res = await _send('GET', '/api/admin/tax-rates', auth: true);
+        return ((res['data'] as Map<String, dynamic>)['tax_rates'] as List<dynamic>).cast<Map<String, dynamic>>();
+      }
+
+      /// Staff: creates a voucher product, one amount customers can buy.
+      Future<void> createVoucherAmount({
+        required int cents,
+        required int taxRateId,
+        required String nameDe,
+        required String nameEn,
+      }) async {
+        await _send('POST', '/api/admin/products', auth: true, body: {
+          'slug': 'gift-voucher-$cents',
+          'product_type': 'gift_voucher',
+          'status': 'published',
+          'tax_rate_id': taxRateId,
+          'translations': {
+            'de': {'name': nameDe},
+            'en': {'name': nameEn},
+          },
+          'variants': [
+            {'sku': 'GV-$cents', 'price_cents': cents},
+          ],
+        });
+      }
+
+  /// Staff: every voucher amount, on sale or not: [{variant_id, price_cents, name, on_sale, sold}].
+  Future<List<Map<String, dynamic>>> adminVoucherAmounts() async {
+    final res = await _send('GET', '/api/admin/gift-voucher-amounts', auth: true);
+    return ((res['data'] as Map<String, dynamic>)['amounts'] as List<dynamic>).cast<Map<String, dynamic>>();
+  }
+
+  Future<void> adminCreateVoucherAmount(int cents) async {
+    await _send('POST', '/api/admin/gift-voucher-amounts', auth: true, body: {'value_cents': cents});
+  }
+
+  Future<void> adminSetVoucherAmountOnSale(int variantId, bool onSale) async {
+    await _send('PATCH', '/api/admin/gift-voucher-amounts/$variantId', auth: true, body: {'on_sale': onSale});
+  }
+
 }

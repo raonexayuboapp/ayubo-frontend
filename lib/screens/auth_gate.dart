@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
+import '../widgets/organic_loading_screen.dart';
 import 'home_screen.dart';
-import 'login_screen.dart';
 
-/// Startup: a valid stored token goes to Home, otherwise Login.
+typedef UserData = Map<String, dynamic>;
+
+/// Startup:
+/// - Valid stored session: Home with authenticated user.
+/// - No session: Home in guest mode.
+/// - Invalid or expired session: Home in guest mode.
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
@@ -13,11 +18,13 @@ class AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<AuthGate> {
-  late final Future<Map<String, dynamic>?> _check = _load();
+  late final Future<UserData?> _check = _load();
 
-  Future<Map<String, dynamic>?> _load() async {
-    if (!await ApiService.instance.hasToken()) return null;
+  Future<UserData?> _load() async {
     try {
+      if (!await ApiService.instance.hasToken()) {
+        return null;
+      }
       return await ApiService.instance.me();
     } catch (_) {
       return null;
@@ -26,16 +33,17 @@ class _AuthGateState extends State<AuthGate> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>?>(
+    return FutureBuilder<UserData?>(
       future: _check,
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+          return const OrganicLoadingScreen(
+            message: 'Loading Ayubo Organics...',
           );
         }
-        final user = snap.data;
-        return user == null ? const LoginScreen() : HomeScreen(user: user);
+
+        // Both authenticated and guest users enter HomeScreen.
+        return HomeScreen(user: snap.data);
       },
     );
   }

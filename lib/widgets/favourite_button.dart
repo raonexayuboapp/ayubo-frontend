@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
+import 'auth_prompt_dialog.dart';
 
 /// A heart that adds or removes a product from the favourites.
 ///
@@ -31,12 +32,22 @@ class _FavouriteButtonState extends State<FavouriteButton> {
   @override
   void didUpdateWidget(FavouriteButton old) {
     super.didUpdateWidget(old);
-    // The parent may know better (for example after coming back from the detail page).
     if (old.isFavourite != widget.isFavourite) _on = widget.isFavourite;
   }
 
   Future<void> _toggle() async {
-    if (_busy) return; // ignore a second tap while the first one is still being sent
+    if (_busy) return;
+
+    // Intercept guest action and prompt for authentication
+    if (!await ApiService.instance.hasToken()) {
+      if (!mounted) return;
+      final user = await showAuthPrompt(
+        context,
+        title: 'Save to Favourites',
+        message: 'Log in or create an account to save your favourite organic products and access them anywhere.',
+      );
+      if (user == null || !mounted) return;
+    }
 
     final target = !_on;
     setState(() {
@@ -53,9 +64,12 @@ class _FavouriteButtonState extends State<FavouriteButton> {
       }
     } on ApiException catch (e) {
       if (!mounted) return;
-      setState(() => _on = !target); // the server refused: put the heart back
+      setState(() => _on = !target);
       widget.onChanged?.call(!target);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      // Suppress raw 401 errors from reaching the user
+      if (e.statusCode != 401) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -63,18 +77,43 @@ class _FavouriteButtonState extends State<FavouriteButton> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     final button = IconButton(
       tooltip: _on ? 'Remove from favourites' : 'Add to favourites',
       visualDensity: VisualDensity.compact,
       icon: Icon(
-        _on ? Icons.favorite : Icons.favorite_border,
-        color: _on ? Colors.red : (widget.overlay ? Colors.black54 : null),
+        _on ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+        size: 20,
+        color: _on
+            ? Colors.redAccent
+            : (widget.overlay
+                ? theme.colorScheme.onSurface.withValues(alpha: 0.7)
+                : theme.colorScheme.onSurface.withValues(alpha: 0.5)),
       ),
       onPressed: _busy ? null : _toggle,
     );
 
     if (!widget.overlay) return button;
 
-    return Material(color: Colors.white70, shape: const CircleBorder(), child: button);
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface.withValues(alpha: 0.85),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: _on
+              ? Colors.redAccent.withValues(alpha: 0.3)
+              : theme.dividerColor.withValues(alpha: 0.15),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: button,
+    );
   }
 }

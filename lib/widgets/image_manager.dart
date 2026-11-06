@@ -4,6 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
 import 'product_image.dart';
 
+typedef ProductImageData = Map<String, dynamic>;
+
 /// The picture strip of a product form. The parent owns the list and passes it in; this widget picks a file,
 /// uploads it, and reports the new list through [onChanged]. The first image is the main image.
 /// Removing an image only DETACHES it from the product: the file stays on the server.
@@ -11,8 +13,8 @@ class ImageManager extends StatefulWidget {
   static const maxImages = 20; // the server accepts at most 20 per product
   static const maxBytes = 5 * 1024 * 1024; // and 5 MB per file
 
-  final List<Map<String, dynamic>> images; // each: id, url, alt_text
-  final ValueChanged<List<Map<String, dynamic>>> onChanged;
+  final List<ProductImageData> images; // each: id, url, alt_text
+  final ValueChanged<List<ProductImageData>> onChanged;
 
   const ImageManager({super.key, required this.images, required this.onChanged});
 
@@ -29,7 +31,6 @@ class _ImageManagerState extends State<ImageManager> {
   Future<void> _add() async {
     if (_busy) return;
 
-    // On phones the picker shrinks the photo before it is uploaded, so it stays under the 5 MB limit.
     final picked = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 2000, imageQuality: 85);
     if (picked == null || !mounted) return;
 
@@ -41,11 +42,10 @@ class _ImageManagerState extends State<ImageManager> {
     }
 
     final alt = await showDialog<String>(context: context, builder: (_) => const _AltTextDialog());
-    if (alt == null || !mounted) return; // cancelled
+    if (alt == null || !mounted) return;
 
     setState(() => _busy = true);
     try {
-      // The server decides what the file really is from its CONTENT, whatever its name says.
       final media = await ApiService.instance.adminUploadImage(
         bytes: bytes,
         filename: picked.name,
@@ -72,75 +72,124 @@ class _ImageManagerState extends State<ImageManager> {
   }
 
   Widget _tile(int i) {
+    final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
     final img = widget.images[i];
-    final scheme = Theme.of(context).colorScheme;
 
     return Padding(
       key: ValueKey(img['id']),
-      padding: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.only(right: 10),
       child: SizedBox(
         width: 108,
-        child: Stack(children: [
-          Positioned.fill(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: ProductImage(url: img['url'] as String?),
-            ),
-          ),
-          if (i == 0)
-            Positioned(
-              left: 4,
-              bottom: 4,
+        child: Stack(
+          children: [
+            Positioned.fill(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(4)),
-                child: Text('Main', style: TextStyle(fontSize: 11, color: scheme.onPrimary)),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: i == 0 ? goldColor : theme.dividerColor.withValues(alpha: 0.15),
+                    width: i == 0 ? 1.5 : 1,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: ProductImage(url: img['url'] as String?),
+                ),
               ),
             ),
-          Positioned(
-            top: 2,
-            right: 2,
-            child: Material(
-              color: Colors.white70,
-              shape: const CircleBorder(),
-              child: PopupMenuButton<String>(
-                padding: EdgeInsets.zero,
-                iconSize: 18,
-                tooltip: 'Image options',
-                onSelected: (v) => v == 'main' ? _makeMain(i) : _remove(i),
-                itemBuilder: (_) => [
-                  if (i > 0) const PopupMenuItem(value: 'main', child: Text('Make main image')),
-                  const PopupMenuItem(value: 'remove', child: Text('Remove from product')),
-                ],
+            if (i == 0)
+              Positioned(
+                left: 6,
+                bottom: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: goldColor,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'Main',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface.withValues(alpha: 0.85),
+                  shape: BoxShape.circle,
+                ),
+                child: PopupMenuButton<String>(
+                  padding: EdgeInsets.zero,
+                  iconSize: 18,
+                  tooltip: 'Image options',
+                  icon: Icon(
+                    Icons.more_vert,
+                    size: 16,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
+                  onSelected: (v) => v == 'main' ? _makeMain(i) : _remove(i),
+                  itemBuilder: (_) => [
+                    if (i > 0) const PopupMenuItem(value: 'main', child: Text('Make main image')),
+                    const PopupMenuItem(value: 'remove', child: Text('Remove from product')),
+                  ],
+                ),
               ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
 
   Widget _addTile() {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
 
     return SizedBox(
       width: 108,
-      child: InkWell(
-        onTap: _busy ? null : _add,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: scheme.outline),
-            borderRadius: BorderRadius.circular(8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _busy ? null : _add,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
+              border: Border.all(
+                color: theme.dividerColor.withValues(alpha: 0.2),
+              ),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            alignment: Alignment.center,
+            child: _busy
+                ? CircularProgressIndicator(color: goldColor, strokeWidth: 2)
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.add_photo_alternate_outlined,
+                        color: goldColor,
+                        size: 24,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Add image',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ],
+                  ),
           ),
-          alignment: Alignment.center,
-          child: _busy
-              ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.add_photo_alternate_outlined),
-            SizedBox(height: 4),
-            Text('Add image', style: TextStyle(fontSize: 12)),
-          ]),
         ),
       ),
     );
@@ -179,8 +228,17 @@ class _AltTextDialogState extends State<_AltTextDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
+
     return AlertDialog(
-      title: const Text('Describe the image'),
+      backgroundColor: theme.colorScheme.surface,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text(
+        'Describe the image',
+        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+      ),
       content: TextField(
         controller: _alt,
         autofocus: true,
@@ -192,8 +250,22 @@ class _AltTextDialogState extends State<_AltTextDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(onPressed: () => Navigator.pop(context, _alt.text), child: const Text('Upload')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(
+            'Cancel',
+            style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+          ),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, _alt.text),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: goldColor,
+            elevation: 0,
+          ),
+          child: const Text('Upload', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
       ],
     );
   }
