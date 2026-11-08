@@ -158,8 +158,9 @@ class _FamilyScreenState extends State<FamilyScreen> {
       return;
     }
 
+    final planId = (plan['id'] as num?)?.toInt();
     final variantId = (plan['variant_id'] as num?)?.toInt();
-    if (variantId == null) {
+    if (planId == null && variantId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('This membership plan cannot be ordered online.')),
       );
@@ -178,7 +179,11 @@ class _FamilyScreenState extends State<FamilyScreen> {
     }
 
     try {
-      await ApiService.instance.addToCart(variantId, 1);
+      if (planId != null) {
+        await ApiService.instance.purchaseMembership(planId);
+      } else {
+        await ApiService.instance.addToCart(variantId!, 1);
+      }
       if (!mounted) return;
 
       CartState.instance.refresh();
@@ -867,6 +872,104 @@ class _FamilyScreenState extends State<FamilyScreen> {
                         ],
                       ),
                     ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_membership != null) {
+      final plan = _membership!['plan'] as Map<String, dynamic>? ?? {};
+      final planName = (_membership!['plan_name'] as String?) ??
+          (plan['name'] as String?) ??
+          'Ayubo Family Member';
+      final status = ((_membership!['status'] as String?) ?? 'inactive').toUpperCase();
+      final validUntil = (_membership!['valid_until'] as String?) ??
+          (_membership!['expires_at'] as String?);
+
+      return Container(
+        margin: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: Colors.amber.shade700.withValues(alpha: 0.5),
+            width: 1.3,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              color: isDark ? Colors.grey.shade900 : Colors.grey.shade200,
+              child: Row(
+                children: [
+                  Icon(Icons.history_toggle_off_rounded, color: Colors.amber.shade700, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      planName,
+                      style: TextStyle(
+                        color: isDark ? Colors.white : Colors.black87,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade700.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.amber.shade700.withValues(alpha: 0.6)),
+                    ),
+                    child: Text(
+                      status,
+                      style: TextStyle(
+                        color: Colors.amber.shade800,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isDe ? 'Ihre Mitgliedschaft ist abgelaufen.' : 'Your membership is not active.',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        if (validUntil != null)
+                          Text(
+                            isDe ? 'Gültig gewesen bis $validUntil' : 'Ended on $validUntil',
+                            style: TextStyle(fontSize: 11, color: AppTheme.textSecondary(context)),
+                          ),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: _scrollToPlans,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryGreen,
+                      foregroundColor: AppTheme.brandGold,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: Text(isDe ? 'Erneuern' : 'Renew', style: const TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),

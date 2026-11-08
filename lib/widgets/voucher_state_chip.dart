@@ -5,10 +5,14 @@ String voucherStateLabel(String state, [String? locale]) {
   final loc = locale ?? currentAppLocale;
   if (loc.startsWith('de')) {
     switch (state) {
+      case 'available':
       case 'active':
-        return 'Aktiv';
+        return 'Verfügbar';
+      case 'partially_redeemed':
+        return 'Teilweise eingelöst';
       case 'used':
-        return 'Eingelöst';
+      case 'fully_redeemed':
+        return 'Vollständig eingelöst';
       case 'expired':
         return 'Abgelaufen';
       case 'cancelled':
@@ -18,14 +22,18 @@ String voucherStateLabel(String state, [String? locale]) {
     }
   }
   switch (state) {
+    case 'available':
     case 'active':
-      return 'Active';
+      return 'Available';
+    case 'partially_redeemed':
+      return 'Partially redeemed';
     case 'used':
-      return 'Used up';
+    case 'fully_redeemed':
+      return 'Fully redeemed';
     case 'expired':
       return 'Expired';
     case 'cancelled':
-      return 'Withdrawn';
+      return 'Cancelled';
     default:
       return state.replaceAll('_', ' ');
   }
@@ -68,9 +76,13 @@ class VoucherStateChip extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     final (background, foreground) = switch (state) {
-      'active' => (
+      'available' || 'active' => (
           Colors.green.shade600.withValues(alpha: isDark ? 0.2 : 0.12),
           isDark ? Colors.green.shade400 : Colors.green.shade700,
+        ),
+      'partially_redeemed' => (
+          Colors.amber.shade700.withValues(alpha: isDark ? 0.2 : 0.12),
+          isDark ? Colors.amber.shade400 : Colors.amber.shade800,
         ),
       'expired' || 'cancelled' => (
           theme.colorScheme.error.withValues(alpha: 0.12),

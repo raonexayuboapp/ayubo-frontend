@@ -319,6 +319,12 @@ class ApiService {
     return res['data'] as Map<String, dynamic>;
   }
 
+  /// Customer purchase of a membership plan. Adds the plan's product variant to cart.
+  Future<Map<String, dynamic>> purchaseMembership(int planId) async {
+    final res = await _send('POST', '/api/memberships', auth: true, body: {'plan_id': planId});
+    return res['data'] as Map<String, dynamic>;
+  }
+
   // ---------- admin: membership plans ----------
 
   Future<List<Map<String, dynamic>>> adminMembershipPlans() async {
@@ -597,11 +603,18 @@ class ApiService {
 
   // ---------- checkout preview, payment, receipts ----------
 
-  /// What the order would cost, both ways: paid normally and paid with the membership.
-  Future<Map<String, dynamic>> checkoutPreview({int? addressId, int? methodId}) async {
+  /// What the order would cost, across all payment sources (membership credit, gift voucher, online).
+  Future<Map<String, dynamic>> checkoutPreview({
+    int? addressId,
+    int? methodId,
+    String? paymentSource,
+    List<String>? voucherCodes,
+  }) async {
     final q = <String, String>{
       if (addressId != null) 'shipping_address_id': '$addressId',
       if (methodId != null) 'shipping_method_id': '$methodId',
+      if (paymentSource != null && paymentSource.isNotEmpty) 'payment_source': paymentSource,
+      if (voucherCodes != null && voucherCodes.isNotEmpty) 'voucher_code': voucherCodes.first,
     };
     final path = q.isEmpty
         ? '/api/checkout/preview'
@@ -713,6 +726,14 @@ class ApiService {
 
     Future<void> adminCancelVoucher(int id) async {
       await _send('POST', '/api/admin/vouchers/$id/cancel', auth: true, body: {});
+    }
+
+    /// Assigns an existing voucher to an existing customer by email.
+    Future<Map<String, dynamic>> adminAssignVoucher(int id, String email) async {
+      final res = await _send('POST', '/api/admin/vouchers/$id/assign', auth: true, body: {
+        'customer_email': email.trim(),
+      });
+      return (res['data'] as Map<String, dynamic>)['voucher'] as Map<String, dynamic>;
     }
 
     /// [date] is YYYY-MM-DD (valid until the end of that day), or null for no expiry.

@@ -23,8 +23,12 @@ class HomeMembershipCard extends StatelessWidget {
     final isDark = AppTheme.isDark(context);
     final l10n = AppLocalizations.of(context);
 
+    final status = membership?['status'] as String?;
+    final isExpired = status == 'expired' || status == 'inactive' || status == 'cancelled';
     final plan = membership?['plan'] as Map<String, dynamic>?;
-    final planName = plan?['name'] as String? ?? (l10n?.activeMember ?? 'Active Member');
+    final planName = (membership?['plan_name'] as String?) ??
+        (plan?['name'] as String?) ??
+        (l10n?.activeMember ?? 'Active Member');
     final creditCents = (membership?['credit_cents'] as num?)?.toInt();
 
     return Padding(
@@ -90,7 +94,7 @@ class HomeMembershipCard extends StatelessWidget {
                     Row(
                       children: [
                         Text(
-                          _isMember ? planName : (l10n?.familyTitle ?? 'Ayubo Family'),
+                          _isMember ? planName : (isExpired ? planName : (l10n?.familyTitle ?? 'Ayubo Family')),
                           style: TextStyle(
                             fontSize: 14.5,
                             fontWeight: FontWeight.bold,
@@ -115,6 +119,24 @@ class HomeMembershipCard extends StatelessWidget {
                               ),
                             ),
                           ),
+                        ] else if (isExpired) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.shade700.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.amber.shade700.withValues(alpha: 0.5)),
+                            ),
+                            child: Text(
+                              status?.toUpperCase() ?? 'EXPIRED',
+                              style: TextStyle(
+                                color: Colors.amber.shade800,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                         ],
                       ],
                     ),
@@ -124,8 +146,10 @@ class HomeMembershipCard extends StatelessWidget {
                           ? (creditCents != null && creditCents > 0
                               ? '${l10n?.availableCredit ?? 'Credit'}: ${formatCents(creditCents)}'
                               : (l10n?.memberPrivileges ?? 'Active Membership Privileges'))
-                          : (l10n?.membershipPromoDesc ??
-                              '100% credit back & exclusive member savings'),
+                          : (isExpired
+                              ? 'Renew your membership to restore benefits'
+                              : (l10n?.membershipPromoDesc ??
+                                  '100% credit back & exclusive member savings')),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -151,7 +175,9 @@ class HomeMembershipCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      _isMember ? (l10n?.viewDetails ?? 'View') : (l10n?.exploreMembership ?? 'Explore'),
+                      _isMember
+                          ? (l10n?.viewDetails ?? 'View')
+                          : (isExpired ? 'Renew' : (l10n?.exploreMembership ?? 'Explore')),
                       style: const TextStyle(
                         color: AppTheme.brandGoldDark,
                         fontSize: 11.5,

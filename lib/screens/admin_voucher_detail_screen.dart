@@ -131,6 +131,63 @@ class _AdminVoucherDetailScreenState extends State<AdminVoucherDetailScreen> {
     });
   }
 
+  Future<void> _assign() async {
+    final emailController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final email = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Assign Voucher to Customer'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Enter the customer\'s registered email address. This voucher will be placed directly in their wallet.'),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Customer Email',
+                  hintText: 'customer@example.com',
+                  prefixIcon: Icon(Icons.email_outlined),
+                ),
+                validator: (val) {
+                  final v = val?.trim() ?? '';
+                  if (v.isEmpty) return 'Enter a customer email address.';
+                  if (!v.contains('@') || !v.contains('.')) return 'Enter a valid email address.';
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState?.validate() == true) {
+                Navigator.pop(ctx, emailController.text.trim());
+              }
+            },
+            child: const Text('Assign'),
+          ),
+        ],
+      ),
+    );
+
+    if (email == null || email.isEmpty || !mounted) return;
+
+    await _act(() async {
+      await ApiService.instance.adminAssignVoucher(widget.voucherId, email);
+      return 'Voucher successfully assigned to $email';
+    });
+  }
+
   String _label(String type, String? order) {
     switch (type) {
       case 'issue':
@@ -204,6 +261,13 @@ class _AdminVoucherDetailScreenState extends State<AdminVoucherDetailScreen> {
           const SizedBox(height: 12),
           if (_busy) const Padding(padding: EdgeInsets.only(bottom: 8), child: LinearProgressIndicator()),
           Wrap(spacing: 8, runSpacing: 8, children: [
+            OutlinedButton.icon(
+              onPressed: _busy || cancelled || _kind == 'membership_credit' || (v['balance_cents'] as int) <= 0
+                  ? null
+                  : _assign,
+              icon: const Icon(Icons.person_add_outlined),
+              label: Text(owner == null ? 'Assign to customer' : 'Reassign customer'),
+            ),
             OutlinedButton.icon(
               onPressed: _busy || cancelled ? null : _changeExpiry,
               icon: const Icon(Icons.event),
