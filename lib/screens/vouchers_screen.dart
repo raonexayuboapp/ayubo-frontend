@@ -25,6 +25,10 @@ class _VouchersScreenState extends State<VouchersScreen> {
   bool _loading = true;
   String? _error;
 
+  String get _locale => Localizations.localeOf(context).languageCode;
+
+  bool get _isDe => _locale.startsWith('de');
+
   @override
   void initState() {
     super.initState();
@@ -54,7 +58,7 @@ class _VouchersScreenState extends State<VouchersScreen> {
         if (reset) {
           _error = e.message;
         } else {
-          _page--; // let "Load more" try the same page again
+          _page--;
         }
       });
       if (!reset) {
@@ -77,7 +81,8 @@ class _VouchersScreenState extends State<VouchersScreen> {
 
   Future<void> _add() async {
     final l10n = AppLocalizations.of(context);
-    final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
+    final locale = _locale;
+    final isDe = locale.startsWith('de');
 
     final r = await showPrompt(
       context,
@@ -104,8 +109,8 @@ class _VouchersScreenState extends State<VouchersScreen> {
         SnackBar(
           content: Text(
             isDe
-                ? 'Gutschein hinzugefügt. Guthaben: ${formatCents((result['balance_cents'] as num).toInt())}.'
-                : 'Voucher added. Balance ${formatCents((result['balance_cents'] as num).toInt())}.',
+                ? 'Gutschein hinzugefügt. Guthaben: ${formatCents((result['balance_cents'] as num).toInt(), locale)}.'
+                : 'Voucher added. Balance ${formatCents((result['balance_cents'] as num).toInt(), locale)}.',
           ),
         ),
       );
@@ -127,7 +132,9 @@ class _VouchersScreenState extends State<VouchersScreen> {
   Widget _card(Map<String, dynamic> v) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
-    final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
+    final locale = _locale;
+    final isDe = locale.startsWith('de');
+
     final isCredit = v['kind'] == 'membership_credit';
     final expires = v['expires_at'] as String?;
     final balanceCents = (v['balance_cents'] as num?)?.toInt() ?? 0;
@@ -141,7 +148,12 @@ class _VouchersScreenState extends State<VouchersScreen> {
       _ => rawState,
     };
 
-    final value = formatCents(originalCents);
+    final value = formatCents(originalCents, locale);
+    final balance = formatCents(balanceCents, locale);
+
+    final expiryText = expires == null
+        ? (l10n?.neverExpires ?? (isDe ? 'Unbegrenzt gültig' : 'No expiry'))
+        : '${isDe ? 'Gültig bis' : 'Valid until'} ${formatDate(expires, locale)}';
 
     return Card(
       key: ValueKey(v['id']),
@@ -161,15 +173,15 @@ class _VouchersScreenState extends State<VouchersScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${l10n?.voucherValue ?? 'Value'} $value · ${expires == null ? (l10n?.neverExpires ?? 'No expiry') : '${isDe ? 'Gültig bis' : 'Valid until'} ${formatDate(expires)}'}',
+              '${l10n?.voucherValue ?? (isDe ? 'Wert' : 'Value')} $value · $expiryText',
             ),
             const SizedBox(height: 4),
-            VoucherStateChip(state: effectiveState),
+            VoucherStateChip(state: effectiveState, locale: locale),
           ],
         ),
         isThreeLine: true,
         trailing: Text(
-          formatCents(balanceCents),
+          balance,
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),
@@ -199,7 +211,6 @@ class _VouchersScreenState extends State<VouchersScreen> {
         ),
       );
     } else if (_items.isEmpty) {
-      // A scrollable, so pull-to-refresh still works on an empty list.
       body = RefreshIndicator(
         onRefresh: () => _load(reset: true),
         child: ListView(
@@ -240,7 +251,7 @@ class _VouchersScreenState extends State<VouchersScreen> {
       );
     }
 
-    final isDe = l10n?.localeName.startsWith('de') ?? false;
+    final isDe = _isDe;
 
     return Scaffold(
       appBar: AppHeader(
