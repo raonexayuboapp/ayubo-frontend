@@ -611,4 +611,53 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pureCeylonHeritage => '100% Certified Organic • Ceylon Heritage';
+
+  @override
+  String get voucherOnlyProducts =>
+      'Vouchers can only be used for products. Remove gift vouchers and memberships from your cart.';
+
+  @override
+  String get voucherMembershipCombine =>
+      'Vouchers cannot be combined with membership payment. Choose \"Pay normally\" above to use a voucher.';
+
+  @override
+  String get addVoucherTitle => 'Add a voucher';
+
+  @override
+  String get addVoucherConfirmLabel => 'Add voucher';
+
+  @override
+  String voucherAddedMessage(Object balance) {
+    return 'Voucher added. Balance $balance.';
+  }
+
+  @override
+  String get noVoucherHistory => 'Nothing has happened with this voucher yet.';
+
+  @override
+  String get voucherDetailsSubtitle => 'Details & Balance';
+
+  @override
+  String get voucherValue => 'Value';
+
+  @override
+  String get membershipCredit => 'Membership credit';
+
+  @override
+  String get giftVoucher => 'Gift voucher';
+
+  @override
+  String get remainingBalance => 'remaining balance';
+
+  @override
+  String get originalValue => 'Original value';
+
+  @override
+  String get redeemedSoFar => 'Redeemed so far';
+
+  @override
+  String get validUntil => 'Valid until';
+
+  @override
+  String get added => 'Added';
 }

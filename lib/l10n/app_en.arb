@@ -1,3 +1,4 @@
+
 {
   "@@locale": "en",
   "appTitle": "Ayubo Organics",
@@ -209,5 +210,21 @@
   "greetingAfternoon": "Good afternoon",
   "greetingEvening": "Good evening",
   "shopByCategory": "Shop by Category",
-  "pureCeylonHeritage": "100% Certified Organic • Ceylon Heritage"
+  "pureCeylonHeritage": "100% Certified Organic • Ceylon Heritage",
+
+  "voucherOnlyProducts": "Vouchers can only be used for products. Remove gift vouchers and memberships from your cart.",
+  "voucherMembershipCombine": "Vouchers cannot be combined with membership payment. Choose \"Pay normally\" above to use a voucher.",
+  "addVoucherTitle": "Add a voucher",
+  "addVoucherConfirmLabel": "Add voucher",
+  "voucherAddedMessage": "Voucher added. Balance {balance}.",
+  "noVoucherHistory": "Nothing has happened with this voucher yet.",
+  "voucherDetailsSubtitle": "Details & Balance",
+  "voucherValue": "Value",
+  "membershipCredit": "Membership credit",
+  "giftVoucher": "Gift voucher",
+  "remainingBalance": "remaining balance",
+  "originalValue": "Original value",
+  "redeemedSoFar": "Redeemed so far",
+  "validUntil": "Valid until",
+  "added": "Added"
 }
