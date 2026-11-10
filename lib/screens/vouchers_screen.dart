@@ -39,7 +39,8 @@ class _VouchersScreenState extends State<VouchersScreen> {
     });
     try {
       final data = await ApiService.instance.listVouchers(page: _page);
-      final list = (data['vouchers'] as List<dynamic>).cast<Map<String, dynamic>>();
+      final list = (data['vouchers'] as List<dynamic>)
+          .cast<Map<String, dynamic>>();
       if (!mounted) return;
       setState(() {
         _items = reset ? list : [..._items, ...list];
@@ -56,14 +57,20 @@ class _VouchersScreenState extends State<VouchersScreen> {
           _page--; // let "Load more" try the same page again
         }
       });
-      if (!reset) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (!reset) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
   Future<void> _open(Map<String, dynamic> v) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => VoucherDetailScreen(voucherId: v['id'] as int)),
+      MaterialPageRoute(
+        builder: (_) => VoucherDetailScreen(voucherId: v['id'] as int),
+      ),
     );
     if (mounted) _load(reset: true);
   }
@@ -74,12 +81,19 @@ class _VouchersScreenState extends State<VouchersScreen> {
 
     final r = await showPrompt(
       context,
-      title: isDe ? 'Gutschein hinzufügen' : 'Add a voucher',
+      title: l10n?.addVoucherTitle ?? 'Add a voucher',
       message: isDe
           ? 'Geben Sie den Gutscheincode aus Ihrer E-Mail oder von Ihrer Gutscheinkarte ein. Der Gutschein wird Ihrem Konto gutgeschrieben.'
           : 'Enter the code from your email or voucher card. The voucher is added to your account, and only you can use it from then on.',
-      confirmLabel: isDe ? 'Gutschein einlösen' : 'Add voucher',
-      fields: [PromptField(key: 'code', label: l10n?.voucherCode ?? 'Voucher code', required: true, maxLength: 40)],
+      confirmLabel: l10n?.addVoucherConfirmLabel ?? 'Add voucher',
+      fields: [
+        PromptField(
+          key: 'code',
+          label: l10n?.voucherCode ?? 'Voucher code',
+          required: true,
+          maxLength: 40,
+        ),
+      ],
     );
     if (r == null) return;
 
@@ -88,16 +102,24 @@ class _VouchersScreenState extends State<VouchersScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isDe
-              ? 'Gutschein hinzugefügt. Guthaben: ${formatCents((result['balance_cents'] as num).toInt())}.'
-              : 'Voucher added. Balance ${formatCents((result['balance_cents'] as num).toInt())}.'),
+          content: Text(
+            isDe
+                ? 'Gutschein hinzugefügt. Guthaben: ${formatCents((result['balance_cents'] as num).toInt())}.'
+                : 'Voucher added. Balance ${formatCents((result['balance_cents'] as num).toInt())}.',
+          ),
         ),
       );
       _load(reset: true);
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.fieldErrors.isNotEmpty ? e.fieldErrors.values.join('\n') : e.message)),
+        SnackBar(
+          content: Text(
+            e.fieldErrors.isNotEmpty
+                ? e.fieldErrors.values.join('\n')
+                : e.message,
+          ),
+        ),
       );
     }
   }
@@ -113,7 +135,8 @@ class _VouchersScreenState extends State<VouchersScreen> {
     final rawState = v['state'] as String? ?? 'active';
 
     final effectiveState = switch (rawState) {
-      'active' when balanceCents > 0 && balanceCents < originalCents => 'partially_redeemed',
+      'active' when balanceCents > 0 && balanceCents < originalCents =>
+        'partially_redeemed',
       'active' when balanceCents >= originalCents => 'available',
       _ => rawState,
     };
@@ -124,18 +147,33 @@ class _VouchersScreenState extends State<VouchersScreen> {
       key: ValueKey(v['id']),
       child: ListTile(
         onTap: () => _open(v),
-        leading: Icon(isCredit ? Icons.account_balance_wallet_outlined : Icons.card_giftcard_outlined),
-        title: Text(isCredit
-            ? (isDe ? 'Mitgliedschaftsguthaben' : 'Membership credit')
-            : (isDe ? 'Geschenkgutschein •••• ${v['suffix']}' : 'Gift voucher •••• ${v['suffix']}')),
-        subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('${isDe ? 'Wert' : 'Value'} $value · ${expires == null ? (l10n?.neverExpires ?? 'no expiry') : (isDe ? 'gültig bis ${formatDate(expires)}' : 'valid until ${formatDate(expires)}') }'),
-          const SizedBox(height: 4),
-          VoucherStateChip(state: effectiveState),
-        ]),
+        leading: Icon(
+          isCredit
+              ? Icons.account_balance_wallet_outlined
+              : Icons.card_giftcard_outlined,
+        ),
+        title: Text(
+          isCredit
+              ? (l10n?.membershipCredit ?? 'Membership credit')
+              : '${l10n?.giftVoucher ?? 'Gift voucher'} •••• ${v['suffix']}',
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${l10n?.voucherValue ?? 'Value'} $value · ${expires == null ? (l10n?.neverExpires ?? 'No expiry') : '${isDe ? 'Gültig bis' : 'Valid until'} ${formatDate(expires)}'}',
+            ),
+            const SizedBox(height: 4),
+            VoucherStateChip(state: effectiveState),
+          ],
+        ),
         isThreeLine: true,
-        trailing: Text(formatCents(balanceCents),
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+        trailing: Text(
+          formatCents(balanceCents),
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
     );
   }
@@ -149,25 +187,33 @@ class _VouchersScreenState extends State<VouchersScreen> {
       body = const Center(child: CircularProgressIndicator());
     } else if (_error != null) {
       body = Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(_error!),
-          TextButton(onPressed: () => _load(reset: true), child: Text(l10n?.retry ?? 'Retry')),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_error!),
+            TextButton(
+              onPressed: () => _load(reset: true),
+              child: Text(l10n?.retry ?? 'Retry'),
+            ),
+          ],
+        ),
       );
     } else if (_items.isEmpty) {
       // A scrollable, so pull-to-refresh still works on an empty list.
       body = RefreshIndicator(
         onRefresh: () => _load(reset: true),
-        child: ListView(children: [
-          const SizedBox(height: 160),
-          Center(
-            child: Text(
-              l10n?.noVouchersYet ??
-                  'You have no vouchers yet.\nGift vouchers you buy and your membership credit appear here.',
-              textAlign: TextAlign.center,
+        child: ListView(
+          children: [
+            const SizedBox(height: 160),
+            Center(
+              child: Text(
+                l10n?.noVouchersYet ??
+                    'You have no vouchers yet.\nGift vouchers you buy and your membership credit appear here.',
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
       );
     } else {
       final hasMore = _items.length < _total;
@@ -182,9 +228,9 @@ class _VouchersScreenState extends State<VouchersScreen> {
                 onPressed: _loading
                     ? null
                     : () {
-                  _page++;
-                  _load(reset: false);
-                },
+                        _page++;
+                        _load(reset: false);
+                      },
                 child: Text(l10n?.loadMore ?? 'Load more'),
               );
             }
@@ -199,7 +245,11 @@ class _VouchersScreenState extends State<VouchersScreen> {
     return Scaffold(
       appBar: AppHeader(
         title: l10n?.myVouchers ?? 'My Vouchers & Credit',
-        subtitle: isDe ? 'Guthaben & Geschenkgutscheine' : 'Wallet balance & gift vouchers',
+        subtitle:
+            l10n?.voucherDetailsSubtitle ??
+            (isDe
+                ? 'Guthaben & Geschenkgutscheine'
+                : 'Wallet balance & gift vouchers'),
         showBackButton: true,
       ),
       body: body,
