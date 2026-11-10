@@ -1279,6 +1279,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'100% Certified Organic • Ceylon Heritage'**
   String get pureCeylonHeritage;
+
+  /// No description provided for @voucherOnlyProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'Vouchers can only be used for products. Remove gift vouchers and memberships from your cart.'**
+  String get voucherOnlyProducts;
+
+  /// No description provided for @voucherMembershipCombine.
+  ///
+  /// In en, this message translates to:
+  /// **'Vouchers cannot be combined with membership payment. Choose \"Pay normally\" above to use a voucher.'**
+  String get voucherMembershipCombine;
+
+  /// No description provided for @addVoucherTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a voucher'**
+  String get addVoucherTitle;
+
+  /// No description provided for @addVoucherConfirmLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Add voucher'**
+  String get addVoucherConfirmLabel;
+
+  /// No description provided for @voucherAddedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Voucher added. Balance {balance}.'**
+  String voucherAddedMessage(Object balance);
+
+  /// No description provided for @noVoucherHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing has happened with this voucher yet.'**
+  String get noVoucherHistory;
+
+  /// No description provided for @voucherDetailsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Details & Balance'**
+  String get voucherDetailsSubtitle;
+
+  /// No description provided for @voucherValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Value'**
+  String get voucherValue;
+
+  /// No description provided for @membershipCredit.
+  ///
+  /// In en, this message translates to:
+  /// **'Membership credit'**
+  String get membershipCredit;
+
+  /// No description provided for @giftVoucher.
+  ///
+  /// In en, this message translates to:
+  /// **'Gift voucher'**
+  String get giftVoucher;
+
+  /// No description provided for @remainingBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'remaining balance'**
+  String get remainingBalance;
+
+  /// No description provided for @originalValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Original value'**
+  String get originalValue;
+
+  /// No description provided for @redeemedSoFar.
+  ///
+  /// In en, this message translates to:
+  /// **'Redeemed so far'**
+  String get redeemedSoFar;
+
+  /// No description provided for @validUntil.
+  ///
+  /// In en, this message translates to:
+  /// **'Valid until'**
+  String get validUntil;
+
+  /// No description provided for @added.
+  ///
+  /// In en, this message translates to:
+  /// **'Added'**
+  String get added;
 }
 
 class _AppLocalizationsDelegate

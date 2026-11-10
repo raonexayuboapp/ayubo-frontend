@@ -3,6 +3,7 @@ import '../utils/money.dart';
 
 String voucherStateLabel(String state, [String? locale]) {
   final loc = locale ?? currentAppLocale;
+
   if (loc.startsWith('de')) {
     switch (state) {
       case 'available':
@@ -21,6 +22,7 @@ String voucherStateLabel(String state, [String? locale]) {
         return state.replaceAll('_', ' ');
     }
   }
+
   switch (state) {
     case 'available':
     case 'active':
@@ -41,6 +43,7 @@ String voucherStateLabel(String state, [String? locale]) {
 
 String voucherKindLabel(String kind, [String? locale]) {
   final loc = locale ?? currentAppLocale;
+
   if (loc.startsWith('de')) {
     switch (kind) {
       case 'issued':
@@ -53,6 +56,7 @@ String voucherKindLabel(String kind, [String? locale]) {
         return kind.replaceAll('_', ' ');
     }
   }
+
   switch (kind) {
     case 'issued':
       return 'Issued by staff';
@@ -68,30 +72,36 @@ String voucherKindLabel(String kind, [String? locale]) {
 /// A small coloured pill for a voucher's state.
 class VoucherStateChip extends StatelessWidget {
   final String state;
-  const VoucherStateChip({super.key, required this.state});
+  final String? locale;
+
+  const VoucherStateChip({super.key, required this.state, this.locale});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    // Always prefer the explicitly supplied locale.
+    // Otherwise, use the active Flutter application locale.
+    final activeLocale = locale ?? Localizations.localeOf(context).languageCode;
+
     final (background, foreground) = switch (state) {
       'available' || 'active' => (
-          Colors.green.shade600.withValues(alpha: isDark ? 0.2 : 0.12),
-          isDark ? Colors.green.shade400 : Colors.green.shade700,
-        ),
+        Colors.green.shade600.withValues(alpha: isDark ? 0.2 : 0.12),
+        isDark ? Colors.green.shade400 : Colors.green.shade700,
+      ),
       'partially_redeemed' => (
-          Colors.amber.shade700.withValues(alpha: isDark ? 0.2 : 0.12),
-          isDark ? Colors.amber.shade400 : Colors.amber.shade800,
-        ),
+        Colors.amber.shade700.withValues(alpha: isDark ? 0.2 : 0.12),
+        isDark ? Colors.amber.shade400 : Colors.amber.shade800,
+      ),
       'expired' || 'cancelled' => (
-          theme.colorScheme.error.withValues(alpha: 0.12),
-          theme.colorScheme.error,
-        ),
+        theme.colorScheme.error.withValues(alpha: 0.12),
+        theme.colorScheme.error,
+      ),
       _ => (
-          theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-          theme.colorScheme.onSurface.withValues(alpha: 0.7),
-        ),
+        theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        theme.colorScheme.onSurface.withValues(alpha: 0.7),
+      ),
     };
 
     return Container(
@@ -105,7 +115,7 @@ class VoucherStateChip extends StatelessWidget {
         ),
       ),
       child: Text(
-        voucherStateLabel(state),
+        voucherStateLabel(state, activeLocale),
         style: theme.textTheme.labelSmall?.copyWith(
           color: foreground,
           fontWeight: FontWeight.w600,

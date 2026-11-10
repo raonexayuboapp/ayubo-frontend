@@ -209,5 +209,21 @@
   "greetingAfternoon": "Guten Tag",
   "greetingEvening": "Guten Abend",
   "shopByCategory": "Nach Kategorie shoppen",
-  "pureCeylonHeritage": "100% Bio-zertifiziert • Ceylon-Tradition"
+  "pureCeylonHeritage": "100% Bio-zertifiziert • Ceylon-Tradition",
+
+  "voucherOnlyProducts": "Gutscheine können nur für Produkte verwendet werden. Bitte entfernen Sie Geschenkgutscheine und Mitgliedschaften aus Ihrem Warenkorb.",
+  "voucherMembershipCombine": "Gutscheine können nicht mit der Mitgliedschaftszahlung kombiniert werden. Wählen Sie oben \"Regulär bezahlen\", um einen Gutschein einzulösen.",
+  "addVoucherTitle": "Gutschein hinzufügen",
+  "addVoucherConfirmLabel": "Gutschein einlösen",
+  "voucherAddedMessage": "Gutschein hinzugefügt. Guthaben: {balance}.",
+  "noVoucherHistory": "Mit diesem Gutschein ist noch nichts passiert.",
+  "voucherDetailsSubtitle": "Details \u0026 Guthaben",
+  "voucherValue": "Wert",
+  "membershipCredit": "Mitgliedschaftsguthaben",
+  "giftVoucher": "Geschenkgutschein",
+  "remainingBalance": "verbleibendes Guthaben",
+  "originalValue": "Ursprünglicher Wert",
+  "redeemedSoFar": "Bisher eingelöst",
+  "validUntil": "Gültig bis",
+  "added": "Hinzugefügt"
 }

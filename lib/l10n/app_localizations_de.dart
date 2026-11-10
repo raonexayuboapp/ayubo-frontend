@@ -613,4 +613,54 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get pureCeylonHeritage => '100% Bio-zertifiziert • Ceylon-Tradition';
+
+  @override
+  String get voucherOnlyProducts =>
+      'Gutscheine können nur für Produkte verwendet werden. Bitte entfernen Sie Geschenkgutscheine und Mitgliedschaften aus Ihrem Warenkorb.';
+
+  @override
+  String get voucherMembershipCombine =>
+      'Gutscheine können nicht mit der Mitgliedschaftszahlung kombiniert werden. Wählen Sie oben \"Regulär bezahlen\", um einen Gutschein einzulösen.';
+
+  @override
+  String get addVoucherTitle => 'Gutschein hinzufügen';
+
+  @override
+  String get addVoucherConfirmLabel => 'Gutschein einlösen';
+
+  @override
+  String voucherAddedMessage(Object balance) {
+    return 'Gutschein hinzugefügt. Guthaben: $balance.';
+  }
+
+  @override
+  String get noVoucherHistory =>
+      'Mit diesem Gutschein ist noch nichts passiert.';
+
+  @override
+  String get voucherDetailsSubtitle => 'Details & Guthaben';
+
+  @override
+  String get voucherValue => 'Wert';
+
+  @override
+  String get membershipCredit => 'Mitgliedschaftsguthaben';
+
+  @override
+  String get giftVoucher => 'Geschenkgutschein';
+
+  @override
+  String get remainingBalance => 'verbleibendes Guthaben';
+
+  @override
+  String get originalValue => 'Ursprünglicher Wert';
+
+  @override
+  String get redeemedSoFar => 'Bisher eingelöst';
+
+  @override
+  String get validUntil => 'Gültig bis';
+
+  @override
+  String get added => 'Hinzugefügt';
 }
