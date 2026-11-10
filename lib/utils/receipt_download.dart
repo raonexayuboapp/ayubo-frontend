@@ -8,17 +8,27 @@ import '../services/api_service.dart';
 
 /// Downloads an order's receipt and opens it in the device's PDF viewer (which can save or share it).
 /// It shows its own messages, so a screen only has to call it.
-Future<void> downloadReceipt(BuildContext context, int orderId, String orderNumber) async {
+Future<void> downloadReceipt(
+  BuildContext context,
+  int orderId,
+  String orderNumber, {
+  bool admin = false,
+}) async {
   final messenger = ScaffoldMessenger.of(context);
   messenger
     ..clearSnackBars()
     ..showSnackBar(const SnackBar(content: Text('Preparing your receipt…')));
 
-  final (bytes, error) = await ApiService.instance.downloadReceipt(orderId);
+  final (bytes, error) = await ApiService.instance.downloadReceipt(
+    orderId,
+    admin: admin,
+  );
   messenger.clearSnackBars();
 
   if (bytes == null) {
-    messenger.showSnackBar(SnackBar(content: Text(error ?? 'The receipt could not be downloaded.')));
+    messenger.showSnackBar(
+      SnackBar(content: Text(error ?? 'The receipt could not be downloaded.')),
+    );
     return;
   }
 
@@ -30,10 +40,18 @@ Future<void> downloadReceipt(BuildContext context, int orderId, String orderNumb
     final result = await OpenFilex.open(file.path, type: 'application/pdf');
     if (result.type != ResultType.done) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('The receipt was saved, but no app on this phone can open PDF files.')),
+        const SnackBar(
+          content: Text(
+            'The receipt was saved, but no app on this phone can open PDF files.',
+          ),
+        ),
       );
     }
   } catch (_) {
-    messenger.showSnackBar(const SnackBar(content: Text('The receipt could not be saved on this device.')));
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('The receipt could not be saved on this device.'),
+      ),
+    );
   }
 }
