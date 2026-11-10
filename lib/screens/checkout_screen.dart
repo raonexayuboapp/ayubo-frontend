@@ -351,21 +351,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (!_vouchersAllowed) {
       return [
         ...widgets,
-        Text(
-            isDe
-                ? 'Gutscheine können nur für Produkte verwendet werden. Bitte entfernen Sie Geschenkgutscheine und Mitgliedschaften aus Ihrem Warenkorb.'
-                : 'Vouchers can only pay for products. Remove gift vouchers and memberships from your cart to use a voucher.',
-            style: theme.textTheme.bodySmall),
+        Text(l10n?.voucherOnlyProducts ?? (isDe ? 'Gutscheine können nur für Produkte verwendet werden. Bitte entfernen Sie Geschenkgutscheine und Mitgliedschaften aus Ihrem Warenkorb.' : 'Vouchers can only pay for products. Remove gift vouchers and memberships from your cart to use a voucher.'), style: theme.textTheme.bodySmall),
       ];
     }
     if (_useMembership) {
       return [
         ...widgets,
-        Text(
-            isDe
-                ? 'Gutscheine können nicht mit der Bezahlung über eine Mitgliedschaft kombiniert werden. Wählen Sie oben "Regulär bezahlen", um einen Gutschein einzulösen.'
-                : 'Vouchers cannot be combined with paying by membership. Choose "Pay normally" above to use a voucher.',
-            style: theme.textTheme.bodySmall),
+        Text(l10n?.voucherMembershipCombine ?? (isDe ? 'Gutscheine können nicht mit der Bezahlung über eine Mitgliedschaft kombiniert werden. Wählen Sie oben "Regulär bezahlen", um einen Gutschein einzulösen.' : 'Vouchers cannot be combined with paying by membership. Choose "Pay normally" above to use a voucher.'), style: theme.textTheme.bodySmall),
       ];
     }
 
