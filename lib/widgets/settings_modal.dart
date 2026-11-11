@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/app_localizations.dart';
 import '../providers/app_settings_provider.dart';
+import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 
 void showAppSettingsModal(BuildContext context) {
@@ -49,9 +50,8 @@ void showAppSettingsModal(BuildContext context) {
                         const SizedBox(width: 12),
                         Text(
                           l10n?.settingsTitle ?? 'App Settings',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -78,7 +78,9 @@ void showAppSettingsModal(BuildContext context) {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
-                      isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                      isDarkMode
+                          ? Icons.dark_mode_rounded
+                          : Icons.light_mode_rounded,
                       color: AppTheme.primaryGreen,
                       size: 22,
                     ),
@@ -92,7 +94,9 @@ void showAppSettingsModal(BuildContext context) {
                         ? (l10n?.themeDark ?? 'Midnight Forest Dark')
                         : (l10n?.themeLight ?? 'Organic Linen Light'),
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
                       fontSize: 13,
                     ),
                   ),
@@ -124,22 +128,28 @@ void showAppSettingsModal(BuildContext context) {
                     ),
                   ),
                   title: Text(
-                    l10n?.language ?? (currentLocale.languageCode == 'de' ? 'Sprache' : 'Language'),
+                    l10n?.language ??
+                        (currentLocale.languageCode == 'de'
+                            ? 'Sprache'
+                            : 'Language'),
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   subtitle: Text(
                     currentLocale.languageCode == 'de' ? 'Deutsch' : 'English',
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
                       fontSize: 13,
                     ),
                   ),
                   trailing: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: isDark
-                          ? AppTheme.bgDark
-                          : AppTheme.bgLight,
+                      color: isDark ? AppTheme.bgDark : AppTheme.bgLight,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: AppTheme.brandGold.withValues(alpha: 0.4),
@@ -149,20 +159,56 @@ void showAppSettingsModal(BuildContext context) {
                       child: DropdownButton<String>(
                         value: currentLocale.languageCode,
                         borderRadius: BorderRadius.circular(16),
-                        dropdownColor: isDark ? AppTheme.surfaceDark : Colors.white,
+                        dropdownColor: isDark
+                            ? AppTheme.surfaceDark
+                            : Colors.white,
                         items: const [
                           DropdownMenuItem(
                             value: 'en',
-                            child: Text('English', style: TextStyle(fontSize: 14)),
+                            child: Text(
+                              'English',
+                              style: TextStyle(fontSize: 14),
+                            ),
                           ),
                           DropdownMenuItem(
                             value: 'de',
-                            child: Text('Deutsch', style: TextStyle(fontSize: 14)),
+                            child: Text(
+                              'Deutsch',
+                              style: TextStyle(fontSize: 14),
+                            ),
                           ),
                         ],
-                        onChanged: (code) {
-                          if (code != null) {
-                            ref.read(localeProvider.notifier).setLocale(code);
+                        onChanged: (code) async {
+                          if (code == null) return;
+
+                          // Always update the local app language first.
+                          await ref
+                              .read(localeProvider.notifier)
+                              .setLocale(code);
+
+                          // Persist the language remotely only for
+                          // authenticated users. Guests remain local-only.
+                          try {
+                            final isAuthenticated = await ApiService.instance
+                                .hasToken();
+
+                            if (isAuthenticated) {
+                              await ApiService.instance.updatePreferredLanguage(
+                                code,
+                              );
+                            }
+                          } catch (e) {
+                            if (!context.mounted) return;
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Language changed on this device, '
+                                  'but could not be saved to your account.',
+                                ),
+                                duration: Duration(seconds: 4),
+                              ),
+                            );
                           }
                         },
                       ),
@@ -178,4 +224,3 @@ void showAppSettingsModal(BuildContext context) {
     },
   );
 }
-

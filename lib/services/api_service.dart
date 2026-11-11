@@ -217,6 +217,21 @@ class ApiService {
         as Map<String, dynamic>;
   }
 
+  /// Saves the customer's selected app language to their profile.
+  /// Only 'en' and 'de' are supported by the backend.
+  Future<Map<String, dynamic>> updatePreferredLanguage(
+    String languageCode,
+  ) async {
+    final res = await _send(
+      'PATCH',
+      '/api/profile',
+      auth: true,
+      body: {'preferred_language': languageCode},
+    );
+    return (res['data'] as Map<String, dynamic>)['user']
+        as Map<String, dynamic>;
+  }
+
   Future<void> deleteAccount(String password) async {
     await _send(
       'DELETE',
@@ -331,15 +346,24 @@ class ApiService {
 
   // ---------- cart ----------
 
+  /// Adds the selected app language to every cart request.
+  /// Example: /api/cart?lang=en
+  String _cartPath(String path) {
+    return Uri(
+      path: path,
+      queryParameters: {'lang': currentAppLocale},
+    ).toString();
+  }
+
   Future<Map<String, dynamic>> getCart() async {
-    return _cart(await _send('GET', '/api/cart', auth: true));
+    return _cart(await _send('GET', _cartPath('/api/cart'), auth: true));
   }
 
   Future<Map<String, dynamic>> addToCart(int variantId, int quantity) async {
     return _cart(
       await _send(
         'POST',
-        '/api/cart/items',
+        _cartPath('/api/cart/items'),
         auth: true,
         body: {'variant_id': variantId, 'quantity': quantity},
       ),
@@ -350,7 +374,7 @@ class ApiService {
     return _cart(
       await _send(
         'PATCH',
-        '/api/cart/items/$itemId',
+        _cartPath('/api/cart/items/$itemId'),
         auth: true,
         body: {'quantity': quantity},
       ),
@@ -358,7 +382,9 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> removeCartItem(int itemId) async {
-    return _cart(await _send('DELETE', '/api/cart/items/$itemId', auth: true));
+    return _cart(
+      await _send('DELETE', _cartPath('/api/cart/items/$itemId'), auth: true),
+    );
   }
 
   /// Every cart answer is the WHOLE cart. The badge is updated here, so no screen can forget to.
@@ -422,6 +448,7 @@ class ApiService {
       body: body,
     );
   }
+
   // ---------- products (customer) ----------
 
   Future<Map<String, dynamic>> listProducts({
@@ -779,26 +806,40 @@ class ApiService {
   }) async {
     try {
       final token = await _storage.read(key: _tokenKey);
+
+      // Capture the selected language when the download starts.
+      final language = currentAppLocale;
+
+      debugPrint('Receipt download language: $language');
+
       final res = await _dio.get<List<int>>(
         admin
             ? '/api/admin/orders/$orderId/receipt'
             : '/api/orders/$orderId/receipt',
         options: Options(
           responseType: ResponseType.bytes,
-          headers: {if (token != null) 'Authorization': 'Bearer $token'},
+          headers: {
+            'Accept-Language': language,
+            if (token != null) 'Authorization': 'Bearer $token',
+          },
           validateStatus: (_) => true,
         ),
       );
 
       final status = res.statusCode ?? 0;
-      if (status == 200 && res.data != null) return (res.data!, null);
+
+      if (status == 200 && res.data != null) {
+        return (res.data!, null);
+      }
+
       return (
         null,
         status == 404
             ? 'This receipt does not exist.'
             : 'The receipt could not be created (error $status).',
       );
-    } on DioException {
+    } on DioException catch (e) {
+      debugPrint('Receipt download error: ${e.message}');
       return (null, 'Cannot reach the server. Check your connection.');
     }
   }
@@ -919,7 +960,12 @@ class ApiService {
 
   /// The voucher amounts on sale: [{variant_id, name, price_cents, currency}], cheapest first. Public.
   Future<List<Map<String, dynamic>>> giftVoucherAmounts() async {
-    final res = await _send('GET', '/api/gift-vouchers', auth: false);
+    final res = await _send(
+      'GET',
+      '/api/gift-vouchers?lang=$currentAppLocale',
+      auth: false,
+    );
+
     return ((res['data'] as Map<String, dynamic>)['amounts'] as List<dynamic>)
         .cast<Map<String, dynamic>>();
   }
@@ -928,7 +974,7 @@ class ApiService {
   Future<void> addGiftVouchersToCart(int variantId, int quantity) async {
     await _send(
       'POST',
-      '/api/cart/items',
+      _cartPath('/api/cart/items'),
       auth: true,
       body: {'variant_id': variantId, 'quantity': quantity},
     );
