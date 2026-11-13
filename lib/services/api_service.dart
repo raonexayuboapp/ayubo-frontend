@@ -756,12 +756,14 @@ class ApiService {
 
   // ---------- checkout preview, payment, receipts ----------
 
-  /// What the order would cost, across all payment sources (membership credit, gift voucher, online).
+  /// What the order would cost, across all payment sources
+  /// (membership credit, gift voucher, online).
   Future<Map<String, dynamic>> checkoutPreview({
     int? addressId,
     int? methodId,
     String? paymentSource,
     List<String>? voucherCodes,
+    List<int>? voucherIds,
   }) async {
     final q = <String, String>{
       if (addressId != null) 'shipping_address_id': '$addressId',
@@ -769,13 +771,17 @@ class ApiService {
       if (paymentSource != null && paymentSource.isNotEmpty)
         'payment_source': paymentSource,
       if (voucherCodes != null && voucherCodes.isNotEmpty)
-        'voucher_code': voucherCodes.first,
+        'voucher_codes': voucherCodes.join(','),
+      if (voucherIds != null && voucherIds.isNotEmpty)
+        'voucher_ids': voucherIds.join(','),
     };
+
     final path = q.isEmpty
         ? '/api/checkout/preview'
         : Uri(path: '/api/checkout/preview', queryParameters: q).toString();
 
     final res = await _send('GET', path, auth: true);
+
     return (res['data'] as Map<String, dynamic>)['preview']
         as Map<String, dynamic>;
   }
@@ -1159,5 +1165,12 @@ class ApiService {
       auth: true,
       body: {},
     );
+  }
+
+  /// The vouchers the customer can pay with at checkout: [{id, suffix, balance_cents, expires_at, ...}].
+  Future<List<Map<String, dynamic>>> usableVouchers() async {
+    final res = await _send('GET', '/api/checkout/vouchers', auth: true);
+    return ((res['data'] as Map<String, dynamic>)['vouchers'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
   }
 }

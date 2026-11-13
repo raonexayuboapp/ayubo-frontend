@@ -16,11 +16,14 @@ import 'order_placed_screen.dart';
 String _placeOrderText(BuildContext context) {
   final l10n = AppLocalizations.of(context);
   final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
-  return isDe ? 'Zahlungspflichtig bestellen' : (l10n?.placeOrder ?? 'Place order');
+  return isDe
+      ? 'Zahlungspflichtig bestellen'
+      : (l10n?.placeOrder ?? 'Place order');
 }
 
 class CheckoutScreen extends StatefulWidget {
   final Map<String, dynamic> user;
+
   const CheckoutScreen({super.key, required this.user});
 
   @override
@@ -34,96 +37,158 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Map<String, dynamic>? _cart;
   List<Map<String, dynamic>> _addresses = [];
-  Map<String, dynamic>? _quote; // the delivery options
-  Map<String, dynamic>? _preview; // the price, both ways
+  Map<String, dynamic>? _quote;
+  Map<String, dynamic>? _preview;
 
   int? _shippingAddressId;
   int? _methodId;
-  int? _billingAddressId; // null = automatic (the delivery address, or the default billing address)
+  int? _billingAddressId;
+
   bool _useMembership = false;
   bool _accepted = false;
 
-  // Voucher codes the customer typed that the server confirmed: {code, suffix, balance_cents, expires_at}.
+  // Voucher codes the customer typed that the server confirmed.
   // They live only in memory: never stored, never logged.
   final _voucherInput = TextEditingController();
   final List<Map<String, dynamic>> _vouchers = [];
+
+  // The customer's own vouchers that can pay (received, claimed or added).
+  // Ticked with a tap.
+  List<Map<String, dynamic>> _owned = [];
+  final Set<int> _pickedOwned = {};
+
   bool _checkingVoucher = false;
   String? _voucherError;
 
   bool _loading = true;
   bool _refreshing = false;
   bool _placing = false;
+
   String? _loadError;
   String? _formError;
+
   Map<String, String> _serverErrors = {};
-  int _refreshRequest = 0; // an answer that belongs to an older choice is ignored
+
+  int _refreshRequest = 0;
 
   // ---------- derived values ----------
 
-  String get _fullName => '${widget.user['first_name'] ?? ''} ${widget.user['last_name'] ?? ''}'.trim();
+  String get _fullName =>
+      '${widget.user['first_name'] ?? ''} ${widget.user['last_name'] ?? ''}'
+          .trim();
 
   List<Map<String, dynamic>> get _items =>
-      ((_cart?['items'] as List<dynamic>?) ?? const []).cast<Map<String, dynamic>>();
+      ((_cart?['items'] as List<dynamic>?) ?? const [])
+          .cast<Map<String, dynamic>>();
 
   List<Map<String, dynamic>> get _options =>
-      ((_quote?['options'] as List<dynamic>?) ?? const []).cast<Map<String, dynamic>>();
+      ((_quote?['options'] as List<dynamic>?) ?? const [])
+          .cast<Map<String, dynamic>>();
 
   String? get _quoteStatus => _quote?['status'] as String?;
+
   bool get _requiresShipping => _quote?['requires_shipping'] == true;
 
-  Map<String, dynamic>? get _membership => _preview?['membership'] as Map<String, dynamic>?;
+  Map<String, dynamic>? get _membership =>
+      _preview?['membership'] as Map<String, dynamic>?;
 
   /// The price of the way the customer chose to pay.
   Map<String, dynamic>? get _chosen {
     final p = _preview;
     if (p == null) return null;
+
     if (_useMembership) {
       return _membership?['pricing'] as Map<String, dynamic>?;
     }
-    if (_vouchers.isNotEmpty) {
-      final vPricing = (_preview?['voucher'] as Map<String, dynamic>?)?['pricing'] as Map<String, dynamic>?;
-      if (vPricing != null) return vPricing;
+
+    if (_hasVouchers) {
+      final v =
+          (_preview?['voucher'] as Map<String, dynamic>?)?['pricing']
+              as Map<String, dynamic>?;
+
+      if (v != null) return v;
     }
+
     return p['standalone'] as Map<String, dynamic>?;
   }
 
   int _cents(String key) => (_chosen?[key] as num?)?.toInt() ?? 0;
-  int get _total => _chosen != null ? _cents('total_cents') : (_goods + _shipping);
+
+  int get _total =>
+      _chosen != null ? _cents('total_cents') : (_goods + _shipping);
+
   int get _discount => _cents('discount_cents');
-  int get _credit => _cents('credit_cents'); // paid from the membership
+
+  int get _credit => _cents('credit_cents');
+
   /// Vouchers pay for products only: a gift voucher or a membership in the cart switches the section off.
-  bool get _vouchersAllowed => _items.every((i) => i['type'] == 'physical' || i['type'] == 'service');
+  bool get _vouchersAllowed =>
+      _items.every((i) => i['type'] == 'physical' || i['type'] == 'service');
 
-  int get _voucherBalance => _vouchers.fold<int>(0, (sum, v) => sum + (v['balance_cents'] as num).toInt());
+  int get _voucherBalance =>
+      _vouchers.fold<int>(
+        0,
+        (sum, v) => sum + (v['balance_cents'] as num).toInt(),
+      ) +
+      _owned
+          .where((v) => _pickedOwned.contains(v['id']))
+          .fold<int>(0, (sum, v) => sum + (v['balance_cents'] as num).toInt());
 
-  /// What the vouchers will pay: taken directly from backend calculation if available, or clamped to total.
-  int get _voucherApplied {
-    if (_vouchers.isEmpty) return 0;
-    final backendCovered = (_chosen?['voucher_cents'] as num?)?.toInt();
-    if (backendCovered != null) return backendCovered;
-    return _voucherBalance < _total ? _voucherBalance : _total;
-  }
+  bool get _hasVouchers => _vouchers.isNotEmpty || _pickedOwned.isNotEmpty;
 
-  int get _toPay => _chosen != null ? _cents('pay_cents') : (_total - _voucherApplied);
+  /// What the vouchers will pay: the lesser of the order total and their balances.
+  /// The server works it out exactly.
+  int get _voucherApplied =>
+      !_hasVouchers ? 0 : (_voucherBalance < _total ? _voucherBalance : _total);
+
+  int get _toPay =>
+      _hasVouchers ? _total - _voucherApplied : _cents('pay_cents');
+
   int get _goods => (_preview?['goods_cents'] as num?)?.toInt() ?? 0;
+
   int get _shipping => (_preview?['shipping_cents'] as num?)?.toInt() ?? 0;
 
-  List<Map<String, dynamic>> _ofType(String type) => _addresses.where((a) => a['address_type'] == type).toList();
+  List<Map<String, dynamic>> _ofType(String type) =>
+      _addresses.where((a) => a['address_type'] == type).toList();
 
   /// The first thing that stops the customer from ordering, or null when everything is in place.
   String? get _blocker {
     final cart = _cart;
+
     if (cart == null) return 'Loading…';
-    if (cart['can_checkout'] != true) return 'Fix the items marked in red in your cart first.';
-    if (_quote == null || _preview == null) return 'Calculating…';
-    if (_requiresShipping) {
-      if (_shippingAddressId == null) return 'Choose a delivery address.';
-      if (_quoteStatus == 'country_not_served') return 'We do not deliver to that address.';
-      if (_quoteStatus == 'no_option') return 'No delivery price is set for this order.';
-      if (_quoteStatus != 'ok' || _methodId == null) return 'Choose a delivery method.';
+
+    if (cart['can_checkout'] != true) {
+      return 'Fix the items marked in red in your cart first.';
     }
-    if (_useMembership && _chosen == null) return 'Your membership cannot be used for this order.';
-    if (!_accepted) return 'Accept the terms to place your order.';
+
+    if (_quote == null || _preview == null) return 'Calculating…';
+
+    if (_requiresShipping) {
+      if (_shippingAddressId == null) {
+        return 'Choose a delivery address.';
+      }
+
+      if (_quoteStatus == 'country_not_served') {
+        return 'We do not deliver to that address.';
+      }
+
+      if (_quoteStatus == 'no_option') {
+        return 'No delivery price is set for this order.';
+      }
+
+      if (_quoteStatus != 'ok' || _methodId == null) {
+        return 'Choose a delivery method.';
+      }
+    }
+
+    if (_useMembership && _chosen == null) {
+      return 'Your membership cannot be used for this order.';
+    }
+
+    if (!_accepted) {
+      return 'Accept the terms to place your order.';
+    }
+
     return null;
   }
 
@@ -143,16 +208,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     super.dispose();
   }
 
-  void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  void _snack(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
 
   Future<void> _load() async {
     setState(() {
       _loading = _cart == null;
       _loadError = null;
     });
+
     try {
       final api = ApiService.instance;
-      final results = await Future.wait<Object>([api.getCart(), api.listAddresses()]);
+
+      final results = await Future.wait<Object>([
+        api.getCart(),
+        api.listAddresses(),
+      ]);
+
       if (!mounted) return;
 
       setState(() {
@@ -161,13 +234,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _loading = false;
         _repairSelections();
       });
+
       await _refresh();
+
+      // Load the customer's own usable vouchers after the checkout preview.
+      _loadOwned();
     } on ApiException catch (e) {
       if (!mounted) return;
+
       setState(() {
         _loading = false;
         if (_cart == null) _loadError = e.message;
       });
+
       if (_cart != null) _snack(e.message);
     }
   }
@@ -175,46 +254,66 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   /// Keeps the chosen addresses valid after the list changed.
   void _repairSelections() {
     final shipping = _ofType('shipping');
+
     if (!shipping.any((a) => a['id'] == _shippingAddressId)) {
       final defaults = shipping.where((a) => a['is_default'] == true);
+
       _shippingAddressId = defaults.isNotEmpty
           ? defaults.first['id'] as int
           : (shipping.isEmpty ? null : shipping.first['id'] as int);
     }
-    if (_billingAddressId != null && !_ofType('billing').any((a) => a['id'] == _billingAddressId)) {
+
+    if (_billingAddressId != null &&
+        !_ofType('billing').any((a) => a['id'] == _billingAddressId)) {
       _billingAddressId = null;
     }
   }
 
-  /// Asks the server for the delivery options and the price. With [quote] false only the price is refreshed
-  /// (the customer picked another delivery method).
+  /// Asks the server for the delivery options and the price.
+  /// With [quote] false only the price is refreshed.
   Future<void> _refresh({bool quote = true}) async {
     final request = ++_refreshRequest;
+
     setState(() => _refreshing = true);
 
     try {
       final api = ApiService.instance;
-      final fresh = quote ? await api.shippingQuote(addressId: _shippingAddressId) : _quote!;
+
+      final fresh = quote
+          ? await api.shippingQuote(addressId: _shippingAddressId)
+          : _quote!;
+
       if (!mounted || request != _refreshRequest) return;
 
-      final options = ((fresh['options'] as List<dynamic>?) ?? const []).cast<Map<String, dynamic>>();
+      final options = ((fresh['options'] as List<dynamic>?) ?? const [])
+          .cast<Map<String, dynamic>>();
+
       var method = _methodId;
+
       if (!options.any((o) => o['method_id'] == method)) {
-        method = options.isEmpty ? null : options.first['method_id'] as int; // the cheapest comes first
+        method = options.isEmpty ? null : options.first['method_id'] as int;
       }
 
       final String paymentSource = _useMembership
           ? 'membership_credit'
-          : (_vouchers.isNotEmpty ? 'gift_voucher' : 'transaction');
-      final List<String>? voucherCodes =
-          _vouchers.isNotEmpty ? [for (final v in _vouchers) v['code'] as String] : null;
+          : (_hasVouchers ? 'gift_voucher' : 'transaction');
+
+      final List<String>? voucherCodes = _vouchers.isNotEmpty
+          ? [for (final v in _vouchers) v['code'] as String]
+          : null;
+
+      final List<int>? voucherIds = _pickedOwned.isNotEmpty
+          ? _pickedOwned.toList()
+          : null;
 
       final preview = await api.checkoutPreview(
         addressId: _shippingAddressId,
         methodId: method,
         paymentSource: paymentSource,
         voucherCodes: voucherCodes,
+        voucherIds: voucherIds,
       );
+
       if (!mounted || request != _refreshRequest) return;
 
       setState(() {
@@ -222,12 +321,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _methodId = method;
         _preview = preview;
         _refreshing = false;
-        if (_useMembership && (preview['membership'] as Map<String, dynamic>)['available'] != true) {
-          _useMembership = false; // it stopped being possible (for example the credit ran out)
+
+        final membership = preview['membership'] as Map<String, dynamic>?;
+
+        if (_useMembership && membership?['available'] != true) {
+          _useMembership = false;
         }
       });
     } on ApiException catch (e) {
       if (!mounted || request != _refreshRequest) return;
+
       setState(() {
         _refreshing = false;
         _formError = e.message;
@@ -235,19 +338,73 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
+  Future<void> _loadOwned() async {
+    try {
+      final list = await ApiService.instance.usableVouchers();
+
+      if (!mounted) return;
+
+      setState(() {
+        _owned = list;
+
+        _pickedOwned.removeWhere((id) => !list.any((v) => v['id'] == id));
+      });
+
+      // Refresh the preview if a selected voucher is no longer usable.
+      await _refresh(quote: false);
+    } on ApiException {
+      // The list is a convenience: typing a code still works.
+    }
+  }
+
+  void _togglePicked(int id, bool picked) {
+    final hadMembership = _useMembership;
+
+    if (picked && _pickedOwned.length + _vouchers.length >= 5) {
+      setState(() {
+        _voucherError = 'You can use up to 5 vouchers per order.';
+      });
+      return;
+    }
+
+    setState(() {
+      if (picked) {
+        _pickedOwned.add(id);
+        _useMembership = false;
+        _voucherError = null;
+      } else {
+        _pickedOwned.remove(id);
+      }
+    });
+
+    if (picked && hadMembership) {
+      _snack(
+        'Paying with your membership was switched off: '
+        'it cannot be combined with a voucher.',
+      );
+    }
+
+    // Update the backend preview to include or exclude the selected voucher.
+    _refresh(quote: false);
+  }
+
   Future<void> _addVoucher() async {
     final typed = _voucherInput.text.trim();
+
     if (typed.isEmpty || _checkingVoucher) return;
 
     final code = typed.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+
     String? problem;
+
     if (code.length != 16) {
       problem = 'A voucher code has 16 letters and numbers.';
     } else if (_vouchers.any((v) => v['code'] == code)) {
       problem = 'You already added this voucher.';
-    } else if (_vouchers.length >= 5) {
+    } else if (_vouchers.length + _pickedOwned.length >= 5) {
       problem = 'You can use up to 5 vouchers per order.';
     }
+
     if (problem != null) {
       setState(() => _voucherError = problem);
       return;
@@ -260,6 +417,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     try {
       final result = (await ApiService.instance.checkVouchers([code])).first;
+
       if (!mounted) return;
 
       if (result['ok'] != true) {
@@ -271,6 +429,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
 
       final hadMembership = _useMembership;
+
       setState(() {
         _vouchers.add({
           'code': code,
@@ -278,17 +437,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           'balance_cents': result['balance_cents'],
           'expires_at': result['expires_at'],
         });
+
         _voucherInput.clear();
         _checkingVoucher = false;
-        _useMembership = false; // vouchers and membership credit cannot be combined
+        _useMembership = false;
       });
-      if (hadMembership) _snack('Paying with your membership was switched off: it cannot be combined with a voucher.');
+
+      if (hadMembership) {
+        _snack(
+          'Paying with your membership was switched off: '
+          'it cannot be combined with a voucher.',
+        );
+      }
+
       await _refresh(quote: false);
     } on ApiException catch (e) {
       if (!mounted) return;
+
       setState(() {
         _checkingVoucher = false;
-        _voucherError = e.fieldErrors.isNotEmpty ? e.fieldErrors.values.join('\\n') : e.message;
+        _voucherError = e.fieldErrors.isNotEmpty
+            ? e.fieldErrors.values.join('\n')
+            : e.message;
       });
     }
   }
@@ -298,17 +468,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _refresh(quote: false);
   }
 
-  /// After the server refused a voucher: show what each one is now (used elsewhere, expired…).
+  /// After the server refused a voucher: show what each typed code is now.
   Future<void> _recheckVouchers() async {
     if (_vouchers.isEmpty) return;
 
     final codes = _vouchers.map((v) => v['code'] as String).toList();
+
     try {
       final results = await ApiService.instance.checkVouchers(codes);
+
       if (!mounted) return;
 
       setState(() {
         final kept = <Map<String, dynamic>>[];
+
         for (var i = 0; i < codes.length && i < results.length; i++) {
           if (results[i]['ok'] == true) {
             kept.add({
@@ -318,13 +491,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               'expires_at': results[i]['expires_at'],
             });
           } else {
-            _voucherError = 'Voucher •••• ${results[i]['suffix']}: ${results[i]['message']}';
+            _voucherError =
+                'Voucher •••• ${results[i]['suffix']}: '
+                '${results[i]['message']}';
           }
         }
+
         _vouchers
           ..clear()
           ..addAll(kept);
       });
+
       await _refresh(quote: false);
     } on ApiException {
       // The next try shows the real error.
@@ -332,114 +509,195 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   void _chooseMembership() {
-    final hadVouchers = _vouchers.isNotEmpty;
+    final hadVouchers = _hasVouchers;
+
     setState(() {
       _useMembership = true;
       _vouchers.clear();
+      _pickedOwned.clear();
       _voucherError = null;
     });
-    if (hadVouchers) _snack('Vouchers cannot be combined with membership credit. Your vouchers were removed from this order.');
+
+    if (hadVouchers) {
+      _snack(
+        'Vouchers cannot be combined with membership credit. '
+        'Your vouchers were removed from this order.',
+      );
+    }
+
     _refresh(quote: false);
   }
 
+  // ---------- voucher section ----------
+
   List<Widget> _voucherSection() {
     final theme = Theme.of(context);
-    final l10n = AppLocalizations.of(context);
-    final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
-    final widgets = <Widget>[_heading(l10n?.giftVouchers ?? 'Vouchers')];
+
+    final widgets = <Widget>[_heading('Pay with a voucher')];
 
     if (!_vouchersAllowed) {
       return [
         ...widgets,
-        Text(l10n?.voucherOnlyProducts ?? (isDe ? 'Gutscheine können nur für Produkte verwendet werden. Bitte entfernen Sie Geschenkgutscheine und Mitgliedschaften aus Ihrem Warenkorb.' : 'Vouchers can only pay for products. Remove gift vouchers and memberships from your cart to use a voucher.'), style: theme.textTheme.bodySmall),
-      ];
-    }
-    if (_useMembership) {
-      return [
-        ...widgets,
-        Text(l10n?.voucherMembershipCombine ?? (isDe ? 'Gutscheine können nicht mit der Bezahlung über eine Mitgliedschaft kombiniert werden. Wählen Sie oben "Regulär bezahlen", um einen Gutschein einzulösen.' : 'Vouchers cannot be combined with paying by membership. Choose "Pay normally" above to use a voucher.'), style: theme.textTheme.bodySmall),
+        Text(
+          'Vouchers can only pay for products. Remove gift vouchers and '
+          'memberships from your cart to use a voucher.',
+          style: theme.textTheme.bodySmall,
+        ),
       ];
     }
 
+    if (_useMembership) {
+      return [
+        ...widgets,
+        Text(
+          'Vouchers cannot be combined with paying by membership. '
+          'Choose "Pay normally" above to use a voucher.',
+          style: theme.textTheme.bodySmall,
+        ),
+      ];
+    }
+
+    // The customer's own vouchers: tick the ones to pay with.
+    if (_owned.isNotEmpty) {
+      widgets.add(Text('Your vouchers', style: theme.textTheme.titleSmall));
+
+      for (final v in _owned) {
+        final id = v['id'] as int;
+        final expires = v['expires_at'] as String?;
+
+        widgets.add(
+          Card(
+            key: ValueKey('own$id'),
+            child: CheckboxListTile(
+              value: _pickedOwned.contains(id),
+              onChanged: _placing
+                  ? null
+                  : (picked) => _togglePicked(id, picked ?? false),
+              secondary: const Icon(Icons.card_giftcard_outlined),
+              title: Text('Voucher •••• ${v['suffix']}'),
+              subtitle: Text(
+                'Balance ${formatCents((v['balance_cents'] as num).toInt())}'
+                '${expires == null ? '' : ' · valid until ${expires.substring(0, 10)}'}',
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    // A code typed by hand (a voucher that is not in the account yet).
     for (var i = 0; i < _vouchers.length; i++) {
       final v = _vouchers[i];
       final expires = v['expires_at'] as String?;
 
-      widgets.add(Card(
-        key: ValueKey(v['code']),
-        child: ListTile(
-          leading: const Icon(Icons.card_giftcard_outlined),
-          title: Text(isDe ? 'Gutschein •••• ${v['suffix']}' : 'Voucher •••• ${v['suffix']}'),
-          subtitle: Text('${isDe ? 'Guthaben' : 'Balance'} ${formatCents((v['balance_cents'] as num).toInt())}'
-              '${expires == null ? '' : (isDe ? ' · gültig bis ${expires.substring(0, 10)}' : ' · valid until ${expires.substring(0, 10)}') }'),
-          trailing: IconButton(
-            tooltip: l10n?.remove ?? 'Remove',
-            icon: const Icon(Icons.close),
-            onPressed: _placing ? null : () => _removeVoucher(i),
+      widgets.add(
+        Card(
+          key: ValueKey(v['code']),
+          child: ListTile(
+            leading: const Icon(Icons.confirmation_number_outlined),
+            title: Text('Voucher •••• ${v['suffix']}'),
+            subtitle: Text(
+              'Balance ${formatCents((v['balance_cents'] as num).toInt())}'
+              '${expires == null ? '' : ' · valid until ${expires.substring(0, 10)}'}',
+            ),
+            trailing: IconButton(
+              tooltip: 'Remove',
+              icon: const Icon(Icons.close),
+              onPressed: _placing ? null : () => _removeVoucher(i),
+            ),
           ),
         ),
-      ));
+      );
     }
 
-    widgets.add(Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Expanded(
-        child: TextField(
-          controller: _voucherInput,
-          enabled: !_placing && !_checkingVoucher,
-          textCapitalization: TextCapitalization.characters,
-          autocorrect: false,
-          enableSuggestions: false,
-          onSubmitted: (_) => _addVoucher(),
-          decoration: InputDecoration(
-            labelText: l10n?.voucherCode ?? 'Voucher code',
-            hintText: 'XXXX-XXXX-XXXX-XXXX',
-          ),
-        ),
-      ),
-      const SizedBox(width: 8),
+    widgets.add(
       Padding(
         padding: const EdgeInsets.only(top: 8),
-        child: FilledButton.tonal(
-          onPressed: _placing || _checkingVoucher ? null : _addVoucher,
-          child: _checkingVoucher
-              ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-              : Text(l10n?.add ?? 'Add'),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _voucherInput,
+                enabled: !_placing && !_checkingVoucher,
+                textCapitalization: TextCapitalization.characters,
+                autocorrect: false,
+                enableSuggestions: false,
+                onSubmitted: (_) => _addVoucher(),
+                decoration: InputDecoration(
+                  labelText: _owned.isEmpty
+                      ? 'Voucher code'
+                      : 'Another voucher code',
+                  hintText: 'XXXX-XXXX-XXXX-XXXX',
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: FilledButton.tonal(
+                onPressed: _placing || _checkingVoucher ? null : _addVoucher,
+                child: _checkingVoucher
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Add'),
+              ),
+            ),
+          ],
         ),
       ),
-    ]));
+    );
 
     final error = _voucherError ?? _serverErrors['voucher_codes'];
-    if (error != null) widgets.add(_errorText(error));
+
+    if (error != null) {
+      widgets.add(_errorText(error));
+    }
 
     return widgets;
   }
+
+  // ---------- addresses ----------
 
   Future<void> _addAddress(String type) async {
     final known = _addresses.map((a) => a['id']).toSet();
 
     final saved = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder: (_) => AddressFormScreen(initialType: type, defaultRecipient: _fullName)),
+      MaterialPageRoute(
+        builder: (_) =>
+            AddressFormScreen(initialType: type, defaultRecipient: _fullName),
+      ),
     );
+
     if (saved != true || !mounted) return;
 
     try {
       final fresh = await ApiService.instance.listAddresses();
+
       if (!mounted) return;
 
       setState(() {
         _addresses = fresh;
+
         final created = fresh.where((a) => !known.contains(a['id'])).toList();
+
         if (created.isNotEmpty) {
-          final a = created.first; // the new address is selected for the role it was saved with
+          final a = created.first;
+
           if (a['address_type'] == 'shipping') {
             _shippingAddressId = a['id'] as int;
           } else {
             _billingAddressId = a['id'] as int;
           }
         }
+
         _repairSelections();
       });
+
       await _refresh();
     } on ApiException catch (e) {
       if (mounted) _snack(e.message);
@@ -459,13 +717,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     final body = <String, dynamic>{
       'checkout_key': _checkoutKey,
-      'expected_total_cents': _total, // the total the customer is looking at
+      'expected_total_cents': _total,
       'accept_terms': true,
       'payment_source': _useMembership
           ? 'membership_credit'
-          : (_vouchers.isNotEmpty ? 'gift_voucher' : 'transaction'),
+          : (_hasVouchers ? 'gift_voucher' : 'transaction'),
       'pay_with_membership': _useMembership,
-      if (_vouchers.isNotEmpty) 'voucher_codes': [for (final v in _vouchers) v['code']],
+      if (_vouchers.isNotEmpty)
+        'voucher_codes': [for (final v in _vouchers) v['code']],
+      if (_pickedOwned.isNotEmpty) 'voucher_ids': _pickedOwned.toList(),
       if (_requiresShipping) 'shipping_address_id': _shippingAddressId,
       if (_requiresShipping) 'shipping_method_id': _methodId,
       if (_billingAddressId != null) 'billing_address_id': _billingAddressId,
@@ -473,13 +733,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     try {
       final data = await ApiService.instance.placeOrder(body);
+
       if (!mounted) return;
 
-      CartState.instance.refresh(); // the cart became the order: the badge goes back to zero
+      CartState.instance.refresh();
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => OrderPlacedScreen(order: data['order'] as Map<String, dynamic>, user: widget.user),
+          builder: (_) => OrderPlacedScreen(
+            order: data['order'] as Map<String, dynamic>,
+            user: widget.user,
+          ),
         ),
       );
     } on ApiException catch (e) {
@@ -489,13 +754,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final changed = errs['total_cents'];
 
       if (changed != null) {
-        // A price changed since the customer last saw it. Nothing was created. Show the new total and ask again.
         setState(() => _placing = false);
+
         await _load();
+
         if (mounted) {
-          _snack('The total changed to ${formatCents(int.tryParse(changed) ?? _total)}. '
-              'Please review your order and place it again.');
+          _snack(
+            'The total changed to '
+            '${formatCents(int.tryParse(changed) ?? _total)}. '
+            'Please review your order and place it again.',
+          );
         }
+
         return;
       }
 
@@ -504,27 +774,43 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _formError = errs['cart'] ?? (errs.isEmpty ? e.message : null);
         _placing = false;
       });
+
       if (errs.containsKey('voucher_codes')) {
-        setState(() => _voucherError = errs['voucher_codes']);
-        _recheckVouchers(); // a voucher may have changed (used elsewhere, expired): show what it is now
+        setState(() {
+          _voucherError = errs['voucher_codes'];
+        });
+
+        _recheckVouchers();
+        _loadOwned();
       }
-      if (errs.containsKey('cart') || errs.containsKey('pay_with_membership')) _load();
+
+      if (errs.containsKey('cart') || errs.containsKey('pay_with_membership')) {
+        _load();
+      }
     }
   }
 
   // ---------- pieces of the screen ----------
 
-  Widget _heading(String text) => Padding(
-        padding: const EdgeInsets.only(top: 24, bottom: 8),
-        child: Text(text, style: Theme.of(context).textTheme.titleMedium),
-      );
+  Widget _heading(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 24, bottom: 8),
+      child: Text(text, style: Theme.of(context).textTheme.titleMedium),
+    );
+  }
 
-  Widget _errorText(String text) => Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Text(text, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-      );
+  Widget _errorText(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(
+        text,
+        style: TextStyle(color: Theme.of(context).colorScheme.error),
+      ),
+    );
+  }
 
-  /// A card that works like a radio button: the selected one has a thick outline. A null [onTap] disables it.
+  /// A card that works like a radio button: the selected one has a thick outline.
+  /// A null [onTap] disables it.
   Widget _choice({
     Key? key,
     required bool selected,
@@ -539,13 +825,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       key: key,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: selected ? scheme.primary : scheme.outlineVariant, width: selected ? 2 : 1),
+        side: BorderSide(
+          color: selected ? scheme.primary : scheme.outlineVariant,
+          width: selected ? 2 : 1,
+        ),
       ),
       child: ListTile(
         enabled: onTap != null,
         onTap: onTap,
-        leading: Icon(selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-            color: selected ? scheme.primary : null),
+        leading: Icon(
+          selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+          color: selected ? scheme.primary : null,
+        ),
         title: title,
         subtitle: subtitle,
         trailing: trailing,
@@ -565,28 +856,48 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           leading: SizedBox(
             width: 48,
             height: 48,
-            child: ClipRRect(borderRadius: BorderRadius.circular(8), child: ProductImage(url: item['image_url'] as String?)),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: ProductImage(url: item['image_url'] as String?),
+            ),
           ),
-          title: Text(item['name'] as String, maxLines: 2, overflow: TextOverflow.ellipsis),
-          subtitle: Text([
-            if ((item['pack'] as String?)?.isNotEmpty == true) item['pack'] as String,
-            '${item['quantity']} × ${formatCents(item['unit_price_cents'] as int)}',
-          ].join(' · ')),
+          title: Text(
+            item['name'] as String,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: Text(
+            [
+              if ((item['pack'] as String?)?.isNotEmpty == true)
+                item['pack'] as String,
+              '${item['quantity']} × '
+                  '${formatCents(item['unit_price_cents'] as int)}',
+            ].join(' · '),
+          ),
           trailing: item['issue'] == null
-              ? Text(formatCents(item['line_total_cents'] as int), style: theme.textTheme.titleSmall)
-              : Text('Problem', style: TextStyle(color: theme.colorScheme.error)),
+              ? Text(
+                  formatCents(item['line_total_cents'] as int),
+                  style: theme.textTheme.titleSmall,
+                )
+              : Text(
+                  'Problem',
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
         ),
     ];
   }
 
   String? _hint(Map<String, dynamic> option) {
     final next = option['next_band'] as Map<String, dynamic>?;
+
     if (next == null) return null;
 
     final remaining = formatCents(next['remaining_cents'] as int);
+
     return next['price_cents'] == 0
         ? 'Spend $remaining more for free shipping.'
-        : 'Spend $remaining more and shipping drops to ${formatCents(next['price_cents'] as int)}.';
+        : 'Spend $remaining more and shipping drops to '
+              '${formatCents(next['price_cents'] as int)}.';
   }
 
   List<Widget> _methodChoices() {
@@ -603,21 +914,49 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             onTap: _placing
                 ? null
                 : () {
-                    setState(() => _methodId = o['method_id'] as int);
-                    _refresh(quote: false); // only the price changes
+                    setState(() {
+                      _methodId = o['method_id'] as int;
+                    });
+
+                    _refresh(quote: false);
                   },
             title: Text(o['name'] as String),
             subtitle: _hint(o) == null ? null : Text(_hint(o)!),
-            trailing: Text(o['free'] == true ? 'Free' : formatCents(o['price_cents'] as int),
-                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+            trailing: Text(
+              o['free'] == true ? 'Free' : formatCents(o['price_cents'] as int),
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
       ];
     }
-    if (status == 'needs_address') return [const Text('Choose or add a delivery address to see the delivery methods.')];
-    if (status == 'country_not_served') {
-      return [_errorText('We do not deliver to ${country == null ? 'that country' : countryName(country)} yet.')];
+
+    if (status == 'needs_address') {
+      return [
+        const Text(
+          'Choose or add a delivery address to see the delivery methods.',
+        ),
+      ];
     }
-    if (status == 'no_option') return [_errorText('No delivery price is set for this order. Please contact support.')];
+
+    if (status == 'country_not_served') {
+      return [
+        _errorText(
+          'We do not deliver to '
+          '${country == null ? 'that country' : countryName(country)} yet.',
+        ),
+      ];
+    }
+
+    if (status == 'no_option') {
+      return [
+        _errorText(
+          'No delivery price is set for this order. Please contact support.',
+        ),
+      ];
+    }
+
     return const [];
   }
 
@@ -627,7 +966,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     return [
       _heading(l10n?.shippingAddress ?? 'Delivery address'),
-      if (shipping.isEmpty) Text(l10n?.addDeliveryAddress ?? 'Add the address we should deliver to.'),
+
+      if (shipping.isEmpty)
+        Text(
+          l10n?.addDeliveryAddress ?? 'Add the address we should deliver to.',
+        ),
+
       for (final a in shipping)
         _choice(
           key: ValueKey('s${a['id']}'),
@@ -635,22 +979,33 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           onTap: _placing
               ? null
               : () {
-                  setState(() => _shippingAddressId = a['id'] as int);
-                  _refresh(); // the delivery options depend on the country
+                  setState(() {
+                    _shippingAddressId = a['id'] as int;
+                  });
+
+                  _refresh();
                 },
           title: Text(a['recipient'] as String),
           subtitle: Text(addressOneLine(a)),
         ),
+
       TextButton.icon(
         onPressed: _placing ? null : () => _addAddress('shipping'),
         icon: const Icon(Icons.add),
         label: Text(l10n?.addDeliveryAddress ?? 'Add delivery address'),
       ),
-      if (_serverErrors['shipping_address_id'] != null) _errorText(_serverErrors['shipping_address_id']!),
+
+      if (_serverErrors['shipping_address_id'] != null)
+        _errorText(_serverErrors['shipping_address_id']!),
+
       _heading(l10n?.shippingMethod ?? 'Delivery method'),
+
       if (_refreshing) const LinearProgressIndicator(),
+
       ..._methodChoices(),
-      if (_serverErrors['shipping_method_id'] != null) _errorText(_serverErrors['shipping_method_id']!),
+
+      if (_serverErrors['shipping_method_id'] != null)
+        _errorText(_serverErrors['shipping_method_id']!),
     ];
   }
 
@@ -660,27 +1015,37 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     return [
       _heading(l10n?.billingAddress ?? 'Billing address'),
+
       _choice(
         selected: _billingAddressId == null,
         onTap: _placing ? null : () => setState(() => _billingAddressId = null),
-        title: Text(_requiresShipping
-            ? (l10n?.sameAsDeliveryAddress ?? 'Same as the delivery address')
-            : (l10n?.defaultBillingAddress ?? 'My default billing address (if I have one)')),
+        title: Text(
+          _requiresShipping
+              ? (l10n?.sameAsDeliveryAddress ?? 'Same as the delivery address')
+              : (l10n?.defaultBillingAddress ??
+                    'My default billing address (if I have one)'),
+        ),
       ),
+
       for (final a in billing)
         _choice(
           key: ValueKey('b${a['id']}'),
           selected: _billingAddressId == a['id'],
-          onTap: _placing ? null : () => setState(() => _billingAddressId = a['id'] as int),
+          onTap: _placing
+              ? null
+              : () => setState(() => _billingAddressId = a['id'] as int),
           title: Text(a['recipient'] as String),
           subtitle: Text(addressOneLine(a)),
         ),
+
       TextButton.icon(
         onPressed: _placing ? null : () => _addAddress('billing'),
         icon: const Icon(Icons.add),
         label: Text(l10n?.addBillingAddress ?? 'Add billing address'),
       ),
-      if (_serverErrors['billing_address_id'] != null) _errorText(_serverErrors['billing_address_id']!),
+
+      if (_serverErrors['billing_address_id'] != null)
+        _errorText(_serverErrors['billing_address_id']!),
     ];
   }
 
@@ -688,18 +1053,25 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   List<Widget> _paymentSection() {
     final l10n = AppLocalizations.of(context);
     final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
+
     final m = _membership;
     final preview = _preview;
-    if (m == null || preview == null || m['discount_percent'] == null) return const []; // not a member
+
+    if (m == null || preview == null || m['discount_percent'] == null) {
+      return const [];
+    }
 
     final standalone = preview['standalone'] as Map<String, dynamic>;
+
     final available = m['available'] == true;
     final pricing = m['pricing'] as Map<String, dynamic>?;
     final balance = (m['balance_cents'] as num).toInt();
     final percent = m['discount_percent'] as num;
 
     String line() {
-      if (!available || pricing == null) return (m['reason'] as String?) ?? 'Not available for this order.';
+      if (!available || pricing == null) {
+        return (m['reason'] as String?) ?? 'Not available for this order.';
+      }
 
       final credit = (pricing['credit_cents'] as num).toInt();
       final pay = (pricing['pay_cents'] as num).toInt();
@@ -708,16 +1080,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       if (isDe) {
         return pay == 0
-            ? 'Gesamtbetrag $total, vollständig aus Ihrem Guthaben. Verbleibendes Guthaben: $left.'
-            : '${formatCents(credit)} aus Ihrem Guthaben, ${formatCents(pay)} anderweitig zu zahlen. Verbleibend: $left.';
+            ? 'Gesamtbetrag $total, vollständig aus Ihrem Guthaben. '
+                  'Verbleibendes Guthaben: $left.'
+            : '${formatCents(credit)} aus Ihrem Guthaben, '
+                  '${formatCents(pay)} anderweitig zu zahlen. '
+                  'Verbleibend: $left.';
       }
+
       return pay == 0
           ? 'Total $total, all from your credit. Credit left: $left.'
-          : '${formatCents(credit)} from your credit, ${formatCents(pay)} to pay another way. Credit left: $left.';
+          : '${formatCents(credit)} from your credit, '
+                '${formatCents(pay)} to pay another way. '
+                'Credit left: $left.';
     }
 
     return [
       _heading(l10n?.paymentMethod ?? 'How do you want to pay?'),
+
       _choice(
         selected: !_useMembership,
         onTap: _placing
@@ -727,15 +1106,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 _refresh(quote: false);
               },
         title: Text(l10n?.payNormally ?? 'Pay normally'),
-        subtitle: Text('${isDe ? 'Gesamtbetrag' : 'Total'} ${formatCents((standalone['total_cents'] as num).toInt())}'),
+        subtitle: Text(
+          '${isDe ? 'Gesamtbetrag' : 'Total'} '
+          '${formatCents((standalone['total_cents'] as num).toInt())}',
+        ),
       ),
+
       _choice(
         selected: _useMembership,
         onTap: _placing || !available ? null : _chooseMembership,
-        title: Text('${l10n?.payWithMembership ?? 'Pay with my membership'} · ${formatPercent(percent)}% ${isDe ? 'Rabatt' : 'off'}'),
+        title: Text(
+          '${l10n?.payWithMembership ?? 'Pay with my membership'} '
+          '· ${formatPercent(percent)}% ${isDe ? 'Rabatt' : 'off'}',
+        ),
         subtitle: Text(line()),
       ),
-      if (_serverErrors['pay_with_membership'] != null) _errorText(_serverErrors['pay_with_membership']!),
+
+      if (_serverErrors['pay_with_membership'] != null)
+        _errorText(_serverErrors['pay_with_membership']!),
     ];
   }
 
@@ -745,42 +1133,89 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
 
     Widget row(String label, String value, {bool bold = false}) {
-      final style = bold ? theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold) : null;
+      final style = bold
+          ? theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)
+          : null;
+
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(label, style: style), Text(value, style: style)]),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: style),
+            Text(value, style: style),
+          ],
+        ),
       );
     }
 
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          row(isDe ? 'Artikel' : 'Items', formatCents(_goods)),
-          if (_discount > 0) row(isDe ? 'Mitgliederrabatt' : 'Member discount', '−${formatCents(_discount)}'),
-          if (_requiresShipping)
-            row(
-              l10n?.shipping ?? 'Shipping',
-              _methodId == null ? '–' : (_shipping == 0 ? (l10n?.shippingFree ?? 'Free') : formatCents(_shipping)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            row(isDe ? 'Artikel' : 'Items', formatCents(_goods)),
+
+            if (_discount > 0)
+              row(
+                isDe ? 'Mitgliederrabatt' : 'Member discount',
+                '−${formatCents(_discount)}',
+              ),
+
+            if (_requiresShipping)
+              row(
+                l10n?.shipping ?? 'Shipping',
+                _methodId == null
+                    ? '–'
+                    : (_shipping == 0
+                          ? (l10n?.shippingFree ?? 'Free')
+                          : formatCents(_shipping)),
+              ),
+
+            const Divider(height: 20),
+
+            row(l10n?.total ?? 'Total', formatCents(_total), bold: true),
+
+            if (_credit > 0) ...[
+              const SizedBox(height: 4),
+              row(
+                isDe ? 'Aus Ihrem Guthaben' : 'From your membership credit',
+                '−${formatCents(_credit)}',
+              ),
+              row(
+                _toPay == 0
+                    ? (isDe ? 'Nichts mehr zu zahlen' : 'Nothing left to pay')
+                    : (isDe ? 'Jetzt zu zahlen' : 'To pay now'),
+                formatCents(_toPay),
+                bold: _toPay > 0,
+              ),
+            ],
+
+            if (_voucherApplied > 0) ...[
+              const SizedBox(height: 4),
+              row(
+                isDe ? 'Aus Ihren Gutscheinen' : 'From your vouchers',
+                '−${formatCents(_voucherApplied)}',
+              ),
+              row(
+                _toPay == 0
+                    ? (isDe ? 'Nichts mehr zu zahlen' : 'Nothing left to pay')
+                    : (isDe ? 'Jetzt zu zahlen' : 'To pay now'),
+                formatCents(_toPay),
+                bold: _toPay > 0,
+              ),
+            ],
+
+            const SizedBox(height: 4),
+
+            Text(
+              l10n?.vatNotice ??
+                  'All prices include VAT. The VAT breakdown is shown on your order.',
+              style: theme.textTheme.bodySmall,
             ),
-          const Divider(height: 20),
-          row(l10n?.total ?? 'Total', formatCents(_total), bold: true),
-          if (_credit > 0) ...[
-            const SizedBox(height: 4),
-            row(isDe ? 'Aus Ihrem Guthaben' : 'From your membership credit', '−${formatCents(_credit)}'),
-            row(_toPay == 0 ? (isDe ? 'Nichts mehr zu zahlen' : 'Nothing left to pay') : (isDe ? 'Jetzt zu zahlen' : 'To pay now'), formatCents(_toPay), bold: _toPay > 0),
           ],
-          if (_voucherApplied > 0) ...[
-            const SizedBox(height: 4),
-            row(isDe ? 'Aus Ihren Gutscheinen' : 'From your vouchers', '−${formatCents(_voucherApplied)}'),
-            row(_toPay == 0 ? (isDe ? 'Nichts mehr zu zahlen' : 'Nothing left to pay') : (isDe ? 'Jetzt zu zahlen' : 'To pay now'), formatCents(_toPay), bold: _toPay > 0),
-          ],
-          const SizedBox(height: 4),
-          Text(
-            l10n?.vatNotice ?? 'All prices include VAT. The VAT breakdown is shown on your order.',
-            style: theme.textTheme.bodySmall,
-          ),
-        ]),
+        ),
       ),
     );
   }
@@ -789,23 +1224,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final l10n = AppLocalizations.of(context);
     final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
 
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
     if (_loadError != null) {
       return Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(_loadError!),
-          TextButton(onPressed: _load, child: Text(l10n?.retry ?? 'Retry')),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_loadError!),
+            TextButton(onPressed: _load, child: Text(l10n?.retry ?? 'Retry')),
+          ],
+        ),
       );
     }
 
     if (_items.isEmpty) {
       return Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(l10n?.cartEmpty ?? 'Your cart is empty.'),
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n?.back ?? 'Back')),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(l10n?.cartEmpty ?? 'Your cart is empty.'),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(l10n?.back ?? 'Back'),
+            ),
+          ],
+        ),
       );
     }
 
@@ -815,42 +1261,63 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
         _heading(isDe ? 'Ihre Bestellung' : 'Your order'),
+
         ..._itemRows(),
+
         if (_cart?['can_checkout'] != true)
           Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: Row(children: [
-              Expanded(
-                child: Text(
-                  isDe
-                      ? 'Einige Artikel in Ihrem Warenkorb können nicht bestellt werden.'
-                      : 'Some items in your cart cannot be ordered.',
-                  style: TextStyle(color: theme.colorScheme.error),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    isDe
+                        ? 'Einige Artikel in Ihrem Warenkorb können nicht bestellt werden.'
+                        : 'Some items in your cart cannot be ordered.',
+                    style: TextStyle(color: theme.colorScheme.error),
+                  ),
                 ),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(isDe ? 'Zurück zum Warenkorb' : 'Back to cart'),
-              ),
-            ]),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(isDe ? 'Zurück zum Warenkorb' : 'Back to cart'),
+                ),
+              ],
+            ),
           ),
+
         if (_requiresShipping) ..._deliverySection(),
+
         ..._billingSection(),
+
         ..._paymentSection(),
+
         ..._voucherSection(),
+
         _heading(l10n?.orderSummary ?? 'Summary'),
+
         _summary(),
+
         const SizedBox(height: 8),
+
         CheckboxListTile(
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
           value: _accepted,
-          onChanged: _placing ? null : (v) => setState(() => _accepted = v ?? false),
-          title: Text(l10n?.termsAndConditions ?? 'I accept the terms and conditions and the cancellation policy.'),
+          onChanged: _placing
+              ? null
+              : (v) => setState(() => _accepted = v ?? false),
+          title: Text(
+            l10n?.termsAndConditions ??
+                'I accept the terms and conditions and the cancellation policy.',
+          ),
         ),
-        if (_serverErrors['accept_terms'] != null) _errorText(_serverErrors['accept_terms']!),
+
+        if (_serverErrors['accept_terms'] != null)
+          _errorText(_serverErrors['accept_terms']!),
+
         if (_formError != null) ...[
           _errorText(_formError!),
+
           if (_serverErrors.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 4),
@@ -867,7 +1334,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Widget? _bottomBar() {
-    if (_loading || _cart == null || _items.isEmpty) return null;
+    if (_loading || _cart == null || _items.isEmpty) {
+      return null;
+    }
 
     final blocker = _blocker;
 
@@ -877,19 +1346,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            if (blocker != null && !_placing)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(blocker, style: Theme.of(context).textTheme.bodySmall, textAlign: TextAlign.center),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (blocker != null && !_placing)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    blocker,
+                    style: Theme.of(context).textTheme.bodySmall,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+
+              FilledButton(
+                onPressed: _canPlace ? _place : null,
+                child: _placing
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        '${_placeOrderText(context)} · ${formatCents(_total)}',
+                      ),
               ),
-            FilledButton(
-              onPressed: _canPlace ? _place : null,
-              child: _placing
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : Text('${_placeOrderText(context)} · ${formatCents(_total)}'),
-            ),
-          ]),
+            ],
+          ),
         ),
       ),
     );

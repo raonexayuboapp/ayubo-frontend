@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../services/api_service.dart';
 import '../utils/address_text.dart';
@@ -13,7 +12,8 @@ import 'admin_refund_dialog.dart';
 
 class AdminOrderDetailScreen extends StatefulWidget {
   final int orderId;
-  final String? number; // shown in the app bar while the order loads
+  final String? number;
+
   const AdminOrderDetailScreen({super.key, required this.orderId, this.number});
 
   @override
@@ -29,6 +29,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
   // ---------- data ----------
 
   Map<String, dynamic> get _o => _data!['order'] as Map<String, dynamic>;
+
   Map<String, dynamic> get _a => _data!['admin'] as Map<String, dynamic>;
 
   List<Map<String, dynamic>> _list(Map<String, dynamic> m, String key) =>
@@ -38,13 +39,17 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
   String get _pay => _o['payment_status'] as String;
 
   bool get _awaitingPayment => _status == 'received' && _pay == 'unpaid';
+
   bool get _canShip =>
       _pay == 'paid' && (_status == 'processing' || _status == 'shipped');
+
   bool get _canRefund => _pay == 'paid' || _pay == 'partially_refunded';
 
-  /// The one manual status change that makes sense from here, or null. The server allows exactly these.
+  /// The one manual status change that makes sense from here, or null.
+  /// The server allows exactly these.
   String? get _nextStatus {
     if (_pay != 'paid') return null;
+
     return switch (_status) {
       'on_hold' => 'processing',
       'processing' || 'shipped' => 'delivered',
@@ -52,16 +57,23 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
     };
   }
 
-  /// Paid minus refunded, from what is on screen. The server checks the real figure.
+  /// Paid minus refunded, from what is on screen.
+  /// The server checks the real figure.
   int get _refundable {
     var paid = 0;
+
     for (final p in _list(_a, 'payments')) {
-      if (p['status'] == 'paid') paid += (p['amount_cents'] as num).toInt();
+      if (p['status'] == 'paid') {
+        paid += (p['amount_cents'] as num).toInt();
+      }
     }
+
     var refunded = 0;
+
     for (final r in _list(_o, 'refunds')) {
       refunded += (r['amount_cents'] as num).toInt();
     }
+
     return paid - refunded;
   }
 
@@ -73,8 +85,9 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
     _load();
   }
 
-  void _snack(String text) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  void _snack(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
 
   String _msg(ApiException e) =>
       e.fieldErrors.isNotEmpty ? e.fieldErrors.values.join('\n') : e.message;
@@ -88,36 +101,52 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
         _error = null;
       });
     }
+
     try {
       final data = await ApiService.instance.adminGetOrder(widget.orderId);
+
       if (!mounted) return;
+
       setState(() {
         _data = data;
         _loading = false;
       });
     } on ApiException catch (e) {
       if (!mounted) return;
+
       setState(() {
         _loading = false;
         if (_data == null) _error = e.message;
       });
+
       if (_data != null) _snack(e.message);
     }
   }
 
-  /// Runs an action, shows its message, and reloads the order either way: it may have changed even when it failed.
+  /// Runs an action, shows its message, and reloads the order either way:
+  /// it may have changed even when it failed.
   Future<void> _act(Future<String?> Function() action) async {
     if (_busy) return;
+
     setState(() => _busy = true);
+
     try {
       final message = await action();
-      if (message != null && mounted) _snack(message);
+
+      if (message != null && mounted) {
+        _snack(message);
+      }
     } on ApiException catch (e) {
       if (mounted) _snack(_msg(e));
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() => _busy = false);
+      }
     }
-    if (mounted) await _load(silent: true);
+
+    if (mounted) {
+      await _load(silent: true);
+    }
   }
 
   Future<bool> _confirm(String title, String message, String confirm) async {
@@ -138,6 +167,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
         ],
       ),
     );
+
     return ok == true;
   }
 
@@ -158,6 +188,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
         PromptField(key: 'note', label: 'Note (optional)', maxLength: 255),
       ],
     );
+
     if (r == null) return;
 
     await _act(() async {
@@ -166,6 +197,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
         reference: _n(r['reference']),
         note: _n(r['note']),
       );
+
       return 'The order is marked as paid.';
     });
   }
@@ -179,6 +211,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
       confirmLabel: 'Cancel order',
       fields: const [PromptField(key: 'reason', label: 'Reason (optional)')],
     );
+
     if (r == null) return;
 
     await _act(() async {
@@ -186,6 +219,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
         widget.orderId,
         reason: _n(r['reason']),
       );
+
       return 'The order is cancelled.';
     });
   }
@@ -206,10 +240,12 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
         ),
       ],
     );
+
     if (r == null) return;
 
     await _act(() async {
       await ApiService.instance.adminAddOrderNote(widget.orderId, r['note']!);
+
       return 'Note saved.';
     });
   }
@@ -231,6 +267,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
         PromptField(key: 'note', label: 'Note (optional)', maxLength: 500),
       ],
     );
+
     if (r == null) return;
 
     await _act(() async {
@@ -239,6 +276,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
         next,
         _n(r['note']),
       );
+
       return 'Status changed.';
     });
   }
@@ -265,6 +303,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
         ),
       ],
     );
+
     if (r == null) return;
 
     await _act(() async {
@@ -273,6 +312,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
         r['carrier']!,
         _n(r['tracking']),
       );
+
       return 'Parcel added. The customer has been emailed.';
     });
   }
@@ -282,13 +322,15 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
       'Mark as delivered?',
       'The parcel with ${s['carrier']} has arrived.',
       'Delivered',
-    ))
+    )) {
       return;
+    }
 
     await _act(() async {
       await ApiService.instance.adminUpdateParcel(s['id'] as int, {
         'status': 'delivered',
       });
+
       return 'Parcel marked delivered.';
     });
   }
@@ -314,6 +356,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
         ),
       ],
     );
+
     if (r == null) return;
 
     await _act(() async {
@@ -321,6 +364,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
         'carrier': r['carrier'],
         'tracking_number': _n(r['tracking']),
       });
+
       return 'Parcel saved.';
     });
   }
@@ -347,30 +391,11 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
         _ => 'This refund was already done.',
       });
     }
-    if (mounted)
+
+    if (mounted) {
       await _load(
         silent: true,
-      ); // a refund that failed may still have changed the order
-  }
-
-  Future<void> _revealCodes() async {
-    if (!await _confirm(
-      'Show the voucher codes?',
-      'These codes let anyone spend the vouchers. Showing them is recorded in the audit log under your name.',
-      'Show codes',
-    )) {
-      return;
-    }
-
-    try {
-      final codes = await ApiService.instance.adminVoucherCodes(widget.orderId);
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (_) => _CodesDialog(codes: codes),
-      );
-    } on ApiException catch (e) {
-      if (mounted) _snack(_msg(e));
+      ); // A refund that failed may still have changed the order.
     }
   }
 
@@ -379,11 +404,13 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
       'Send the codes again?',
       'The customer gets the voucher email once more.',
       'Send',
-    ))
+    )) {
       return;
+    }
 
     await _act(() async {
       await ApiService.instance.adminResendVouchers(widget.orderId);
+
       return 'The email is queued.';
     });
   }
@@ -402,6 +429,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
     bool small = false,
   }) {
     final theme = Theme.of(context);
+
     final style = bold
         ? theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)
         : (small ? theme.textTheme.bodySmall : null);
@@ -429,6 +457,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
   Widget _attention() {
     // The newest note on the order says why it is on hold.
     final notes = _list(_a, 'history').where((h) => h['note'] != null).toList();
+
     final reason = notes.isEmpty ? null : notes.last['note'] as String;
 
     return Card(
@@ -455,6 +484,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
 
   Widget _customer() {
     final c = _a['customer'] as Map<String, dynamic>?;
+
     if (c == null) return const SizedBox.shrink();
 
     return Card(
@@ -491,47 +521,48 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
           icon: const Icon(Icons.download_outlined),
           label: const Text('Receipt'),
         ),
+
         if (_awaitingPayment)
           FilledButton.icon(
             onPressed: _busy ? null : _markPaid,
             icon: const Icon(Icons.payments_outlined),
             label: const Text('Mark as paid'),
           ),
+
         if (_canShip)
           FilledButton.icon(
             onPressed: _busy ? null : _addParcel,
             icon: const Icon(Icons.local_shipping_outlined),
             label: const Text('Add parcel'),
           ),
+
         if (_nextStatus != null)
           OutlinedButton.icon(
             onPressed: _busy ? null : _changeStatus,
             icon: const Icon(Icons.swap_horiz),
             label: Text('Mark ${orderStatusLabel(_nextStatus!).toLowerCase()}'),
           ),
+
         OutlinedButton.icon(
           onPressed: _busy ? null : _addNote,
           icon: const Icon(Icons.edit_note),
           label: const Text('Add note'),
         ),
-        if (hasVouchers) ...[
-          OutlinedButton.icon(
-            onPressed: _busy ? null : _revealCodes,
-            icon: const Icon(Icons.vpn_key_outlined),
-            label: const Text('Voucher codes'),
-          ),
+
+        if (hasVouchers)
           OutlinedButton.icon(
             onPressed: _busy ? null : _resendVouchers,
             icon: const Icon(Icons.forward_to_inbox_outlined),
             label: const Text('Resend codes'),
           ),
-        ],
+
         if (_canRefund)
           OutlinedButton.icon(
             onPressed: _busy || _refundable <= 0 ? null : _refund,
             icon: const Icon(Icons.undo),
             label: const Text('Refund'),
           ),
+
         if (_awaitingPayment)
           TextButton(
             onPressed: _busy ? null : _cancel,
@@ -623,6 +654,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
 
   List<Widget> _parcels() {
     final parcels = _list(_a, 'shipments');
+
     if (parcels.isEmpty) return const [];
 
     return [
@@ -706,6 +738,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
 
   List<Widget> _vouchers() {
     final vouchers = _list(_a, 'vouchers');
+
     if (vouchers.isEmpty) return const [];
 
     return [
@@ -770,7 +803,9 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
   }
 
   Widget _body() {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
     if (_error != null) {
       return Center(
@@ -848,70 +883,6 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(widget.number ?? 'Order')),
       body: _body(),
-    );
-  }
-}
-
-/// The plain voucher codes, for printing a card. Selectable, with a copy button.
-class _CodesDialog extends StatelessWidget {
-  final List<Map<String, dynamic>> codes;
-  const _CodesDialog({required this.codes});
-
-  @override
-  Widget build(BuildContext context) {
-    final all = codes.map((c) => c['code'] as String).join('\n');
-
-    return AlertDialog(
-      title: const Text('Voucher codes'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final c in codes)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SelectableText(
-                      c['code'] as String,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    Text(
-                      [
-                        formatCents((c['value_cents'] as num).toInt()),
-                        if (c['expires_at'] != null)
-                          'valid until ${formatDate(c['expires_at'] as String?)}',
-                      ].join(' · '),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () async {
-            await Clipboard.setData(ClipboardData(text: all));
-            if (context.mounted) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('Codes copied.')));
-            }
-          },
-          child: const Text('Copy all'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Close'),
-        ),
-      ],
     );
   }
 }
