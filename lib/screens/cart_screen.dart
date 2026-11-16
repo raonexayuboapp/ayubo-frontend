@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
@@ -17,6 +19,7 @@ typedef CartData = Map<String, dynamic>;
 
 class CartScreen extends StatefulWidget {
   final Map<String, dynamic> user;
+
   const CartScreen({super.key, required this.user});
 
   @override
@@ -32,6 +35,8 @@ class _CartScreenState extends State<CartScreen> {
   String? _error;
   final Set<int> _busy = {};
 
+  Timer? _undoDismissTimer;
+
   bool get _isGuest => _user.isEmpty;
 
   @override
@@ -40,10 +45,32 @@ class _CartScreenState extends State<CartScreen> {
     _checkAuthAndLoad();
   }
 
-  void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  void _cancelUndoDismissTimer() {
+    _undoDismissTimer?.cancel();
+    _undoDismissTimer = null;
+  }
+
+  @override
+  void dispose() {
+    _cancelUndoDismissTimer();
+    super.dispose();
+  }
+
+  void _snack(String text) {
+// Prevent the Undo timer from dismissing a different notification.
+    _cancelUndoDismissTimer();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(text),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
 
   Future<void> _checkAuthAndLoad() async {
     final hasTok = await ApiService.instance.hasToken();
+
     if (!hasTok || _isGuest) {
       if (mounted) {
         setState(() {
@@ -53,6 +80,7 @@ class _CartScreenState extends State<CartScreen> {
       }
       return;
     }
+
     _load();
   }
 
@@ -61,17 +89,22 @@ class _CartScreenState extends State<CartScreen> {
       _loading = true;
       _error = null;
     });
+
     try {
       final cart = await ApiService.instance.getCart();
+
       if (!mounted) return;
+
       setState(() {
         _cart = cart;
         _loading = false;
       });
     } on ApiException catch (e) {
       if (!mounted) return;
+
       setState(() {
         _loading = false;
+
         if (e.statusCode == 401) {
           _user = {};
           _cart = null;
@@ -80,21 +113,30 @@ class _CartScreenState extends State<CartScreen> {
           if (_cart == null) _error = e.message;
         }
       });
-      if (_cart != null && e.statusCode != 401) _snack(e.message);
+
+      if (_cart != null && e.statusCode != 401) {
+        _snack(e.message);
+      }
     }
   }
 
   Future<void> _change(CartData item, int quantity) async {
     final id = item['id'] as int;
+
     if (_busy.contains(id)) return;
 
     setState(() => _busy.add(id));
+
     try {
-      final cart = await ApiService.instance.setCartQuantity(id, quantity);
+      final cart =
+      await ApiService.instance.setCartQuantity(id, quantity);
+
       if (!mounted) return;
+
       setState(() => _cart = cart);
     } on ApiException catch (e) {
       if (!mounted) return;
+
       _snack(e.message);
       _load();
     } finally {
@@ -104,25 +146,56 @@ class _CartScreenState extends State<CartScreen> {
 
   Future<void> _remove(CartData item) async {
     final id = item['id'] as int;
+
     if (_busy.contains(id)) return;
 
+    _cancelUndoDismissTimer();
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
     setState(() => _busy.add(id));
+
     try {
       final cart = await ApiService.instance.removeCartItem(id);
+
       if (!mounted) return;
+
       setState(() => _cart = cart);
-      ScaffoldMessenger.of(context)
-        ..clearSnackBars()
-        ..showSnackBar(SnackBar(
+
+      final messenger = ScaffoldMessenger.of(context);
+
+      messenger.showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 4),
           content: Text('"${item['name']}" removed.'),
           action: SnackBarAction(
             label: 'Undo',
             textColor: Theme.of(context).colorScheme.secondary,
-            onPressed: () => _undo(item),
+            onPressed: () {
+              _cancelUndoDismissTimer();
+              messenger.hideCurrentSnackBar();
+              _undo(item);
+            },
           ),
-        ));
+          onVisible: () {
+// Explicitly dismiss the Undo notification after four seconds.
+            _cancelUndoDismissTimer();
+
+            _undoDismissTimer = Timer(
+              const Duration(seconds: 4),
+                  () {
+                _undoDismissTimer = null;
+
+                if (mounted) {
+                  messenger.hideCurrentSnackBar();
+                }
+              },
+            );
+          },
+        ),
+      );
     } on ApiException catch (e) {
       if (!mounted) return;
+
       _snack(e.message);
       _load();
     } finally {
@@ -132,15 +205,27 @@ class _CartScreenState extends State<CartScreen> {
 
   Future<void> _undo(CartData item) async {
     try {
-      final cart = await ApiService.instance.addToCart(item['variant_id'] as int, item['quantity'] as int);
-      if (mounted) setState(() => _cart = cart);
+      final cart = await ApiService.instance.addToCart(
+        item['variant_id'] as int,
+        item['quantity'] as int,
+      );
+
+      if (mounted) {
+        setState(() => _cart = cart);
+      }
     } on ApiException catch (e) {
       if (mounted) _snack(e.message);
     }
   }
 
   Future<void> _checkout() async {
-    await Navigator.push<void>(context, MaterialPageRoute(builder: (_) => CheckoutScreen(user: _user)));
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CheckoutScreen(user: _user),
+      ),
+    );
+
     if (mounted) _load();
   }
 
@@ -193,22 +278,32 @@ class _CartScreenState extends State<CartScreen> {
                       item['name'] as String,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      [if (pack != null && pack.isNotEmpty) pack, '${formatCents(item['unit_price_cents'] as int)} $eachStr']
-                          .join(' · '),
+                      [
+                        if (pack != null && pack.isNotEmpty) pack,
+                        '${formatCents(item['unit_price_cents'] as int)} $eachStr',
+                      ].join(' · '),
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.6,
+                        ),
                       ),
                     ),
                     if (issue != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
-                          (item['issue_message'] as String?) ?? 'This item has a problem.',
-                          style: TextStyle(fontSize: 12, color: theme.colorScheme.error),
+                          (item['issue_message'] as String?) ??
+                              'This item has a problem.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.error,
+                          ),
                         ),
                       ),
                     const SizedBox(height: 8),
@@ -223,7 +318,10 @@ class _CartScreenState extends State<CartScreen> {
                           )
                         else if (type == 'membership')
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: goldColor.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(6),
@@ -277,9 +375,12 @@ class _CartScreenState extends State<CartScreen> {
     final canCheckout = cart['can_checkout'] == true;
 
     Widget row(String label, String value, {TextStyle? style}) => Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [Text(label, style: style), Text(value, style: style)],
-        );
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: style),
+        Text(value, style: style),
+      ],
+    );
 
     return Container(
       decoration: BoxDecoration(
@@ -319,12 +420,17 @@ class _CartScreenState extends State<CartScreen> {
                         : 'incl. ${formatPercent(t['rate_percent'] as num)}% VAT',
                     formatCents(t['tax_cents'] as int),
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.5,
+                      ),
                     ),
                   ),
                 ),
               const SizedBox(height: 8),
-              ShippingEstimate(cartKey: '${totals['subtotal_cents']}|${totals['item_count']}|$blocking'),
+              ShippingEstimate(
+                cartKey:
+                '${totals['subtotal_cents']}|${totals['item_count']}|$blocking',
+              ),
               if (blocking > 0)
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
@@ -332,7 +438,9 @@ class _CartScreenState extends State<CartScreen> {
                     isDe
                         ? 'Rot markierte Artikel sind nicht enthalten. Bitte korrigieren oder entfernen.'
                         : 'Items marked in red are not included. Fix or remove them to continue.',
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
                   ),
                 ),
               const SizedBox(height: 14),
@@ -343,11 +451,16 @@ class _CartScreenState extends State<CartScreen> {
                   foregroundColor: goldColor,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
                 child: Text(
                   l10n?.proceedToCheckout ?? 'Checkout',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
               ),
             ],
@@ -398,7 +511,10 @@ class _CartScreenState extends State<CartScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.primary,
                     foregroundColor: goldColor,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                     elevation: 0,
                   ),
                   child: Text(
@@ -480,20 +596,23 @@ class _CartScreenState extends State<CartScreen> {
                   final user = await Navigator.push<Map<String, dynamic>>(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const LoginScreen(returnUserOnSuccess: true),
+                      builder: (_) =>
+                      const LoginScreen(returnUserOnSuccess: true),
                     ),
                   );
+
                   if (user != null && mounted) {
-                    setState(() {
-                      _user = user;
-                    });
+                    setState(() => _user = user);
                     _load();
                   }
                 },
                 icon: const Icon(Icons.login_rounded, size: 20),
                 label: Text(
                   l10n?.loginToViewCart ?? 'Log In to View Cart',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryGreen,
@@ -513,23 +632,27 @@ class _CartScreenState extends State<CartScreen> {
                   final user = await Navigator.push<Map<String, dynamic>>(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const RegisterScreen(returnUserOnSuccess: true),
+                      builder: (_) =>
+                      const RegisterScreen(returnUserOnSuccess: true),
                     ),
                   );
+
                   if (user != null && mounted) {
-                    setState(() {
-                      _user = user;
-                    });
+                    setState(() => _user = user);
                     _load();
                   }
                 },
                 icon: const Icon(Icons.person_add_outlined, size: 20),
                 label: Text(
                   l10n?.register ?? 'Create an Account',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                 ),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: isDark ? Colors.white : AppTheme.primaryGreen,
+                  foregroundColor:
+                  isDark ? Colors.white : AppTheme.primaryGreen,
                   minimumSize: const Size.fromHeight(48),
                   side: BorderSide(
                     color: AppTheme.brandGold.withValues(alpha: 0.6),
@@ -544,7 +667,9 @@ class _CartScreenState extends State<CartScreen> {
               TextButton.icon(
                 onPressed: () => AppBottomBar.open(context, 1, _user),
                 icon: const Icon(Icons.storefront_outlined, size: 18),
-                label: Text(l10n?.exploreProducts ?? 'Browse Organic Products'),
+                label: Text(
+                  l10n?.exploreProducts ?? 'Browse Organic Products',
+                ),
                 style: TextButton.styleFrom(
                   foregroundColor: scheme.onSurface.withValues(alpha: 0.65),
                 ),
@@ -566,7 +691,12 @@ class _CartScreenState extends State<CartScreen> {
     if (_isGuest) {
       body = _guestCartView();
     } else if (_loading && _cart == null) {
-      body = Center(child: CircularProgressIndicator(color: goldColor, strokeWidth: 2));
+      body = Center(
+        child: CircularProgressIndicator(
+          color: goldColor,
+          strokeWidth: 2,
+        ),
+      );
     } else if (_error != null && _cart == null) {
       body = Center(
         child: Padding(
@@ -574,15 +704,25 @@ class _CartScreenState extends State<CartScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
+              Icon(
+                Icons.error_outline,
+                size: 40,
+                color: theme.colorScheme.error,
+              ),
               const SizedBox(height: 12),
-              Text(_error!, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium,
+              ),
               const SizedBox(height: 16),
               TextButton.icon(
                 onPressed: _load,
                 icon: const Icon(Icons.refresh, size: 18),
                 label: const Text('Retry'),
-                style: TextButton.styleFrom(foregroundColor: goldColor),
+                style: TextButton.styleFrom(
+                  foregroundColor: goldColor,
+                ),
               ),
             ],
           ),
@@ -590,32 +730,36 @@ class _CartScreenState extends State<CartScreen> {
       );
     } else {
       final cart = _cart!;
-      final items = (cart['items'] as List<dynamic>).cast<CartData>();
+      final items =
+      (cart['items'] as List<dynamic>).cast<CartData>();
 
       body = items.isEmpty
           ? _empty()
           : Column(
-              children: [
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: _load,
-                    color: goldColor,
-                    child: ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: items.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 10),
-                      itemBuilder: (_, i) => _line(items[i]),
-                    ),
-                  ),
-                ),
-                _footer(cart),
-              ],
-            );
+        children: [
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _load,
+              color: goldColor,
+              child: ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: items.length,
+                separatorBuilder: (_, __) =>
+                const SizedBox(height: 10),
+                itemBuilder: (_, i) => _line(items[i]),
+              ),
+            ),
+          ),
+          _footer(cart),
+        ],
+      );
     }
 
     final l10n = AppLocalizations.of(context);
     final isDe = l10n?.localeName.startsWith('de') ?? false;
-    final cartItems = ((_cart?['items'] as List<dynamic>?) ?? const []).cast<CartData>();
+    final cartItems =
+    ((_cart?['items'] as List<dynamic>?) ?? const [])
+        .cast<CartData>();
     final itemCount = cartItems.length;
 
     return Scaffold(
@@ -631,7 +775,10 @@ class _CartScreenState extends State<CartScreen> {
         },
       ),
       body: body,
-      bottomNavigationBar: AppBottomBar(currentIndex: 3, user: _user),
+      bottomNavigationBar: AppBottomBar(
+        currentIndex: 3,
+        user: _user,
+      ),
     );
   }
 }
