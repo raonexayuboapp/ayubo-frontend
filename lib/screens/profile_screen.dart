@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
@@ -14,7 +13,6 @@ import 'addresses_screen.dart';
 import 'change_password_screen.dart';
 import 'favourites_screen.dart';
 import 'home_screen.dart';
-
 import 'loyalty_screen.dart';
 import 'orders_screen.dart';
 import 'vouchers_screen.dart';
@@ -43,18 +41,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     text: widget.user['mobile_number']?.toString() ?? '',
   );
 
+  DateTime? _birthday;
+
+  late String _preferredLanguage =
+      widget.user['preferred_language']?.toString() == 'en' ? 'en' : 'de';
+
   bool _loading = false;
   String? _error;
   Map<String, String> _serverErrors = {};
 
-  bool get _isDark =>
-      Theme.of(context).brightness == Brightness.dark;
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
 
-  Color get _surface =>
-      _isDark ? AppTheme.surfaceDark : Colors.white;
+  Color get _surface => _isDark ? AppTheme.surfaceDark : Colors.white;
 
-  Color get _border =>
-      _isDark ? AppTheme.borderDark : AppTheme.borderLight;
+  Color get _border => _isDark ? AppTheme.borderDark : AppTheme.borderLight;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final birthdayValue = widget.user['birthday']?.toString();
+
+    if (birthdayValue != null && birthdayValue.isNotEmpty) {
+      _birthday = DateTime.tryParse(birthdayValue);
+    }
+  }
 
   @override
   void dispose() {
@@ -63,6 +74,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _mobile.dispose();
     super.dispose();
   }
+
+  // ------------------------------------------------------------
+  // Birthday
+  // ------------------------------------------------------------
+
+  String _formatBirthday(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+
+    return '$day.$month.${date.year}';
+  }
+
+  String? get _birthdayApiValue {
+    if (_birthday == null) return null;
+
+    final year = _birthday!.year.toString().padLeft(4, '0');
+    final month = _birthday!.month.toString().padLeft(2, '0');
+    final day = _birthday!.day.toString().padLeft(2, '0');
+
+    return '$year-$month-$day';
+  }
+
+  Future<void> _selectBirthday() async {
+    final now = DateTime.now();
+
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: _birthday ?? DateTime(now.year - 18, now.month, now.day),
+      firstDate: DateTime(1900),
+      lastDate: DateTime(now.year, now.month, now.day),
+      helpText: 'Select your date of birth',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(
+              context,
+            ).colorScheme.copyWith(primary: AppTheme.primaryGreen),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (selected != null && mounted) {
+      setState(() {
+        _birthday = selected;
+        _serverErrors.remove('birthday');
+      });
+    }
+  }
+
+  // ------------------------------------------------------------
+  // Save profile
+  // ------------------------------------------------------------
 
   Future<void> _save() async {
     if (!_form.currentState!.validate()) return;
@@ -78,9 +143,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
         firstName: _first.text.trim(),
         lastName: _last.text.trim(),
         mobileNumber: _mobile.text.trim(),
+        birthday: _birthdayApiValue,
+        preferredLanguage: _preferredLanguage,
+        clearBirthday: _birthday == null,
       );
 
       if (!mounted) return;
+
+      // Keep the locally available user data synchronized.
+      widget.user['first_name'] = _first.text.trim();
+      widget.user['last_name'] = _last.text.trim();
+      widget.user['mobile_number'] = _mobile.text.trim();
+      widget.user['birthday'] = _birthdayApiValue;
+      widget.user['preferred_language'] = _preferredLanguage;
 
       setState(() {
         _loading = false;
@@ -104,6 +179,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // ------------------------------------------------------------
+  // Delete account
+  // ------------------------------------------------------------
+
   Future<void> _confirmDelete() async {
     final deleted = await showDialog<bool>(
       context: context,
@@ -125,6 +204,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // ------------------------------------------------------------
+  // Shared widgets
+  // ------------------------------------------------------------
+
   Widget _sectionTitle(String title, {String? subtitle}) {
     final scheme = Theme.of(context).colorScheme;
 
@@ -136,9 +219,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Text(
             title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: scheme.onSurface,
-                ),
+              fontWeight: FontWeight.bold,
+              color: scheme.onSurface,
+            ),
           ),
           if (subtitle != null) ...[
             const SizedBox(height: 4),
@@ -185,11 +268,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: icon != null
-              ? Icon(
-                  icon,
-                  color: AppTheme.primaryGreen,
-                  size: 20,
-                )
+              ? Icon(icon, color: AppTheme.primaryGreen, size: 20)
               : null,
           filled: true,
           fillColor: _isDark
@@ -228,14 +307,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final initials =
         '${firstName.isNotEmpty ? firstName[0] : ''}'
-        '${lastName.isNotEmpty ? lastName[0] : ''}'.toUpperCase();
+                '${lastName.isNotEmpty ? lastName[0] : ''}'
+            .toUpperCase();
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 24,
-        vertical: 28,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -262,10 +339,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white.withValues(alpha: 0.12),
-              border: Border.all(
-                color: AppTheme.brandGold,
-                width: 2.5,
-              ),
+              border: Border.all(color: AppTheme.brandGold, width: 2.5),
               boxShadow: [
                 BoxShadow(
                   color: AppTheme.brandGold.withValues(alpha: 0.25),
@@ -286,9 +360,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
           ),
-
           const SizedBox(height: 16),
-
           Text(
             '$firstName $lastName'.trim().isEmpty
                 ? 'Ayubo Member'
@@ -301,9 +373,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               letterSpacing: 0.2,
             ),
           ),
-
           const SizedBox(height: 5),
-
           Text(
             email,
             textAlign: TextAlign.center,
@@ -312,14 +382,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               fontSize: 13,
             ),
           ),
-
           const SizedBox(height: 17),
-
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 7,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
             decoration: BoxDecoration(
               color: AppTheme.brandGold.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(30),
@@ -352,6 +417,158 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+
+  // ------------------------------------------------------------
+  // Birthday field
+  // ------------------------------------------------------------
+
+  Widget _birthdayField() {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: _selectBirthday,
+            child: InputDecorator(
+              decoration: InputDecoration(
+                labelText: 'Date of birth (optional)',
+                prefixIcon: const Icon(
+                  Icons.cake_outlined,
+                  color: AppTheme.primaryGreen,
+                  size: 20,
+                ),
+                suffixIcon: _birthday != null
+                    ? IconButton(
+                        tooltip: 'Clear birthday',
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () {
+                          setState(() {
+                            _birthday = null;
+                            _serverErrors.remove('birthday');
+                          });
+                        },
+                      )
+                    : const Icon(Icons.calendar_month_outlined, size: 20),
+                filled: true,
+                fillColor: _isDark
+                    ? AppTheme.bgDark.withValues(alpha: 0.5)
+                    : AppTheme.bgLight,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 17,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: scheme.outline.withValues(alpha: 0.15),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(
+                    color: AppTheme.primaryGreen,
+                    width: 1.5,
+                  ),
+                ),
+              ),
+              child: Text(
+                _birthday == null
+                    ? 'Not provided'
+                    : _formatBirthday(_birthday!),
+                style: TextStyle(
+                  color: _birthday == null
+                      ? scheme.onSurface.withValues(alpha: 0.5)
+                      : scheme.onSurface,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+          if (_serverErrors['birthday'] != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 12, top: 6),
+              child: Text(
+                _serverErrors['birthday']!,
+                style: TextStyle(color: scheme.error, fontSize: 12),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // Preferred language field
+  // ------------------------------------------------------------
+
+  Widget _languageField() {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: DropdownButtonFormField<String>(
+        value: _preferredLanguage,
+        decoration: InputDecoration(
+          labelText: 'Preferred language',
+          prefixIcon: const Icon(
+            Icons.language_rounded,
+            color: AppTheme.primaryGreen,
+            size: 20,
+          ),
+          filled: true,
+          fillColor: _isDark
+              ? AppTheme.bgDark.withValues(alpha: 0.5)
+              : AppTheme.bgLight,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 17,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(
+              color: scheme.outline.withValues(alpha: 0.15),
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(
+              color: AppTheme.primaryGreen,
+              width: 1.5,
+            ),
+          ),
+        ),
+        items: const [
+          DropdownMenuItem(value: 'de', child: Text('Deutsch')),
+          DropdownMenuItem(value: 'en', child: Text('English')),
+        ],
+        onChanged: (value) {
+          if (value == null) return;
+
+          setState(() {
+            _preferredLanguage = value;
+            _serverErrors.remove('preferred_language');
+          });
+        },
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // Personal details
+  // ------------------------------------------------------------
 
   Widget _personalDetailsCard() {
     final scheme = Theme.of(context).colorScheme;
@@ -390,11 +607,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Text(
                       l10n?.personalDetails ?? 'Personal Details',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Text(
-                      l10n?.managePersonalInfo ?? 'Manage your personal information',
+                      l10n?.managePersonalInfo ??
+                          'Manage your personal information',
                       style: TextStyle(
                         color: scheme.onSurface.withValues(alpha: 0.5),
                         fontSize: 11,
@@ -405,9 +623,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ],
           ),
-
           const SizedBox(height: 22),
-
           TextFormField(
             initialValue: email,
             enabled: false,
@@ -446,9 +662,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
           ),
-
           const SizedBox(height: 16),
-
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -472,7 +686,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ],
           ),
-
           _field(
             'mobile_number',
             l10n?.mobileNumber ?? 'Mobile number',
@@ -482,6 +695,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             icon: Icons.phone_outlined,
           ),
 
+          // New optional birthday field.
+          _birthdayField(),
+
+          // New preferred language selector.
+          _languageField(),
+
           if (_error != null) ...[
             Container(
               padding: const EdgeInsets.all(13),
@@ -489,9 +708,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               decoration: BoxDecoration(
                 color: scheme.error.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: scheme.error.withValues(alpha: 0.25),
-                ),
+                border: Border.all(color: scheme.error.withValues(alpha: 0.25)),
               ),
               child: Row(
                 children: [
@@ -504,17 +721,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Expanded(
                     child: Text(
                       _error!,
-                      style: TextStyle(
-                        color: scheme.error,
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: scheme.error, fontSize: 12),
                     ),
                   ),
                 ],
               ),
             ),
           ],
-
           LoadingButton(
             label: l10n?.saveChanges ?? 'Save Changes',
             loading: _loading,
@@ -524,6 +737,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+
+  // ------------------------------------------------------------
+  // Action tile
+  // ------------------------------------------------------------
 
   Widget _actionTile({
     required IconData icon,
@@ -542,19 +759,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: _surface,
         borderRadius: BorderRadius.circular(17),
-        border: Border.all(
-          color: _border,
-          width: 1,
-        ),
+        border: Border.all(color: _border, width: 1),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 15,
-          vertical: 5,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(17),
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(17)),
         leading: Container(
           width: 42,
           height: 42,
@@ -562,11 +771,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(13),
           ),
-          child: Icon(
-            icon,
-            color: color,
-            size: 21,
-          ),
+          child: Icon(icon, color: color, size: 21),
         ),
         title: Text(
           title,
@@ -600,6 +805,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // ------------------------------------------------------------
+  // Account activity
+  // ------------------------------------------------------------
+
   Widget _accountActivity() {
     final l10n = AppLocalizations.of(context);
     final isDe = l10n?.localeName.startsWith('de') ?? false;
@@ -609,50 +818,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         _sectionTitle(
           l10n?.accountActivity ?? 'Account Activity',
-          subtitle: isDe ? 'Ihre Adressen, Bestellungen und gemerkten Artikel' : 'Your addresses, orders and saved items',
+          subtitle: isDe
+              ? 'Ihre Adressen, Bestellungen und gemerkten Artikel'
+              : 'Your addresses, orders and saved items',
         ),
-
         _actionTile(
           icon: Icons.location_on_outlined,
           title: l10n?.savedAddresses ?? 'Saved addresses',
-          subtitle: isDe ? 'Lieferadressen verwalten' : 'Manage your delivery addresses',
+          subtitle: isDe
+              ? 'Lieferadressen verwalten'
+              : 'Manage your delivery addresses',
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => AddressesScreen(
-                defaultRecipient:
-                    '${_first.text.trim()} ${_last.text.trim()}'.trim(),
+                defaultRecipient: '${_first.text.trim()} ${_last.text.trim()}'
+                    .trim(),
               ),
             ),
           ),
         ),
-
         _actionTile(
           icon: Icons.favorite_border_rounded,
           title: l10n?.myFavourites ?? 'My favourites',
-          subtitle: isDe ? 'Ihre gemerkten Produkte' : 'Products you have saved',
+          subtitle: isDe
+              ? 'Ihre gemerkten Produkte'
+              : 'Products you have saved',
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => const FavouritesScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const FavouritesScreen()),
           ),
         ),
-
         _actionTile(
           icon: Icons.receipt_long_outlined,
           title: l10n?.myOrders ?? 'My orders',
-          subtitle: isDe ? 'Bestellverlauf und Details anzeigen' : 'View your order history and details',
+          subtitle: isDe
+              ? 'Bestellverlauf und Details anzeigen'
+              : 'View your order history and details',
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => OrdersScreen(user: widget.user),
-            ),
+            MaterialPageRoute(builder: (_) => OrdersScreen(user: widget.user)),
           ),
         ),
       ],
     );
   }
+
+  // ------------------------------------------------------------
+  // Rewards
+  // ------------------------------------------------------------
 
   Widget _rewardsSection() {
     final l10n = AppLocalizations.of(context);
@@ -663,37 +877,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         _sectionTitle(
           l10n?.loyaltyRewards ?? 'Ayubo Rewards',
-          subtitle: isDe ? 'Ihre Mitgliedervorteile und Treueprämien' : 'Enjoy your membership benefits and rewards',
+          subtitle: isDe
+              ? 'Ihre Mitgliedervorteile und Treueprämien'
+              : 'Enjoy your membership benefits and rewards',
         ),
-
         _actionTile(
           icon: Icons.card_giftcard_rounded,
           iconColor: AppTheme.brandGoldDark,
           title: l10n?.myVouchers ?? 'My vouchers and credit',
-          subtitle: isDe ? 'Verfügbare Gutscheine und Guthaben anzeigen' : 'View available vouchers and account credit',
+          subtitle: isDe
+              ? 'Verfügbare Gutscheine und Guthaben anzeigen'
+              : 'View available vouchers and account credit',
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => const VouchersScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const VouchersScreen()),
           ),
         ),
-
         _actionTile(
           icon: Icons.stars_rounded,
           iconColor: AppTheme.brandGoldDark,
           title: l10n?.loyaltyPoints ?? 'My points and rewards',
-          subtitle: isDe ? 'Punktestand und Treueprämien prüfen' : 'Check your loyalty points and rewards',
+          subtitle: isDe
+              ? 'Punktestand und Treueprämien prüfen'
+              : 'Check your loyalty points and rewards',
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => const LoyaltyScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const LoyaltyScreen()),
           ),
         ),
       ],
     );
   }
+
+  // ------------------------------------------------------------
+  // Account settings
+  // ------------------------------------------------------------
 
   Widget _accountSettings() {
     final scheme = Theme.of(context).colorScheme;
@@ -705,13 +923,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         _sectionTitle(
           l10n?.accountSettings ?? 'Account Settings',
-          subtitle: isDe ? 'Konto und Sicherheit verwalten' : 'Manage your account and security',
+          subtitle: isDe
+              ? 'Konto und Sicherheit verwalten'
+              : 'Manage your account and security',
         ),
-
         _actionTile(
           icon: Icons.lock_reset_rounded,
           title: l10n?.changePassword ?? 'Change password',
-          subtitle: isDe ? 'Schützen Sie Ihr Konto' : 'Keep your account secure',
+          subtitle: isDe
+              ? 'Schützen Sie Ihr Konto'
+              : 'Keep your account secure',
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
@@ -721,11 +942,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ),
-
         _actionTile(
           icon: Icons.logout_rounded,
           title: l10n?.logout ?? 'Log out',
-          subtitle: isDe ? 'Von Ihrem Konto abmelden' : 'Sign out of your account',
+          subtitle: isDe
+              ? 'Von Ihrem Konto abmelden'
+              : 'Sign out of your account',
           showChevron: false,
           onTap: () async {
             await ApiService.instance.logout();
@@ -735,21 +957,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
             }
           },
         ),
-
         const SizedBox(height: 12),
-
         _actionTile(
           icon: Icons.delete_forever_outlined,
           iconColor: scheme.error,
           textColor: scheme.error,
           title: l10n?.deleteAccount ?? 'Delete account',
-          subtitle: isDe ? 'Konto dauerhaft löschen' : 'Permanently delete your account',
+          subtitle: isDe
+              ? 'Konto dauerhaft löschen'
+              : 'Permanently delete your account',
           showChevron: false,
           onTap: _confirmDelete,
         ),
       ],
     );
   }
+
+  // ------------------------------------------------------------
+  // Build
+  // ------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -768,31 +994,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: Form(
         key: _form,
         child: ListView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 18,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           children: [
             _profileHeader(),
-
             const SizedBox(height: 28),
-
             _personalDetailsCard(),
-
             const SizedBox(height: 30),
-
             _accountActivity(),
-
             const SizedBox(height: 20),
-
             _rewardsSection(),
-
             const SizedBox(height: 20),
-
             _accountSettings(),
-
             const SizedBox(height: 24),
-
             Center(
               child: Column(
                 children: [
@@ -827,15 +1040,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-
             const SizedBox(height: 20),
           ],
         ),
       ),
-      bottomNavigationBar: AppBottomBar(
-        currentIndex: 4,
-        user: widget.user,
-      ),
+      bottomNavigationBar: AppBottomBar(currentIndex: 4, user: widget.user),
     );
   }
 }
@@ -848,8 +1057,7 @@ class _DeleteAccountDialog extends StatefulWidget {
   const _DeleteAccountDialog();
 
   @override
-  State<_DeleteAccountDialog> createState() =>
-      _DeleteAccountDialogState();
+  State<_DeleteAccountDialog> createState() => _DeleteAccountDialogState();
 }
 
 class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
@@ -903,9 +1111,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return AlertDialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       backgroundColor: isDark ? AppTheme.surfaceDark : Colors.white,
       title: Row(
         children: [
@@ -923,10 +1129,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
           ),
           const SizedBox(width: 12),
           const Expanded(
-            child: Text(
-              'Delete account?',
-              style: TextStyle(fontSize: 18),
-            ),
+            child: Text('Delete account?', style: TextStyle(fontSize: 18)),
           ),
         ],
       ),
@@ -938,14 +1141,9 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
             'This action cannot be undone. Your profile, saved addresses, '
             'and active rewards will be removed permanently. '
             'Enter your password to confirm deletion.',
-            style: TextStyle(
-              fontSize: 13,
-              height: 1.5,
-            ),
+            style: TextStyle(fontSize: 13, height: 1.5),
           ),
-
           const SizedBox(height: 18),
-
           PasswordField(
             controller: _password,
             label: 'Confirm Password',
@@ -953,27 +1151,17 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
             action: TextInputAction.done,
             onSubmitted: (_) => _delete(),
           ),
-
           if (_error != null) ...[
             const SizedBox(height: 12),
-            Text(
-              _error!,
-              style: TextStyle(
-                color: errorColor,
-                fontSize: 13,
-              ),
-            ),
+            Text(_error!, style: TextStyle(color: errorColor, fontSize: 13)),
           ],
         ],
       ),
       actions: [
         TextButton(
-          onPressed: _loading
-              ? null
-              : () => Navigator.pop(context, false),
+          onPressed: _loading ? null : () => Navigator.pop(context, false),
           child: const Text('Cancel'),
         ),
-
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: errorColor,
@@ -989,9 +1177,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
                   width: 18,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Colors.white,
-                    ),
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
               : const Text('Delete Account'),
