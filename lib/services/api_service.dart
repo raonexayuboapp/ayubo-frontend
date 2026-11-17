@@ -507,6 +507,7 @@ class ApiService {
     String search = '',
     String status = '',
     int page = 1,
+    String lang = 'en',
   }) async {
     final path = Uri(
       path: '/api/admin/products',

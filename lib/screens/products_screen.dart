@@ -54,8 +54,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 
   final _scroll = ScrollController();
-  late final TextEditingController _searchController =
-      TextEditingController(text: widget.initialSearch.trim());
+  late final TextEditingController _searchController = TextEditingController(
+    text: widget.initialSearch.trim(),
+  );
 
   List<CategoryData> _categories = [];
   List<ProductData> _products = [];
@@ -188,8 +189,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
   void _onScroll() {
     if (!_scroll.hasClients) return;
 
-    final nearEnd = _scroll.position.pixels >=
-        _scroll.position.maxScrollExtent - 300;
+    final nearEnd =
+        _scroll.position.pixels >= _scroll.position.maxScrollExtent - 300;
 
     if (nearEnd && !_loading && !_loadingMore && _products.length < _total) {
       _page++;
@@ -218,8 +219,42 @@ class _ProductsScreenState extends State<ProductsScreen> {
   Widget _card(ProductData product) {
     final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final price = product['price_cents'] as int?;
+    final l10n = AppLocalizations.of(context);
+    final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
+
+    final price = (product['price_cents'] as num?)?.toInt();
+    final originalPrice = (product['original_price_cents'] as num?)?.toInt();
+    final discountCents = (product['discount_cents'] as num?)?.toInt() ?? 0;
+
+    // Only show a sale when the actual customer price is lower.
+    final hasDiscount =
+        price != null &&
+        originalPrice != null &&
+        originalPrice > price &&
+        discountCents > 0;
+
     final inStock = product['in_stock'] == true;
+
+    final discountType = product['discount_type']?.toString();
+    final discountValue = product['discount_value'];
+
+    String discountLabel() {
+      if (discountType == 'percentage' && discountValue != null) {
+        final value = double.tryParse(discountValue.toString());
+        if (value != null) {
+          final formatted = value == value.roundToDouble()
+              ? value.toStringAsFixed(0)
+              : value.toStringAsFixed(2);
+          return '-$formatted%';
+        }
+      }
+
+      if (discountType == 'fixed') {
+        return isDe ? 'Angebot' : 'Sale';
+      }
+
+      return isDe ? 'Reduziert' : 'Discount';
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -250,9 +285,40 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      ProductImage(
-                        url: product['image_url'] as String?,
-                      ),
+                      ProductImage(url: product['image_url'] as String?),
+
+                      // Discount badge.
+                      if (hasDiscount)
+                        Positioned(
+                          top: 10,
+                          left: 10,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryGreen,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.12),
+                                  blurRadius: 5,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              discountLabel(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+
                       Positioned(
                         top: 6,
                         right: 6,
@@ -271,6 +337,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     ],
                   ),
                 ),
+
                 Padding(
                   padding: const EdgeInsets.all(12),
                   child: Column(
@@ -286,35 +353,66 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           color: scheme.onSurface,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 7),
+
+                      // Price and stock information.
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          if (price != null)
-                            Text(
-                              formatCents(price),
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.brandGoldDark,
-                              ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (hasDiscount)
+                                  Text(
+                                    formatCents(originalPrice),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      decoration: TextDecoration.lineThrough,
+                                      color: scheme.onSurface.withValues(
+                                        alpha: 0.55,
+                                      ),
+                                    ),
+                                  ),
+
+                                if (price != null)
+                                  Text(
+                                    formatCents(price),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: hasDiscount
+                                          ? scheme.error
+                                          : AppTheme.brandGoldDark,
+                                    ),
+                                  ),
+                              ],
                             ),
+                          ),
+
                           if (!inStock)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: scheme.error.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                AppLocalizations.of(context)?.outOfStock ?? 'Out of stock',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: scheme.error,
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: scheme.error.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  l10n?.outOfStock ?? 'Out of stock',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: scheme.error,
+                                  ),
                                 ),
                               ),
                             ),
@@ -350,10 +448,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           children: [
             Icon(Icons.error_outline_rounded, size: 48, color: scheme.error),
             const SizedBox(height: 12),
-            Text(
-              _error!,
-              style: TextStyle(color: scheme.onSurface),
-            ),
+            Text(_error!, style: TextStyle(color: scheme.onSurface)),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => _load(),
@@ -390,9 +485,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
             Text(
               l10n?.noProductsFound ?? 'No Products Found',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
@@ -539,7 +634,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
               selectedColor: AppTheme.primaryGreen,
               backgroundColor: isDark ? AppTheme.surfaceDark : Colors.white,
               labelStyle: TextStyle(
-                color: _categoryId == null ? Colors.white : AppTheme.primaryGreen,
+                color: _categoryId == null
+                    ? Colors.white
+                    : AppTheme.primaryGreen,
                 fontWeight: FontWeight.bold,
                 fontSize: 13,
               ),
@@ -600,10 +697,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
         decoration: BoxDecoration(
           color: AppTheme.cardColor(context),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: AppTheme.borderColor(context),
-            width: 1.1,
-          ),
+          border: Border.all(color: AppTheme.borderColor(context), width: 1.1),
         ),
         child: Row(
           children: [
@@ -627,7 +721,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   hintText: hint,
                   hintStyle: TextStyle(
                     fontSize: 13.5,
-                    color: AppTheme.textSecondary(context).withValues(alpha: 0.7),
+                    color: AppTheme.textSecondary(
+                      context,
+                    ).withValues(alpha: 0.7),
                   ),
                   border: InputBorder.none,
                   isDense: true,
@@ -658,7 +754,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
     return Scaffold(
       appBar: AppHeader(
         title: l10n?.navProducts ?? 'Shop',
-        subtitle: isDe ? 'Reine Bio-Ceylon-Kräuter & Tees' : 'Pure Organic Ceylon Botanicals',
+        subtitle: isDe
+            ? 'Reine Bio-Ceylon-Kräuter & Tees'
+            : 'Pure Organic Ceylon Botanicals',
         user: widget.user,
         showBackButton: Navigator.canPop(context),
       ),
@@ -675,10 +773,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             ),
         ],
       ),
-      bottomNavigationBar: AppBottomBar(
-        currentIndex: 1,
-        user: widget.user,
-      ),
+      bottomNavigationBar: AppBottomBar(currentIndex: 1, user: widget.user),
     );
   }
 }

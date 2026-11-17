@@ -28,11 +28,11 @@ class _VariantRow {
     String ean = '',
     this.active = true,
     this.stock,
-  })  : sku = TextEditingController(text: sku),
-        price = TextEditingController(text: price),
-        pack = TextEditingController(text: pack),
-        unit = TextEditingController(text: unit),
-        ean = TextEditingController(text: ean);
+  }) : sku = TextEditingController(text: sku),
+       price = TextEditingController(text: price),
+       pack = TextEditingController(text: pack),
+       unit = TextEditingController(text: unit),
+       ean = TextEditingController(text: ean);
 
   factory _VariantRow.fromJson(ProductFormData v) {
     final cents = v['price_cents'] as int;
@@ -47,7 +47,11 @@ class _VariantRow {
       active: v['active'] == true,
       stock: v['on_hand'] == null
           ? null
-          : {'on_hand': v['on_hand'], 'reserved': v['reserved'], 'available': v['available_quantity']},
+          : {
+              'on_hand': v['on_hand'],
+              'reserved': v['reserved'],
+              'available': v['available_quantity'],
+            },
     );
   }
 
@@ -61,7 +65,8 @@ class _VariantRow {
 }
 
 class AdminProductFormScreen extends StatefulWidget {
-  final int? productId; // null = create, otherwise edit
+  final int? productId;
+
   const AdminProductFormScreen({super.key, this.productId});
 
   @override
@@ -79,12 +84,21 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
   final _ingredients = TextEditingController();
   final _allergens = TextEditingController();
 
+  // Product discount.
+  final _discountValue = TextEditingController();
+  bool _discountEnabled = false;
+  String _discountType = 'percentage';
+
+  Map<String, String>? _originalDiscount;
+
   String _type = 'physical';
   String _status = 'draft';
   int? _taxRateId;
   int? _originalTaxRateId;
+
   final Set<int> _categoryIds = {};
   final List<_VariantRow> _variants = [];
+
   List<ProductFormData> _taxRates = [];
   List<ProductFormData> _categories = [];
   List<ProductFormData> _images = [];
@@ -97,6 +111,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
   String? _loadError;
   bool _saving = false;
   String? _error;
+
   Map<String, String> _serverErrors = {};
 
   bool get _editing => widget.productId != null;
@@ -105,11 +120,15 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
   bool get _imagesChanged {
     if (!_editing) return _images.isNotEmpty;
+
     final now = _imageIds;
+
     if (now.length != _originalImageIds.length) return true;
+
     for (var i = 0; i < now.length; i++) {
       if (now[i] != _originalImageIds[i]) return true;
     }
+
     return false;
   }
 
@@ -121,50 +140,98 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
   @override
   void dispose() {
-    for (final c in [_slug, _name, _desc, _ingredients, _allergens]) {
+    for (final c in [
+      _slug,
+      _name,
+      _desc,
+      _ingredients,
+      _allergens,
+      _discountValue,
+    ]) {
       c.dispose();
     }
+
     for (final v in _variants) {
       v.dispose();
     }
+
     super.dispose();
   }
 
   Future<void> _init() async {
     try {
       final api = ApiService.instance;
+
       final results = await Future.wait<Object>([
         api.adminTaxRates(),
         api.adminCategories(),
         if (_editing) api.adminGetProduct(widget.productId!),
       ]);
+
       if (!mounted) return;
 
       final taxRates = (results[0] as List<dynamic>).cast<ProductFormData>();
+
       final categories = (results[1] as List<dynamic>).cast<ProductFormData>();
 
       if (_editing) {
         final p = results[2] as ProductFormData;
+
         final tr = p['translations'];
-        final de = tr is Map<String, dynamic> ? tr['de'] as Map<String, dynamic>? : null;
+        final de = tr is Map<String, dynamic>
+            ? tr['de'] as Map<String, dynamic>?
+            : null;
 
         _slug.text = p['slug'] as String;
         _type = p['product_type'] as String;
         _status = p['status'] as String;
+
         _taxRateId = p['tax_rate_id'] as int;
         _originalTaxRateId = _taxRateId;
+
         _name.text = (de?['name'] as String?) ?? '';
         _desc.text = (de?['description'] as String?) ?? '';
         _ingredients.text = (de?['ingredients'] as String?) ?? '';
         _allergens.text = (de?['allergens'] as String?) ?? '';
+
         _seoTitle = de?['seo_title'] as String?;
         _seoDescription = de?['seo_description'] as String?;
+
         _categoryIds.addAll((p['category_ids'] as List<dynamic>).cast<int>());
-        _images = [for (final i in (p['images'] as List<dynamic>)) Map<String, dynamic>.from(i as Map)];
+
+        _images = [
+          for (final i in (p['images'] as List<dynamic>))
+            Map<String, dynamic>.from(i as Map),
+        ];
+
         _originalImageIds = _imageIds;
-        _variants.addAll((p['variants'] as List<dynamic>)
-            .cast<ProductFormData>()
-            .map(_VariantRow.fromJson));
+
+        _variants.addAll(
+          (p['variants'] as List<dynamic>).cast<ProductFormData>().map(
+            _VariantRow.fromJson,
+          ),
+        );
+
+        // Load the existing product-wide discount.
+        final rawDiscount = p['discount'];
+
+        if (rawDiscount is Map) {
+          final discount = Map<String, dynamic>.from(rawDiscount);
+
+          final type = discount['discount_type']?.toString();
+          final value = discount['discount_value']?.toString();
+
+          if ((type == 'percentage' || type == 'fixed') && value != null) {
+            _discountEnabled = true;
+            _discountType = type!;
+            _discountValue.text = value;
+
+            _originalDiscount = {
+              'discount_type': type,
+              'discount_value': _normaliseDiscountValue(value) ?? value,
+            };
+          }
+        }
 
         if (!taxRates.any((t) => t['id'] == _taxRateId)) {
           taxRates.add({
@@ -175,7 +242,10 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
           });
         }
       } else {
-        if (taxRates.isNotEmpty) _taxRateId = taxRates.first['id'] as int;
+        if (taxRates.isNotEmpty) {
+          _taxRateId = taxRates.first['id'] as int;
+        }
+
         _variants.add(_VariantRow());
       }
 
@@ -186,6 +256,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
       });
     } on ApiException catch (e) {
       if (!mounted) return;
+
       setState(() {
         _loadError = e.message;
         _loadingData = false;
@@ -197,6 +268,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
   String? _vSlug(String? v) {
     final s = (v ?? '').trim();
+
     return s.length <= 190 && RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)*$').hasMatch(s)
         ? null
         : 'Lowercase letters and numbers separated by single hyphens.';
@@ -204,13 +276,17 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
   String? _vName(String? v) {
     final s = (v ?? '').trim();
-    return s.isEmpty || s.length > 190 ? 'Name must be 1 to 190 characters.' : null;
+
+    return s.isEmpty || s.length > 190
+        ? 'Name must be 1 to 190 characters.'
+        : null;
   }
 
   String? _vMax(String? v, int max) =>
       (v ?? '').trim().length > max ? 'Maximum $max characters.' : null;
 
-  String? _vSku(String? v) => RegExp(r'^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$').hasMatch((v ?? '').trim())
+  String? _vSku(String? v) =>
+      RegExp(r'^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$').hasMatch((v ?? '').trim())
       ? null
       : 'Letters, numbers and . _ / - (maximum 100).';
 
@@ -219,14 +295,304 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
   String? _vPack(String? v) {
     final s = (v ?? '').trim().replaceAll(',', '.');
+
     if (s.isEmpty) return null;
-    final ok = RegExp(r'^\d{1,9}(\.\d{1,3})?$').hasMatch(s) && double.parse(s) >= 0.001;
+
+    final ok =
+        RegExp(r'^\d{1,9}(\.\d{1,3})?$').hasMatch(s) &&
+        double.parse(s) >= 0.001;
+
     return ok ? null : 'A number from 0.001 with at most 3 decimals.';
   }
 
   String? _vEan(String? v) {
     final s = (v ?? '').trim();
-    return s.isEmpty || RegExp(r'^[0-9]{8,14}$').hasMatch(s) ? null : '8 to 14 digits.';
+
+    return s.isEmpty || RegExp(r'^[0-9]{8,14}$').hasMatch(s)
+        ? null
+        : '8 to 14 digits.';
+  }
+
+  /// Normalises a discount value without using floating-point arithmetic.
+  /// For example: 15.5 becomes 15.50.
+  String? _normaliseDiscountValue(String raw) {
+    final value = raw.trim().replaceAll(',', '.');
+
+    if (!RegExp(r'^\d{1,10}(?:\.\d{1,2})?$').hasMatch(value)) {
+      return null;
+    }
+
+    final parts = value.split('.');
+    final whole = int.tryParse(parts[0]);
+
+    if (whole == null) return null;
+
+    final decimals = parts.length == 1 ? '00' : parts[1].padRight(2, '0');
+
+    return '$whole.$decimals';
+  }
+
+  int? _discountValueHundredths(String raw) {
+    final normalised = _normaliseDiscountValue(raw);
+
+    if (normalised == null) return null;
+
+    final parts = normalised.split('.');
+    final whole = int.parse(parts[0]);
+    final decimals = int.parse(parts[1]);
+
+    return whole * 100 + decimals;
+  }
+
+  String? _vDiscountValue(String? raw) {
+    if (!_discountEnabled) return null;
+
+    final value = _discountValueHundredths(raw ?? '');
+
+    if (value == null) {
+      return 'Enter a valid amount with up to 2 decimal places.';
+    }
+
+    if (value <= 0) {
+      return 'The discount must be greater than zero.';
+    }
+
+    if (_discountType == 'percentage' && value > 10000) {
+      return 'Percentage discount cannot exceed 100%.';
+    }
+
+    if (_discountType == 'fixed' && value > 100000000) {
+      return 'Fixed discount cannot exceed €1,000,000.00.';
+    }
+
+    return null;
+  }
+
+  // ---------- discount calculations and preview ----------
+
+  int _discountForVariant(int originalCents) {
+    if (!_discountEnabled || originalCents <= 0) return 0;
+
+    final value = _discountValueHundredths(_discountValue.text);
+
+    if (value == null || value <= 0) return 0;
+
+    int discountCents;
+
+    if (_discountType == 'percentage') {
+      // value is percentage in hundredths:
+      // 15.50% = 1550 basis points.
+      discountCents = (originalCents * value + 5000) ~/ 10000;
+    } else {
+      // Fixed discount applies to each variant's unit price.
+      discountCents = value;
+    }
+
+    return discountCents.clamp(0, originalCents);
+  }
+
+  String _formatMoney(int cents) => '€${(cents / 100).toStringAsFixed(2)}';
+
+  Widget _discountPreview() {
+    final theme = Theme.of(context);
+
+    if (!_discountEnabled) {
+      return const SizedBox.shrink();
+    }
+
+    final value = _discountValueHundredths(_discountValue.text);
+
+    if (value == null || value <= 0) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Text(
+          'Enter a valid discount to see the estimated variant prices.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+      );
+    }
+
+    if (_variants.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8),
+        child: Text('Add a variant to preview its discounted price.'),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 14),
+        Text(
+          'Estimated variant prices',
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        for (var i = 0; i < _variants.length; i++)
+          _variantPricePreview(_variants[i], i),
+        const SizedBox(height: 6),
+        Text(
+          'These are estimates. The backend calculates the final prices.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _variantPricePreview(_VariantRow variant, int index) {
+    final theme = Theme.of(context);
+    final originalCents = parseEuroToCents(variant.price.text);
+
+    if (originalCents == null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                variant.sku.text.trim().isEmpty
+                    ? 'Variant #${index + 1}'
+                    : variant.sku.text.trim(),
+              ),
+            ),
+            Text(
+              'Enter a valid price',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final discountCents = _discountForVariant(originalCents);
+    final discountedCents = originalCents - discountCents;
+
+    final label = variant.sku.text.trim().isEmpty
+        ? 'Variant #${index + 1}'
+        : variant.sku.text.trim();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
+          Text(
+            _formatMoney(originalCents),
+            style: theme.textTheme.bodySmall?.copyWith(
+              decoration: TextDecoration.lineThrough,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            _formatMoney(discountedCents),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.secondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _discountSection() {
+    final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader(
+          context,
+          'Product Discount',
+          subtitle:
+              'The same discount rule applies to every variant. Original prices are preserved.',
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          activeColor: goldColor,
+          title: const Text('Enable product discount'),
+          subtitle: const Text(
+            'Customers will see the discounted price throughout the shop.',
+          ),
+          value: _discountEnabled,
+          onChanged: (enabled) {
+            setState(() {
+              _discountEnabled = enabled;
+              _serverErrors.remove('discount');
+              _serverErrors.remove('discount.discount_type');
+              _serverErrors.remove('discount.discount_value');
+            });
+          },
+        ),
+        if (_discountEnabled) ...[
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: _discountType,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: 'Discount Type',
+              errorText: _serverErrors['discount.discount_type'],
+            ),
+            items: const [
+              DropdownMenuItem(
+                value: 'percentage',
+                child: Text('Percentage (%)'),
+              ),
+              DropdownMenuItem(value: 'fixed', child: Text('Fixed amount (€)')),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+
+              setState(() {
+                _discountType = value;
+                _serverErrors.remove('discount.discount_type');
+                _serverErrors.remove('discount.discount_value');
+              });
+            },
+          ),
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: _discountValue,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            validator: _vDiscountValue,
+            forceErrorText: _serverErrors['discount.discount_value'],
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              labelText: _discountType == 'percentage'
+                  ? 'Discount Percentage (%)'
+                  : 'Discount Amount (€)',
+              hintText: _discountType == 'percentage' ? '15.00' : '5.00',
+              helperText: _discountType == 'percentage'
+                  ? 'Enter a value between 0.01% and 100%.'
+                  : 'Deducted from each variant unit price.',
+              errorText: _serverErrors['discount'],
+            ),
+          ),
+          _discountPreview(),
+        ],
+        if (!_discountEnabled && _originalDiscount != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'The existing discount will be removed when you save.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   // ---------- variants and stock ----------
@@ -235,42 +601,84 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
   void _removeVariant(int i) {
     final row = _variants[i];
+
     setState(() => _variants.removeAt(i));
+
     WidgetsBinding.instance.addPostFrameCallback((_) => row.dispose());
   }
 
   Future<void> _openStock(_VariantRow v) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => AdminStockScreen(variantId: v.id!, title: v.sku.text)),
+      MaterialPageRoute(
+        builder: (_) => AdminStockScreen(variantId: v.id!, title: v.sku.text),
+      ),
     );
+
     try {
       final data = await ApiService.instance.adminVariantStock(v.id!);
-      if (mounted) setState(() => v.stock = data['totals'] as ProductFormData);
+
+      if (mounted) {
+        setState(() {
+          v.stock = data['totals'] as ProductFormData;
+        });
+      }
     } on ApiException {
-      // Keep old numbers if call fails
+      // Keep old numbers if call fails.
     }
   }
 
   String _stockText(ProductFormData s) =>
-      '${formatQuantity(s['on_hand'] as num)} on hand · ${formatQuantity(s['reserved'] as num)} reserved · '
+      '${formatQuantity(s['on_hand'] as num)} on hand · '
+      '${formatQuantity(s['reserved'] as num)} reserved · '
       '${formatQuantity(s['available'] as num)} available';
 
   // ---------- save ----------
 
   bool _isFieldKey(String k) =>
-      const {'slug', 'product_type', 'status', 'tax_rate_id'}.contains(k) ||
+      const {
+        'slug',
+        'product_type',
+        'status',
+        'tax_rate_id',
+        'discount',
+      }.contains(k) ||
+      k.startsWith('discount.') ||
       k.startsWith('translations.de.') ||
       RegExp(r'^variants\.\d+\.').hasMatch(k);
+
+  Map<String, String> _currentDiscount() => {
+    'discount_type': _discountType,
+    'discount_value': _normaliseDiscountValue(_discountValue.text) ?? '',
+  };
+
+  bool get _discountChanged {
+    if (!_editing) return _discountEnabled;
+
+    if (!_discountEnabled) {
+      return _originalDiscount != null;
+    }
+
+    final current = _currentDiscount();
+
+    if (_originalDiscount == null) return true;
+
+    return current['discount_type'] != _originalDiscount!['discount_type'] ||
+        current['discount_value'] != _originalDiscount!['discount_value'];
+  }
 
   Future<void> _save() async {
     setState(() {
       _error = null;
       _serverErrors = {};
     });
+
     if (!_form.currentState!.validate()) return;
+
     if (_status == 'published' && !_variants.any((v) => v.active)) {
-      setState(() => _error = 'A published product needs at least one active variant.');
+      setState(() {
+        _error = 'A published product needs at least one active variant.';
+      });
       return;
     }
 
@@ -282,7 +690,8 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
       'slug': _slug.text.trim(),
       'product_type': _type,
       'status': _status,
-      if (!_editing || _taxRateId != _originalTaxRateId) 'tax_rate_id': _taxRateId,
+      if (!_editing || _taxRateId != _originalTaxRateId)
+        'tax_rate_id': _taxRateId,
       'translations': {
         'de': {
           'name': _name.text.trim(),
@@ -300,7 +709,9 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
             if (v.id != null) 'id': v.id,
             'sku': v.sku.text.trim(),
             'price_cents': parseEuroToCents(v.price.text)!,
-            'pack_quantity': v.pack.text.trim().isEmpty ? null : v.pack.text.trim().replaceAll(',', '.'),
+            'pack_quantity': v.pack.text.trim().isEmpty
+                ? null
+                : v.pack.text.trim().replaceAll(',', '.'),
             'unit': orNull(v.unit.text),
             'ean': orNull(v.ean.text),
             'active': v.active,
@@ -309,18 +720,32 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
       if (_imagesChanged) 'media_ids': _imageIds,
     };
 
+    // Only send the discount field when creating, changing,
+    // or explicitly removing a discount.
+    if (_discountChanged) {
+      body['discount'] = _discountEnabled ? _currentDiscount() : null;
+    }
+
     try {
       if (_editing) {
         await ApiService.instance.adminUpdateProduct(widget.productId!, body);
       } else {
         await ApiService.instance.adminCreateProduct(body);
       }
+
       if (!mounted) return;
+
       Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (!mounted) return;
+
       final errs = e.fieldErrors;
-      final general = errs.entries.where((x) => !_isFieldKey(x.key)).map((x) => x.value).join('\n');
+
+      final general = errs.entries
+          .where((x) => !_isFieldKey(x.key))
+          .map((x) => x.value)
+          .join('\n');
+
       setState(() {
         _serverErrors = errs;
         _error = errs.isEmpty ? e.message : (general.isEmpty ? null : general);
@@ -331,8 +756,13 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
   // ---------- UI Helper Components ----------
 
-  Widget _sectionHeader(BuildContext context, String title, {String? subtitle}) {
+  Widget _sectionHeader(
+    BuildContext context,
+    String title, {
+    String? subtitle,
+  }) {
     final theme = Theme.of(context);
+
     return Padding(
       padding: const EdgeInsets.only(top: 12, bottom: 8),
       child: Column(
@@ -374,14 +804,13 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
         controller: c,
         maxLines: maxLines,
         keyboardType: type,
-        textInputAction: maxLines == 1 ? TextInputAction.next : TextInputAction.newline,
+        textInputAction: maxLines == 1
+            ? TextInputAction.next
+            : TextInputAction.newline,
         autovalidateMode: AutovalidateMode.onUserInteraction,
         validator: validator,
         forceErrorText: _serverErrors[serverKey],
-        decoration: InputDecoration(
-          labelText: label,
-          helperText: helper,
-        ),
+        decoration: InputDecoration(labelText: label, helperText: helper),
       ),
     );
   }
@@ -390,7 +819,9 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
     final v = _variants[i];
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
+
     const money = TextInputType.numberWithOptions(decimal: true);
+
     String? server(String f) => _serverErrors['variants.$i.$f'];
 
     return Container(
@@ -400,9 +831,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.dividerColor.withValues(alpha: 0.15),
-        ),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -420,7 +849,11 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
               if (v.id == null)
                 IconButton(
                   tooltip: 'Remove variant',
-                  icon: Icon(Icons.delete_outline, size: 20, color: theme.colorScheme.error.withValues(alpha: 0.8)),
+                  icon: Icon(
+                    Icons.delete_outline,
+                    size: 20,
+                    color: theme.colorScheme.error.withValues(alpha: 0.8),
+                  ),
                   onPressed: () => _removeVariant(i),
                 ),
             ],
@@ -437,6 +870,9 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                   validator: _vSku,
                   forceErrorText: server('sku'),
                   decoration: const InputDecoration(labelText: 'SKU'),
+                  onChanged: (_) {
+                    if (_discountEnabled) setState(() {});
+                  },
                 ),
               ),
               const SizedBox(width: 12),
@@ -452,6 +888,9 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                     labelText: 'Price (€)',
                     helperText: 'incl. VAT',
                   ),
+                  onChanged: (_) {
+                    if (_discountEnabled) setState(() {});
+                  },
                 ),
               ),
             ],
@@ -477,7 +916,9 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   validator: (x) => _vMax(x, 20),
                   forceErrorText: server('unit'),
-                  decoration: const InputDecoration(labelText: 'Unit (g, ml...)'),
+                  decoration: const InputDecoration(
+                    labelText: 'Unit (g, ml...)',
+                  ),
                 ),
               ),
             ],
@@ -496,7 +937,9 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.3,
+                ),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -505,16 +948,26 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                     child: Text(
                       _stockText(v.stock!),
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.7,
+                        ),
                       ),
                     ),
                   ),
                   TextButton.icon(
                     onPressed: () => _openStock(v),
-                    icon: Icon(Icons.warehouse_outlined, size: 16, color: goldColor),
+                    icon: Icon(
+                      Icons.warehouse_outlined,
+                      size: 16,
+                      color: goldColor,
+                    ),
                     label: Text(
                       'Stock',
-                      style: TextStyle(color: goldColor, fontSize: 13, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: goldColor,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -527,7 +980,9 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
             activeColor: goldColor,
             title: Text(
               'Active variant',
-              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
             ),
             value: v.active,
             onChanged: (x) => setState(() => v.active = x),
@@ -545,9 +1000,12 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
     if (_loadingData) {
       return Scaffold(
         appBar: AppBar(title: Text(_editing ? 'Edit product' : 'New product')),
-        body: Center(child: CircularProgressIndicator(color: goldColor, strokeWidth: 2)),
+        body: Center(
+          child: CircularProgressIndicator(color: goldColor, strokeWidth: 2),
+        ),
       );
     }
+
     if (_loadError != null) {
       return Scaffold(
         appBar: AppBar(title: Text(_editing ? 'Edit product' : 'New product')),
@@ -557,9 +1015,17 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
+                Icon(
+                  Icons.error_outline,
+                  size: 40,
+                  color: theme.colorScheme.error,
+                ),
                 const SizedBox(height: 12),
-                Text(_loadError!, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+                Text(
+                  _loadError!,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium,
+                ),
                 const SizedBox(height: 16),
                 TextButton.icon(
                   onPressed: () {
@@ -580,7 +1046,9 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
       );
     }
 
-    final endedRateSelected = _taxRates.any((t) => t['id'] == _taxRateId && t['ended'] == true);
+    final endedRateSelected = _taxRates.any(
+      (t) => t['id'] == _taxRateId && t['ended'] == true,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -593,7 +1061,13 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
           padding: const EdgeInsets.all(20),
           children: [
             _sectionHeader(context, 'Basic Settings'),
-            _text('slug', 'Slug (URL name)', _slug, _vSlug, helper: 'e.g. ceylon-zimt'),
+            _text(
+              'slug',
+              'Slug (URL name)',
+              _slug,
+              _vSlug,
+              helper: 'e.g. ceylon-zimt',
+            ),
             Padding(
               padding: const EdgeInsets.only(bottom: 14),
               child: DropdownButtonFormField<String>(
@@ -604,7 +1078,10 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                 ),
                 items: [
                   for (final t in _types)
-                    DropdownMenuItem(value: t, child: Text(t.replaceAll('_', ' ')))
+                    DropdownMenuItem(
+                      value: t,
+                      child: Text(t.replaceAll('_', ' ')),
+                    ),
                 ],
                 onChanged: (v) => setState(() => _type = v!),
               ),
@@ -615,11 +1092,15 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                 value: _status,
                 decoration: InputDecoration(
                   labelText: 'Status',
-                  helperText: 'Publishing requires active text and at least one active variant.',
+                  helperText:
+                      'Publishing requires active text and at least one active variant.',
                   helperMaxLines: 2,
                   errorText: _serverErrors['status'],
                 ),
-                items: [for (final s in _statuses) DropdownMenuItem(value: s, child: Text(s))],
+                items: [
+                  for (final s in _statuses)
+                    DropdownMenuItem(value: s, child: Text(s)),
+                ],
                 onChanged: (v) => setState(() => _status = v!),
               ),
             ),
@@ -642,7 +1123,8 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                     DropdownMenuItem(
                       value: t['id'] as int,
                       child: Text(
-                        '${t['code']} (${t['rate_percent']}%)${t['ended'] == true ? ' · ended' : ''}',
+                        '${t['code']} (${t['rate_percent']}%)'
+                        '${t['ended'] == true ? ' · ended' : ''}',
                       ),
                     ),
                 ],
@@ -651,18 +1133,37 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
             ),
             _sectionHeader(context, 'Product Details'),
             _text('translations.de.name', 'Name', _name, _vName),
-            _text('translations.de.description', 'Description (optional)', _desc, (v) => _vMax(v, 20000),
-                maxLines: 4),
-            _text('translations.de.ingredients', 'Ingredients (optional)', _ingredients, (v) => _vMax(v, 5000),
-                maxLines: 3),
-            _text('translations.de.allergens', 'Allergens (optional)', _allergens, (v) => _vMax(v, 5000),
-                maxLines: 2),
+            _text(
+              'translations.de.description',
+              'Description (optional)',
+              _desc,
+              (v) => _vMax(v, 20000),
+              maxLines: 4,
+            ),
+            _text(
+              'translations.de.ingredients',
+              'Ingredients (optional)',
+              _ingredients,
+              (v) => _vMax(v, 5000),
+              maxLines: 3,
+            ),
+            _text(
+              'translations.de.allergens',
+              'Allergens (optional)',
+              _allergens,
+              (v) => _vMax(v, 5000),
+              maxLines: 2,
+            ),
             _sectionHeader(
               context,
               'Images',
-              subtitle: 'The first image will be set as the primary catalog cover.',
+              subtitle:
+                  'The first image will be set as the primary catalog cover.',
             ),
-            ImageManager(images: _images, onChanged: (list) => setState(() => _images = list)),
+            ImageManager(
+              images: _images,
+              onChanged: (list) => setState(() => _images = list),
+            ),
             if (_categories.isNotEmpty) ...[
               _sectionHeader(context, 'Categories'),
               Wrap(
@@ -671,21 +1172,30 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                 children: [
                   for (final c in _categories)
                     FilterChip(
-                      label: Text('${c['name']}${c['active'] == true ? '' : ' (hidden)'}'),
+                      label: Text(
+                        '${c['name']}'
+                        '${c['active'] == true ? '' : ' (hidden)'}',
+                      ),
                       selected: _categoryIds.contains(c['id']),
                       showCheckmark: false,
                       side: BorderSide(
                         color: _categoryIds.contains(c['id'])
                             ? goldColor
-                            : theme.colorScheme.onSurface.withValues(alpha: 0.15),
+                            : theme.colorScheme.onSurface.withValues(
+                                alpha: 0.15,
+                              ),
                       ),
                       selectedColor: goldColor.withValues(alpha: 0.15),
                       labelStyle: TextStyle(
                         fontSize: 13,
                         color: _categoryIds.contains(c['id'])
                             ? goldColor
-                            : theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                        fontWeight: _categoryIds.contains(c['id']) ? FontWeight.w600 : FontWeight.normal,
+                            : theme.colorScheme.onSurface.withValues(
+                                alpha: 0.7,
+                              ),
+                        fontWeight: _categoryIds.contains(c['id'])
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                       ),
                       onSelected: (on) => setState(() {
                         final id = c['id'] as int;
@@ -698,7 +1208,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
             _sectionHeader(
               context,
               'Variants',
-              subtitle: 'Configure pack sizes, SKUs, and pricing.',
+              subtitle: 'Configure pack sizes, SKUs, and original pricing.',
             ),
             for (var i = 0; i < _variants.length; i++) _variantCard(i),
             OutlinedButton.icon(
@@ -711,12 +1221,20 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
             ),
+
+            // Product discount is configured after variant prices,
+            // allowing the preview to show every variant.
+            _discountSection(),
+
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: Text(
                   _error!,
-                  style: TextStyle(color: theme.colorScheme.error, fontSize: 13),
+                  style: TextStyle(
+                    color: theme.colorScheme.error,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             const SizedBox(height: 24),
