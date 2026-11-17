@@ -125,6 +125,8 @@ class ApiService {
     required String email,
     required String password,
     required String passwordConfirmation,
+    String? birthday,
+    String preferredLanguage = 'de',
   }) async {
     await _send(
       'POST',
@@ -136,6 +138,8 @@ class ApiService {
         'email': email,
         'password': password,
         'password_confirmation': passwordConfirmation,
+        'birthday': birthday,
+        'preferred_language': preferredLanguage,
       },
     );
   }
@@ -202,6 +206,9 @@ class ApiService {
     required String firstName,
     required String lastName,
     required String mobileNumber,
+    String? birthday,
+    String? preferredLanguage,
+    bool clearBirthday = false,
   }) async {
     final res = await _send(
       'PATCH',
@@ -211,6 +218,8 @@ class ApiService {
         'first_name': firstName,
         'last_name': lastName,
         'mobile_number': mobileNumber,
+        if (birthday != null || clearBirthday) 'birthday': birthday,
+        if (preferredLanguage != null) 'preferred_language': preferredLanguage,
       },
     );
     return (res['data'] as Map<String, dynamic>)['user']
@@ -1172,5 +1181,32 @@ class ApiService {
     final res = await _send('GET', '/api/checkout/vouchers', auth: true);
     return ((res['data'] as Map<String, dynamic>)['vouchers'] as List<dynamic>)
         .cast<Map<String, dynamic>>();
+  }
+
+  Future<List<Map<String, dynamic>>> adminListMemberships() async {
+    final res = await _send('GET', '/api/admin/memberships', auth: true);
+    final list =
+        (res['data'] as Map<String, dynamic>)['memberships'] as List<dynamic>;
+    return list.cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>> adminGetMembership(int id) async {
+    final res = await _send('GET', '/api/admin/memberships/$id', auth: true);
+    return (res['data'] as Map<String, dynamic>)['membership']
+        as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> adminUpdateMembership(
+    int id,
+    Map<String, dynamic> body,
+  ) async {
+    final res = await _send(
+      'PATCH',
+      '/api/admin/memberships/$id',
+      auth: true,
+      body: body,
+    );
+    return (res['data'] as Map<String, dynamic>)['membership']
+        as Map<String, dynamic>;
   }
 }

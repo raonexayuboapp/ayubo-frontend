@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -50,14 +51,17 @@ class _CompactProductCardState extends State<CompactProductCard> {
     if (_adding) return;
 
     final product = widget.product;
-    final variantId = (product['variants'] as List<dynamic>?)?.firstOrNull?['id'] as int? ??
-        (product['id'] as int);
+    final variantId =
+        (product['variants'] as List<dynamic>?)?.firstOrNull?['id'] as int? ??
+            (product['id'] as int);
+
     final name = product['name'] as String? ?? 'Product';
     final l10n = AppLocalizations.of(context);
     final isDe = l10n?.localeName.startsWith('de') ?? false;
 
     if (!await ApiService.instance.hasToken()) {
       if (!mounted) return;
+
       final loggedUser = await showAuthPrompt(
         context,
         title: l10n?.addToCart ?? 'Add to Cart',
@@ -65,6 +69,7 @@ class _CompactProductCardState extends State<CompactProductCard> {
             ? 'Melden Sie sich an oder erstellen Sie ein Konto, um "$name" in Ihren Warenkorb zu legen.'
             : 'Sign in or create an account to add "$name" to your cart.',
       );
+
       if (loggedUser == null || !mounted) return;
     }
 
@@ -72,7 +77,9 @@ class _CompactProductCardState extends State<CompactProductCard> {
 
     try {
       await ApiService.instance.addToCart(variantId, 1);
+
       if (!mounted) return;
+
       final count = CartState.instance.count.value;
       widget.onAddedToCart?.call();
 
@@ -80,27 +87,55 @@ class _CompactProductCardState extends State<CompactProductCard> {
         ..clearSnackBars()
         ..showSnackBar(
           SnackBar(
-            content: Text(
-              isDe
-                  ? '"$name" wurde dem Warenkorb hinzugefügt ($count Artikel).'
-                  : '"$name" added to your cart ($count items).',
-            ),
+            duration: const Duration(seconds: 4),
             backgroundColor: AppTheme.primaryGreen,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            action: SnackBarAction(
-              label: isDe ? 'Warenkorb' : 'View Cart',
-              textColor: AppTheme.brandGold,
-              onPressed: () => AppBottomBar.open(context, 3, widget.user ?? const {}),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            content: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    isDe
+                        ? '"$name" wurde dem Warenkorb hinzugefügt ($count Artikel).'
+                        : '"$name" added to your cart ($count items).',
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    AppBottomBar.open(
+                      context,
+                      3,
+                      widget.user ?? const {},
+                    );
+                  },
+                  child: Text(
+                    isDe ? 'Warenkorb' : 'View Cart',
+                    style: const TextStyle(
+                      color: AppTheme.brandGold,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         );
     } on ApiException catch (e) {
       if (mounted && e.statusCode != 401) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            duration: const Duration(seconds: 3),
+          ),
+        );
       }
     } finally {
-      if (mounted) setState(() => _adding = false);
+      if (mounted) {
+        setState(() => _adding = false);
+      }
     }
   }
 
@@ -134,15 +169,12 @@ class _CompactProductCardState extends State<CompactProductCard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Product Image with 1:1 Aspect Ratio + Badges Overlay
               AspectRatio(
                 aspectRatio: 1.05,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
                     ProductImage(url: imageUrl),
-
-                    // Top-Right Favourite Button
                     Positioned(
                       top: 6,
                       right: 6,
@@ -155,14 +187,15 @@ class _CompactProductCardState extends State<CompactProductCard> {
                         },
                       ),
                     ),
-
-                    // Stock Status Badge
                     if (!inStock)
                       Positioned(
                         bottom: 6,
                         left: 6,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.black.withValues(alpha: 0.8),
                             borderRadius: BorderRadius.circular(6),
@@ -180,15 +213,12 @@ class _CompactProductCardState extends State<CompactProductCard> {
                   ],
                 ),
               ),
-
-              // Product Info & Price
               Padding(
                 padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Product Name (2 lines max)
                     Text(
                       name,
                       maxLines: 2,
@@ -201,8 +231,6 @@ class _CompactProductCardState extends State<CompactProductCard> {
                       ),
                     ),
                     const SizedBox(height: 6),
-
-                    // Price & Quick Add Button Row
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -213,12 +241,12 @@ class _CompactProductCardState extends State<CompactProductCard> {
                             style: TextStyle(
                               fontSize: 14.5,
                               fontWeight: FontWeight.bold,
-                              color: isDark ? AppTheme.brandGoldLight : AppTheme.brandGoldDark,
+                              color: isDark
+                                  ? AppTheme.brandGoldLight
+                                  : AppTheme.brandGoldDark,
                             ),
                           ),
                         ),
-
-                        // Add to Cart Button
                         if (inStock)
                           InkWell(
                             onTap: _adding ? null : _addToCart,
@@ -232,22 +260,23 @@ class _CompactProductCardState extends State<CompactProductCard> {
                               ),
                               child: _adding
                                   ? const Center(
-                                      child: SizedBox(
-                                        width: 14,
-                                        height: 14,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(
-                                            Color(0xFF1B4332),
-                                          ),
-                                        ),
-                                      ),
-                                    )
-                                  : const Icon(
-                                      Icons.add_rounded,
-                                      size: 18,
-                                      color: Color(0xFF1B4332),
+                                child: SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor:
+                                    AlwaysStoppedAnimation<Color>(
+                                      Color(0xFF1B4332),
                                     ),
+                                  ),
+                                ),
+                              )
+                                  : const Icon(
+                                Icons.add_rounded,
+                                size: 18,
+                                color: Color(0xFF1B4332),
+                              ),
                             ),
                           ),
                       ],
@@ -262,4 +291,3 @@ class _CompactProductCardState extends State<CompactProductCard> {
     );
   }
 }
-

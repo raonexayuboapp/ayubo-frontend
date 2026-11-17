@@ -13,10 +13,7 @@ import 'verify_screen.dart';
 class RegisterScreen extends StatefulWidget {
   final bool returnUserOnSuccess;
 
-  const RegisterScreen({
-    super.key,
-    this.returnUserOnSuccess = false,
-  });
+  const RegisterScreen({super.key, this.returnUserOnSuccess = false});
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -30,6 +27,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
+  DateTime? _birthday;
+  String _preferredLanguage = 'de';
   bool _loading = false;
   String? _error;
   Map<String, String> _serverErrors = {};
@@ -61,16 +60,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
         email: email,
         password: _password.text,
         passwordConfirmation: _confirm.text,
+        birthday: _birthday == null ? null : _formatDate(_birthday!),
+        preferredLanguage: _preferredLanguage,
       );
       if (!mounted) return;
       if (widget.returnUserOnSuccess && Navigator.canPop(context)) {
         final user = await Navigator.push<Map<String, dynamic>>(
           context,
           MaterialPageRoute(
-            builder: (_) => VerifyScreen(
-              email: email,
-              returnUserOnSuccess: true,
-            ),
+            builder: (_) =>
+                VerifyScreen(email: email, returnUserOnSuccess: true),
           ),
         );
         if (user != null && mounted) {
@@ -87,6 +86,167 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _loading = false;
       });
     }
+  }
+
+  String _formatDate(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
+  }
+
+  String _displayDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    return '$day/$month/${date.year}';
+  }
+
+  Future<void> _selectBirthday() async {
+    final now = DateTime.now();
+    final initialDate =
+        _birthday ?? DateTime(now.year - 18, now.month, now.day);
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(1900),
+      lastDate: now,
+      helpText: 'Select your birthday',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(
+              context,
+            ).colorScheme.copyWith(primary: AppTheme.primaryGreen),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (selected != null && mounted) {
+      setState(() {
+        _birthday = selected;
+        _serverErrors.remove('birthday');
+      });
+    }
+  }
+
+  Widget _birthdayField() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: InkWell(
+        onTap: _selectBirthday,
+        borderRadius: BorderRadius.circular(16),
+        child: InputDecorator(
+          decoration: InputDecoration(
+            labelText: 'Birthday (optional)',
+            hintText: 'Select your date of birth',
+            prefixIcon: const Icon(
+              Icons.cake_outlined,
+              color: AppTheme.primaryGreen,
+              size: 20,
+            ),
+            suffixIcon: _birthday == null
+                ? const Icon(Icons.calendar_month_outlined)
+                : IconButton(
+                    tooltip: 'Clear birthday',
+                    onPressed: () => setState(() {
+                      _birthday = null;
+                      _serverErrors.remove('birthday');
+                    }),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+            errorText: _serverErrors['birthday'],
+            filled: true,
+            fillColor: isDark
+                ? AppTheme.bgDark.withValues(alpha: 0.5)
+                : AppTheme.bgLight,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(
+                color: scheme.outline.withValues(alpha: 0.15),
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(
+                color: AppTheme.primaryGreen,
+                width: 1.5,
+              ),
+            ),
+          ),
+          child: Text(
+            _birthday == null
+                ? 'Choose your birthday'
+                : _displayDate(_birthday!),
+            style: TextStyle(
+              color: _birthday == null
+                  ? scheme.onSurface.withValues(alpha: 0.55)
+                  : scheme.onSurface,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _languageField() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: DropdownButtonFormField<String>(
+        value: _preferredLanguage,
+        decoration: InputDecoration(
+          labelText: 'Preferred language',
+          prefixIcon: const Icon(
+            Icons.language_rounded,
+            color: AppTheme.primaryGreen,
+            size: 20,
+          ),
+          filled: true,
+          fillColor: isDark
+              ? AppTheme.bgDark.withValues(alpha: 0.5)
+              : AppTheme.bgLight,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(
+              color: scheme.outline.withValues(alpha: 0.15),
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(
+              color: AppTheme.primaryGreen,
+              width: 1.5,
+            ),
+          ),
+        ),
+        items: const [
+          DropdownMenuItem(value: 'de', child: Text('German')),
+          DropdownMenuItem(value: 'en', child: Text('English')),
+        ],
+        onChanged: (value) {
+          if (value != null) {
+            setState(() {
+              _preferredLanguage = value;
+              _serverErrors.remove('preferred_language');
+            });
+          }
+        },
+      ),
+    );
   }
 
   Widget _text(
@@ -116,11 +276,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: icon != null
-              ? Icon(
-                  icon,
-                  color: AppTheme.primaryGreen,
-                  size: 20,
-                )
+              ? Icon(icon, color: AppTheme.primaryGreen, size: 20)
               : null,
           filled: true,
           fillColor: isDark
@@ -171,7 +327,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               height: 320,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppTheme.primaryGreen.withValues(alpha: isDark ? 0.2 : 0.08),
+                color: AppTheme.primaryGreen.withValues(
+                  alpha: isDark ? 0.2 : 0.08,
+                ),
               ),
             ),
           ),
@@ -183,7 +341,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               height: 340,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppTheme.brandGold.withValues(alpha: isDark ? 0.12 : 0.07),
+                color: AppTheme.brandGold.withValues(
+                  alpha: isDark ? 0.12 : 0.07,
+                ),
               ),
             ),
           ),
@@ -192,7 +352,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 24,
+                ),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 480),
                   child: Column(
@@ -201,52 +364,68 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     children: [
                       // Gold Logo Branding Container
                       Center(
-                        child: Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isDark ? AppTheme.surfaceDark : Colors.white,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppTheme.brandGold.withValues(alpha: 0.35),
-                                blurRadius: 36,
-                                spreadRadius: 4,
-                              ),
-                              BoxShadow(
-                                color: AppTheme.primaryGreen.withValues(alpha: 0.12),
-                                blurRadius: 18,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                            border: Border.all(
-                              color: AppTheme.brandGold.withValues(alpha: 0.7),
-                              width: 2,
-                            ),
-                          ),
-                          child: Image.asset(
-                            'assets/images/Ayubo_logo.png',
-                            width: 85,
-                            height: 85,
-                            fit: BoxFit.contain,
-                          ),
-                        ).animate().fadeIn(duration: 600.ms).scale(
-                              begin: const Offset(0.8, 0.8),
-                              end: const Offset(1.0, 1.0),
-                              curve: Curves.easeOutBack,
-                            ),
+                        child:
+                            Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isDark
+                                        ? AppTheme.surfaceDark
+                                        : Colors.white,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppTheme.brandGold.withValues(
+                                          alpha: 0.35,
+                                        ),
+                                        blurRadius: 36,
+                                        spreadRadius: 4,
+                                      ),
+                                      BoxShadow(
+                                        color: AppTheme.primaryGreen.withValues(
+                                          alpha: 0.12,
+                                        ),
+                                        blurRadius: 18,
+                                        spreadRadius: 2,
+                                      ),
+                                    ],
+                                    border: Border.all(
+                                      color: AppTheme.brandGold.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: Image.asset(
+                                    'assets/images/Ayubo_logo.png',
+                                    width: 85,
+                                    height: 85,
+                                    fit: BoxFit.contain,
+                                  ),
+                                )
+                                .animate()
+                                .fadeIn(duration: 600.ms)
+                                .scale(
+                                  begin: const Offset(0.8, 0.8),
+                                  end: const Offset(1.0, 1.0),
+                                  curve: Curves.easeOutBack,
+                                ),
                       ),
                       const SizedBox(height: 20),
 
                       // Section Header
                       Text(
-                        'Join Ayubo Organics',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: scheme.onSurface,
-                              letterSpacing: -0.5,
-                            ),
-                      ).animate().fadeIn(delay: 150.ms).slideY(begin: 0.2, end: 0),
+                            'Join Ayubo Organics',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.headlineMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: scheme.onSurface,
+                                  letterSpacing: -0.5,
+                                ),
+                          )
+                          .animate()
+                          .fadeIn(delay: 150.ms)
+                          .slideY(begin: 0.2, end: 0),
 
                       const SizedBox(height: 6),
 
@@ -267,7 +446,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(24),
                           side: BorderSide(
-                            color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                            color: isDark
+                                ? AppTheme.borderDark
+                                : AppTheme.borderLight,
                             width: 1,
                           ),
                         ),
@@ -287,8 +468,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           'first_name',
                                           'First name',
                                           _first,
-                                          (v) => Validators.name(v, 'First name'),
-                                          hints: const [AutofillHints.givenName],
+                                          (v) =>
+                                              Validators.name(v, 'First name'),
+                                          hints: const [
+                                            AutofillHints.givenName,
+                                          ],
                                           icon: Icons.person_outline_rounded,
                                         ),
                                       ),
@@ -298,8 +482,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                           'last_name',
                                           'Last name',
                                           _last,
-                                          (v) => Validators.name(v, 'Last name'),
-                                          hints: const [AutofillHints.familyName],
+                                          (v) =>
+                                              Validators.name(v, 'Last name'),
+                                          hints: const [
+                                            AutofillHints.familyName,
+                                          ],
                                         ),
                                       ),
                                     ],
@@ -310,9 +497,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     _mobile,
                                     Validators.mobile,
                                     type: TextInputType.phone,
-                                    hints: const [AutofillHints.telephoneNumber],
+                                    hints: const [
+                                      AutofillHints.telephoneNumber,
+                                    ],
                                     icon: Icons.phone_outlined,
                                   ),
+                                  _birthdayField(),
+                                  _languageField(),
                                   _text(
                                     'email',
                                     'Email address',
@@ -330,8 +521,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       isNew: true,
                                       action: TextInputAction.next,
                                       serverError: _serverErrors['password'],
-                                      validator: (v) =>
-                                          Validators.password(v, email: _email.text),
+                                      validator: (v) => Validators.password(
+                                        v,
+                                        email: _email.text,
+                                      ),
                                     ),
                                   ),
                                   Padding(
@@ -342,8 +535,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ),
                                     child: Text(
                                       '8+ characters with at least one letter and one number.',
-                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                            color: scheme.onSurface.withValues(alpha: 0.6),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: scheme.onSurface.withValues(
+                                              alpha: 0.6,
+                                            ),
                                           ),
                                     ),
                                   ),
@@ -368,10 +566,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         vertical: 10,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: scheme.error.withValues(alpha: 0.1),
+                                        color: scheme.error.withValues(
+                                          alpha: 0.1,
+                                        ),
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
-                                          color: scheme.error.withValues(alpha: 0.3),
+                                          color: scheme.error.withValues(
+                                            alpha: 0.3,
+                                          ),
                                         ),
                                       ),
                                       child: Row(
