@@ -114,6 +114,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   int _cents(String key) => (_chosen?[key] as num?)?.toInt() ?? 0;
 
+  int _valueCents(dynamic value) => (value as num?)?.toInt() ?? 0;
+
   int get _total =>
       _chosen != null ? _cents('total_cents') : (_goods + _shipping);
 
@@ -147,6 +149,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   int get _goods => (_preview?['goods_cents'] as num?)?.toInt() ?? 0;
 
   int get _shipping => (_preview?['shipping_cents'] as num?)?.toInt() ?? 0;
+
+  // Cart product discount totals come from the backend.
+  int get _productDiscount => _valueCents(_cart?['product_discount_cents']);
+
+  int get _originalGoods => _goods + _productDiscount;
+
+  bool _itemHasProductDiscount(Map<String, dynamic> item) {
+    if (item['has_product_discount'] == true) return true;
+
+    final type = item['discount_type'] as String?;
+    if (type == 'percentage' || type == 'fixed') return true;
+
+    return _valueCents(item['unit_discount_cents']) > 0;
+  }
+
+  bool get _hasProductDiscountedItems => _items.any(_itemHasProductDiscount);
 
   List<Map<String, dynamic>> _ofType(String type) =>
       _addresses.where((a) => a['address_type'] == type).toList();
@@ -738,12 +756,33 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       CartState.instance.refresh();
 
+      // The backend can return customer-facing checkout notifications.
+      final notifications =
+          (data['notifications'] as List<dynamic>?)
+              ?.whereType<String>()
+              .where((message) => message.trim().isNotEmpty)
+              .toList() ??
+          [];
+
+      if (notifications.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(notifications.join('\n\n')),
+            duration: const Duration(seconds: 6),
+          ),
+        );
+      }
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => OrderPlacedScreen(
             order: data['order'] as Map<String, dynamic>,
             user: widget.user,
+            notifications:
+                ((data['notifications'] as List<dynamic>?) ?? const [])
+                    .map((value) => value.toString())
+                    .toList(),
           ),
         ),
       );
@@ -846,43 +885,105 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   List<Widget> _itemRows() {
     final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
+    final saleColor = theme.colorScheme.primary;
 
     return [
       for (final item in _items)
-        ListTile(
+        Builder(
           key: ValueKey(item['id']),
-          dense: true,
-          contentPadding: EdgeInsets.zero,
-          leading: SizedBox(
-            width: 48,
-            height: 48,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: ProductImage(url: item['image_url'] as String?),
-            ),
-          ),
-          title: Text(
-            item['name'] as String,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: Text(
-            [
-              if ((item['pack'] as String?)?.isNotEmpty == true)
-                item['pack'] as String,
-              '${item['quantity']} × '
-                  '${formatCents(item['unit_price_cents'] as int)}',
-            ].join(' · '),
-          ),
-          trailing: item['issue'] == null
-              ? Text(
-                  formatCents(item['line_total_cents'] as int),
-                  style: theme.textTheme.titleSmall,
-                )
-              : Text(
-                  'Problem',
-                  style: TextStyle(color: theme.colorScheme.error),
+          builder: (context) {
+            final discounted = _itemHasProductDiscount(item);
+            final unitPrice = _valueCents(item['unit_price_cents']);
+            final originalUnitPrice = _valueCents(
+              item['unit_original_price_cents'],
+            );
+            final lineTotal = _valueCents(item['line_total_cents']);
+            final originalLineTotal = _valueCents(
+              item['line_original_total_cents'],
+            );
+            final quantity = _valueCents(item['quantity']);
+
+            return ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: SizedBox(
+                width: 48,
+                height: 48,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: ProductImage(url: item['image_url'] as String?),
                 ),
+              ),
+              title: Text(
+                item['name'] as String,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if ((item['pack'] as String?)?.isNotEmpty == true)
+                    Text(item['pack'] as String),
+
+                  const SizedBox(height: 3),
+
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 3,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text('$quantity × ${formatCents(unitPrice)}'),
+
+                      if (discounted && originalUnitPrice > unitPrice)
+                        Text(
+                          formatCents(originalUnitPrice),
+                          style: TextStyle(
+                            color: muted,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                    ],
+                  ),
+
+                  if (discounted)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Text(
+                        'PRODUCT DISCOUNT',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: saleColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              trailing: item['issue'] == null
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          formatCents(lineTotal),
+                          style: theme.textTheme.titleSmall,
+                        ),
+                        if (discounted && originalLineTotal > lineTotal)
+                          Text(
+                            formatCents(originalLineTotal),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: muted,
+                              decoration: TextDecoration.lineThrough,
+                            ),
+                          ),
+                      ],
+                    )
+                  : Text(
+                      'Problem',
+                      style: TextStyle(color: theme.colorScheme.error),
+                    ),
+            );
+          },
         ),
     ];
   }
@@ -1122,9 +1223,46 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         subtitle: Text(line()),
       ),
 
+      _productDiscountMembershipNotice(),
+
       if (_serverErrors['pay_with_membership'] != null)
         _errorText(_serverErrors['pay_with_membership']!),
     ];
+  }
+
+  Widget _productDiscountMembershipNotice() {
+    if (!_useMembership || !_hasProductDiscountedItems) {
+      return const SizedBox.shrink();
+    }
+
+    final l10n = AppLocalizations.of(context);
+    final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, color: theme.colorScheme.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              isDe
+                  ? 'Mitgliederrabatte gelten nicht zusätzlich für bereits reduzierte Produkte. Der vorhandene Produktrabatt bleibt erhalten. Ihr Mitgliedsguthaben kann weiterhin zur Bezahlung dieser Produkte verwendet werden.'
+                  : 'Membership discounts do not apply to products that already have a product discount. Their existing product discounts remain applied. You can still use your membership credit to pay for these products.',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _summary() {
@@ -1142,8 +1280,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: style),
-            Text(value, style: style),
+            Flexible(child: Text(label)),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(value, textAlign: TextAlign.end, style: style),
+            ),
           ],
         ),
       );
@@ -1155,7 +1296,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            row(isDe ? 'Artikel' : 'Items', formatCents(_goods)),
+            if (_productDiscount > 0) ...[
+              row(
+                isDe
+                    ? 'Artikel vor Produktrabatten'
+                    : 'Items before product discounts',
+                formatCents(_originalGoods),
+              ),
+              row(
+                isDe ? 'Produktrabatte' : 'Product discounts',
+                '−${formatCents(_productDiscount)}',
+              ),
+            ] else
+              row(isDe ? 'Artikel' : 'Items', formatCents(_goods)),
 
             if (_discount > 0)
               row(

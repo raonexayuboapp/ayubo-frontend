@@ -15,7 +15,8 @@ typedef ProductData = Map<String, dynamic>;
 
 class ProductDetailScreen extends StatefulWidget {
   final int productId;
-  final String title; // shown in the app bar while the product loads
+  final String title;
+
   const ProductDetailScreen({
     super.key,
     required this.productId,
@@ -27,8 +28,8 @@ class ProductDetailScreen extends StatefulWidget {
 }
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
-  /// Largest quantity per order, by product type. The server enforces the same limits: this only keeps the
-  /// stepper honest. A type that is missing here (courses) cannot be bought in the app yet.
+  /// Largest quantity per order, by product type.
+  /// The server enforces the same limits.
   static const _maxByType = {
     'physical': 99,
     'gift_voucher': 10,
@@ -41,7 +42,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   String? _error;
   int _variant = 0;
   int _quantity = 1;
-  bool? _favourite; // null until the product has loaded
+  bool? _favourite;
   bool _adding = false;
 
   @override
@@ -52,10 +53,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   void _snack(String text) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(text),
-        backgroundColor: AppTheme.primaryGreen,
-      ),
+      SnackBar(content: Text(text), backgroundColor: AppTheme.primaryGreen),
     );
   }
 
@@ -64,16 +62,22 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       _loading = true;
       _error = null;
     });
+
     try {
       final p = await ApiService.instance.getProduct(widget.productId);
+
       if (!mounted) return;
+
       setState(() {
         _product = p;
         _favourite = p['is_favourite'] == true;
+        _variant = 0;
+        _quantity = 1;
         _loading = false;
       });
     } on ApiException catch (e) {
       if (!mounted) return;
+
       setState(() {
         _error = e.message;
         _loading = false;
@@ -82,13 +86,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   Future<void> _addToCart(int variantId) async {
-    if (_adding) return; // ignore a second tap while the first is still being sent
+    if (_adding) return;
 
     final l10n = AppLocalizations.of(context);
     final isDe = l10n?.localeName.startsWith('de') ?? false;
 
     if (!await ApiService.instance.hasToken()) {
       if (!mounted) return;
+
       final user = await showAuthPrompt(
         context,
         title: l10n?.addToCart ?? 'Add to Cart',
@@ -96,35 +101,91 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ? 'Melden Sie sich an oder erstellen Sie ein Konto, um "${_product?['name'] ?? 'Artikel'}" in Ihren Warenkorb zu legen.'
             : 'Sign in or create an account to add "${_product?['name'] ?? 'items'}" to your cart.',
       );
+
       if (user == null || !mounted) return;
     }
 
     setState(() => _adding = true);
+
     try {
+      // Only the variant ID and quantity are sent.
+      // The backend calculates the actual price and discount.
       await ApiService.instance.addToCart(variantId, _quantity);
+
       if (!mounted) return;
+
       final count = CartState.instance.count.value;
+
       _snack(
         isDe
             ? 'In Ihren Warenkorb gelegt. Sie haben $count Artikel in Ihrem Warenkorb.'
             : 'Added to your cart. You have $count item${count == 1 ? '' : 's'} in your cart.',
       );
     } on ApiException catch (e) {
-      if (mounted && e.statusCode != 401) _snack(e.message); // for example "Only 5 available."
+      if (mounted && e.statusCode != 401) {
+        _snack(e.message);
+      }
     } finally {
-      if (mounted) setState(() => _adding = false);
+      if (mounted) {
+        setState(() => _adding = false);
+      }
     }
   }
 
   /// "100 g", or the SKU when the variant has no pack size.
   String _variantLabel(ProductData v) {
     final pack = v['pack_quantity'] as num?;
-    if (pack == null) return v['sku'] as String;
+
+    if (pack == null) {
+      return v['sku'] as String;
+    }
+
     return '${formatQuantity(pack)} ${(v['unit'] as String?) ?? ''}'.trim();
   }
 
+  /// Safely reads integer cents from API data.
+  int _cents(ProductData? variant, String key) {
+    final value = variant?[key];
+
+    if (value is num) return value.toInt();
+
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  /// A visible discount exists when the returned selling price
+  /// is lower than the original variant price.
+  bool _hasVisibleDiscount(ProductData? variant) {
+    if (variant == null) return false;
+
+    final original = _cents(variant, 'original_price_cents');
+    final current = _cents(variant, 'price_cents');
+
+    return original > current && current >= 0;
+  }
+
+  String _discountLabel(ProductData variant, bool isDe) {
+    final type = variant['discount_type'] as String?;
+
+    if (type == 'percentage') {
+      final value = variant['discount_value'];
+
+      if (value is num) {
+        final percentage = value % 1 == 0
+            ? value.toInt().toString()
+            : value.toString();
+
+        return '-$percentage%';
+      }
+    }
+
+    return isDe ? 'ANGEBOT' : 'SALE';
+  }
+
   Widget _section(String title, String? text) {
-    if (text == null || text.trim().isEmpty) return const SizedBox.shrink();
+    if (text == null || text.trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final scheme = Theme.of(context).colorScheme;
 
@@ -152,9 +213,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               Text(
                 title,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: scheme.onSurface,
-                    ),
+                  fontWeight: FontWeight.bold,
+                  color: scheme.onSurface,
+                ),
               ),
             ],
           ),
@@ -229,7 +290,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       width: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1B4332)),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Color(0xFF1B4332),
+                        ),
                       ),
                     )
                   : const Icon(Icons.add_shopping_cart_rounded),
@@ -245,6 +308,87 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ),
           ),
         ),
+      ],
+    );
+  }
+
+  /// Displays the selected variant's actual selling price,
+  /// original price and savings when a discount is active.
+  Widget _priceSection(ProductData variant, bool isDe, ColorScheme scheme) {
+    final currentPrice = _cents(variant, 'price_cents');
+    final originalPrice = _cents(variant, 'original_price_cents');
+    final hasDiscount = _hasVisibleDiscount(variant);
+    final savings = hasDiscount ? originalPrice - currentPrice : 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              formatCents(currentPrice),
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: hasDiscount
+                    ? Colors.red.shade700
+                    : AppTheme.brandGoldDark,
+              ),
+            ),
+            const SizedBox(width: 9),
+            if (hasDiscount)
+              Text(
+                formatCents(originalPrice),
+                style: TextStyle(
+                  fontSize: 15,
+                  decoration: TextDecoration.lineThrough,
+                  color: scheme.onSurface.withValues(alpha: 0.5),
+                ),
+              ),
+            const SizedBox(width: 8),
+            Text(
+              AppLocalizations.of(context)?.taxIncluded ?? 'incl. VAT',
+              style: TextStyle(
+                color: scheme.onSurface.withValues(alpha: 0.5),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        if (hasDiscount) ...[
+          const SizedBox(height: 7),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryGreen.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Text(
+                  _discountLabel(variant, isDe),
+                  style: const TextStyle(
+                    color: AppTheme.primaryGreen,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                isDe
+                    ? 'Sie sparen ${formatCents(savings)}'
+                    : 'You save ${formatCents(savings)}',
+                style: const TextStyle(
+                  color: AppTheme.primaryGreen,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
@@ -269,10 +413,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           children: [
             Icon(Icons.error_outline_rounded, size: 48, color: scheme.error),
             const SizedBox(height: 12),
-            Text(
-              _error!,
-              style: TextStyle(color: scheme.onSurface),
-            ),
+            Text(_error!, style: TextStyle(color: scheme.onSurface)),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _load,
@@ -290,7 +431,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final variants = (p['variants'] as List<dynamic>).cast<ProductData>();
     final images = (p['images'] as List<dynamic>).cast<ProductData>();
     final categories = (p['categories'] as List<dynamic>).cast<ProductData>();
-    final v = variants.isEmpty ? null : variants[_variant];
+
+    final v = variants.isEmpty
+        ? null
+        : variants[_variant.clamp(0, variants.length - 1)];
+
     final inStock = v != null && v['in_stock'] == true;
 
     return ListView(
@@ -326,45 +471,23 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
           ),
         ),
+
         const SizedBox(height: 20),
 
         // Product Name
         Text(
           p['name'] as String,
           style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: scheme.onSurface,
-                letterSpacing: -0.5,
-              ),
+            fontWeight: FontWeight.bold,
+            color: scheme.onSurface,
+            letterSpacing: -0.5,
+          ),
         ),
 
         const SizedBox(height: 8),
 
-        // Price & VAT
-        if (v != null) ...[
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                formatCents(v['price_cents'] as int),
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.brandGoldDark,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                l10n?.taxIncluded ?? 'incl. VAT',
-                style: TextStyle(
-                  color: scheme.onSurface.withValues(alpha: 0.5),
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ],
+        // Selected Variant Price & VAT
+        if (v != null) ...[_priceSection(v, isDe, scheme)],
 
         // Stock Status Indicator Badge
         if (type == 'physical') ...[
@@ -372,7 +495,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: inStock
                       ? AppTheme.primaryGreen.withValues(alpha: 0.12)
@@ -431,7 +557,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             children: [
               for (var i = 0; i < variants.length; i++)
                 ChoiceChip(
-                  label: Text(_variantLabel(variants[i])),
+                  label: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_variantLabel(variants[i])),
+                      const SizedBox(height: 3),
+                      Text(
+                        formatCents(_cents(variants[i], 'price_cents')),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                   selected: i == _variant,
                   selectedColor: AppTheme.primaryGreen,
                   backgroundColor: isDark ? AppTheme.surfaceDark : Colors.white,
@@ -446,18 +585,26 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       color: AppTheme.brandGold.withValues(alpha: 0.4),
                     ),
                   ),
-                  onSelected: (_) => setState(() {
-                    _variant = i;
-                    _quantity = 1;
-                  }),
+                  onSelected: (_) {
+                    setState(() {
+                      _variant = i;
+                      _quantity = 1;
+                    });
+                  },
                 ),
             ],
           ),
         ],
 
-        // Sections
-        _section(l10n?.description ?? 'Description', p['description'] as String?),
-        _section(l10n?.ingredients ?? 'Ingredients', p['ingredients'] as String?),
+        // Product Information Sections
+        _section(
+          l10n?.description ?? 'Description',
+          p['description'] as String?,
+        ),
+        _section(
+          l10n?.ingredients ?? 'Ingredients',
+          p['ingredients'] as String?,
+        ),
         _section(l10n?.allergens ?? 'Allergens', p['allergens'] as String?),
 
         // Category Tags
@@ -498,7 +645,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) Navigator.pop(context, _favourite);
+        if (!didPop) {
+          Navigator.pop(context, _favourite);
+        }
       },
       child: Scaffold(
         appBar: AppHeader(

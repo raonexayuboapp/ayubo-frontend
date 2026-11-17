@@ -47,6 +47,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
         search: _search.text.trim(),
         status: _status,
         page: _page,
+        lang: currentAppLocale,
       );
       final list = (data['products'] as List<dynamic>).cast<ProductListData>();
       if (!mounted) return;
@@ -119,7 +120,9 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
 
     Widget body;
     if (_loading && _products.isEmpty) {
-      body = Center(child: CircularProgressIndicator(color: goldColor, strokeWidth: 2));
+      body = Center(
+        child: CircularProgressIndicator(color: goldColor, strokeWidth: 2),
+      );
     } else if (_error != null && _products.isEmpty) {
       body = Center(
         child: Padding(
@@ -127,9 +130,17 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
+              Icon(
+                Icons.error_outline,
+                size: 40,
+                color: theme.colorScheme.error,
+              ),
               const SizedBox(height: 12),
-              Text(_error!, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium,
+              ),
               const SizedBox(height: 16),
               TextButton.icon(
                 onPressed: () => _load(reset: true),
@@ -167,7 +178,10 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Center(
                 child: _loading
-                    ? CircularProgressIndicator(color: goldColor, strokeWidth: 2)
+                    ? CircularProgressIndicator(
+                        color: goldColor,
+                        strokeWidth: 2,
+                      )
                     : TextButton(
                         onPressed: () {
                           _page++;
@@ -175,7 +189,10 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                         },
                         child: Text(
                           'Load more',
-                          style: TextStyle(color: goldColor, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            color: goldColor,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
               ),
@@ -186,12 +203,17 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
           final status = p['status'] as String? ?? 'draft';
 
           return ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 6,
+            ),
             onTap: () {
               if (p['product_type'] == 'membership') {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Memberships are managed under Admin, Membership plans.'),
+                    content: Text(
+                      'Memberships are managed under Admin, Membership plans.',
+                    ),
                   ),
                 );
                 return;
@@ -202,7 +224,9 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.5,
+                ),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -233,10 +257,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Products ($_total)'),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: Text('Products ($_total)'), elevation: 0),
       body: Column(
         children: [
           Padding(
@@ -247,9 +268,16 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
               onSubmitted: (_) => _load(reset: true),
               style: theme.textTheme.bodyMedium,
               decoration: InputDecoration(
-                prefixIcon: Icon(Icons.search, size: 20, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                prefixIcon: Icon(
+                  Icons.search,
+                  size: 20,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
                 hintText: 'Search products, SKU...',
-                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 0,
+                  horizontal: 16,
+                ),
                 suffixIcon: _search.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear, size: 18),
@@ -278,15 +306,21 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                       side: BorderSide(
                         color: _status == s
                             ? goldColor
-                            : theme.colorScheme.onSurface.withValues(alpha: 0.15),
+                            : theme.colorScheme.onSurface.withValues(
+                                alpha: 0.15,
+                              ),
                       ),
                       selectedColor: goldColor.withValues(alpha: 0.15),
                       labelStyle: TextStyle(
                         fontSize: 13,
                         color: _status == s
                             ? goldColor
-                            : theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                        fontWeight: _status == s ? FontWeight.w600 : FontWeight.normal,
+                            : theme.colorScheme.onSurface.withValues(
+                                alpha: 0.7,
+                              ),
+                        fontWeight: _status == s
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                       ),
                       onSelected: (_) {
                         setState(() => _status = s);
