@@ -494,7 +494,7 @@ class _StockDialogState extends State<_StockDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<int>(
-                value: _locationId,
+                initialValue: _locationId,
                 isExpanded: true,
                 decoration: InputDecoration(labelText: 'Location', errorText: _serverErrors['location']),
                 items: [

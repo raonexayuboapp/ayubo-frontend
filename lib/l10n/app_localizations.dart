@@ -1369,6 +1369,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Added'**
   String get added;
+
+  /// No description provided for @bestsellersSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer favorites & organic essentials'**
+  String get bestsellersSubtitle;
+
+  /// No description provided for @exploreAyuboFamily.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore Ayubo Family'**
+  String get exploreAyuboFamily;
+
+  /// No description provided for @familyPromoTag.
+  ///
+  /// In en, this message translates to:
+  /// **'AYUBO FAMILY'**
+  String get familyPromoTag;
+
+  /// No description provided for @familyPromoHeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock Exclusive Wellness Privileges'**
+  String get familyPromoHeadline;
+
+  /// No description provided for @familyBenefitCredit.
+  ///
+  /// In en, this message translates to:
+  /// **'100% shopping credit back on membership'**
+  String get familyBenefitCredit;
+
+  /// No description provided for @familyBenefitDiscount.
+  ///
+  /// In en, this message translates to:
+  /// **'Exclusive member discounts on select organics'**
+  String get familyBenefitDiscount;
+
+  /// No description provided for @familyBenefitHeritage.
+  ///
+  /// In en, this message translates to:
+  /// **'Pure Ceylon organic wellness privileges'**
+  String get familyBenefitHeritage;
+
+  /// No description provided for @experienceAyubo.
+  ///
+  /// In en, this message translates to:
+  /// **'Experience Ayubo Organics'**
+  String get experienceAyubo;
+
+  /// No description provided for @experienceAyuboTag.
+  ///
+  /// In en, this message translates to:
+  /// **'OUR PHYSICAL BOUTIQUE'**
+  String get experienceAyuboTag;
+
+  /// No description provided for @experienceAyuboSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Visit our physical store to experience pure Ceylon organic spices, wellness teas, and Ayurvedic traditions in person.'**
+  String get experienceAyuboSubtitle;
+
+  /// No description provided for @shopFeatureOrganic.
+  ///
+  /// In en, this message translates to:
+  /// **'100% Certified Organic'**
+  String get shopFeatureOrganic;
+
+  /// No description provided for @shopFeatureFairTrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct Fair Trade'**
+  String get shopFeatureFairTrade;
+
+  /// No description provided for @shopFeatureAuthentic.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentic Ceylon Heritage'**
+  String get shopFeatureAuthentic;
+
+  /// No description provided for @exploreStoreCollection.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore In-Store Collection'**
+  String get exploreStoreCollection;
 }
 
 class _AppLocalizationsDelegate

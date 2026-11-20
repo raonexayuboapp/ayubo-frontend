@@ -16,12 +16,17 @@ class HomeMembershipCard extends StatelessWidget {
   });
 
   bool get _isMember =>
-      membership != null && membership!['status'] == 'active';
+      user != null &&
+      user!.isNotEmpty &&
+      user!['id'] != null &&
+      membership != null &&
+      membership!['status'] == 'active';
 
   @override
   Widget build(BuildContext context) {
     final isDark = AppTheme.isDark(context);
     final l10n = AppLocalizations.of(context);
+    final isDe = l10n?.localeName.startsWith('de') ?? false;
 
     final status = membership?['status'] as String?;
     final isExpired = status == 'expired' || status == 'inactive' || status == 'cancelled';
@@ -93,13 +98,17 @@ class HomeMembershipCard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          _isMember ? planName : (isExpired ? planName : (l10n?.familyTitle ?? 'Ayubo Family')),
-                          style: TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: -0.2,
-                            color: AppTheme.textPrimary(context),
+                        Flexible(
+                          child: Text(
+                            _isMember ? planName : (isExpired ? planName : (l10n?.familyTitle ?? 'Ayubo Family')),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: -0.2,
+                              color: AppTheme.textPrimary(context),
+                            ),
                           ),
                         ),
                         if (_isMember) ...[
@@ -147,7 +156,9 @@ class HomeMembershipCard extends StatelessWidget {
                               ? '${l10n?.availableCredit ?? 'Credit'}: ${formatCents(creditCents)}'
                               : (l10n?.memberPrivileges ?? 'Active Membership Privileges'))
                           : (isExpired
-                              ? 'Renew your membership to restore benefits'
+                              ? (isDe
+                                  ? 'Erneuern Sie Ihre Mitgliedschaft für alle Vorteile'
+                                  : 'Renew your membership to restore benefits')
                               : (l10n?.membershipPromoDesc ??
                                   '100% credit back & exclusive member savings')),
                       maxLines: 1,
@@ -177,7 +188,9 @@ class HomeMembershipCard extends StatelessWidget {
                     Text(
                       _isMember
                           ? (l10n?.viewDetails ?? 'View')
-                          : (isExpired ? 'Renew' : (l10n?.exploreMembership ?? 'Explore')),
+                          : (isExpired
+                              ? (isDe ? 'Erneuern' : 'Renew')
+                              : (l10n?.exploreMembership ?? 'Explore')),
                       style: const TextStyle(
                         color: AppTheme.brandGoldDark,
                         fontSize: 11.5,

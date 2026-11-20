@@ -7,93 +7,92 @@ import '../widgets/loading_button.dart';
 
 typedef PlanData = Map<String, dynamic>;
 
-String _euros(int cents) => '${cents ~/ 100}.${(cents % 100).toString().padLeft(2, '0')}';
+String _euros(int cents) =>
+    '${cents ~/ 100}.${(cents % 100).toString().padLeft(2, '0')}';
 
-/// One editable benefit: a shopping credit, a discount, or a perk (text only).
+/// One editable benefit: a shopping credit, a discount, or a bilingual perk.
 class _BenefitRow {
   final String kind; // credit | discount | perk
-  final String? code; // set for a benefit that already exists on the server
-  final TextEditingController amount; // euros (credit) or percent (discount)
-  final TextEditingController description;
-  bool descriptionTouched;
+  final String? code;
+  final TextEditingController amount;
+  final TextEditingController descriptionEn;
+  final TextEditingController descriptionDe;
 
   _BenefitRow({
     required this.kind,
     this.code,
     String initialAmount = '',
-    String initialDescription = '',
-    bool touched = false,
-  })  : amount = TextEditingController(text: initialAmount),
-        description = TextEditingController(text: initialDescription),
-        descriptionTouched = touched {
-    amount.addListener(_suggest);
-  }
+    String initialDescriptionEn = '',
+    String initialDescriptionDe = '',
+  }) : amount = TextEditingController(text: initialAmount),
+       descriptionEn = TextEditingController(text: initialDescriptionEn),
+       descriptionDe = TextEditingController(text: initialDescriptionDe);
 
   factory _BenefitRow.fromJson(PlanData b) {
     final kind = b['kind'] as String;
     var amount = '';
+
     if (kind == 'credit') {
       amount = _euros(b['credit_cents'] as int);
     } else if (kind == 'discount') {
       amount = formatPercent(b['discount_percent'] as num);
     }
 
+    final legacyDescription = (b['description'] as String?) ?? '';
+
     return _BenefitRow(
       kind: kind,
       code: b['code'] as String?,
       initialAmount: amount,
-      initialDescription: (b['description'] as String?) ?? '',
-      touched: true,
+      initialDescriptionEn: (b['description_en'] as String?) ?? '',
+      initialDescriptionDe:
+          (b['description_de'] as String?) ?? legacyDescription,
     );
-  }
-
-  String suggestion() {
-    if (kind == 'credit') {
-      final cents = parseEuroToCents(amount.text);
-      return cents == null || cents < 1 ? '' : '${formatCents(cents)} shopping credit';
-    }
-    if (kind == 'discount') {
-      final n = double.tryParse(amount.text.trim().replaceAll(',', '.'));
-      return n == null || n <= 0 || n > 100 ? '' : '${formatPercent(n)}% discount on all products';
-    }
-    return '';
-  }
-
-  void _suggest() {
-    if (descriptionTouched) return;
-    final s = suggestion();
-    if (s.isNotEmpty) description.text = s;
   }
 
   void dispose() {
     amount.dispose();
-    description.dispose();
+    descriptionEn.dispose();
+    descriptionDe.dispose();
   }
 }
 
 class AdminMembershipPlanFormScreen extends StatefulWidget {
   final int? planId; // null = create, otherwise edit
+
   const AdminMembershipPlanFormScreen({super.key, this.planId});
 
   @override
-  State<AdminMembershipPlanFormScreen> createState() => _AdminMembershipPlanFormScreenState();
+  State<AdminMembershipPlanFormScreen> createState() =>
+      _AdminMembershipPlanFormScreenState();
 }
 
-class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormScreen> {
+class _AdminMembershipPlanFormScreenState
+    extends State<AdminMembershipPlanFormScreen> {
   static const _maxCents = 100000000; // 1,000,000.00
   static const _maxBenefits = 20;
 
   final _form = GlobalKey<FormState>();
+
   final _code = TextEditingController();
-  final _name = TextEditingController();
-  final _desc = TextEditingController();
+
+  // English translation fields.
+  final _nameEn = TextEditingController();
+  final _descEn = TextEditingController();
+
+  // German translation fields.
+  final _nameDe = TextEditingController();
+  final _descDe = TextEditingController();
+
   final _price = TextEditingController();
 
   bool _active = true;
   bool _hasProduct = true;
+
   int? _taxRateId;
   int? _originalTaxRateId;
   int? _originalPriceCents;
+
   List<PlanData> _taxRates = [];
   final List<_BenefitRow> _benefits = [];
 
@@ -101,6 +100,7 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
   String? _loadError;
   bool _saving = false;
   String? _error;
+
   Map<String, String> _serverErrors = {};
 
   bool get _editing => widget.planId != null;
@@ -117,22 +117,28 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
 
   @override
   void dispose() {
-    for (final c in [_code, _name, _desc, _price]) {
+    for (final c in [_code, _nameEn, _descEn, _nameDe, _descDe, _price]) {
       c.dispose();
     }
+
     for (final b in _benefits) {
       b.dispose();
     }
+
     super.dispose();
   }
+
+  // ---------- loading ----------
 
   Future<void> _init() async {
     try {
       final api = ApiService.instance;
+
       final results = await Future.wait<Object>([
         api.adminTaxRates(),
         if (_editing) api.adminMembershipPlan(widget.planId!),
       ]);
+
       if (!mounted) return;
 
       final taxRates = (results[0] as List<dynamic>).cast<PlanData>();
@@ -141,16 +147,45 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
         final p = results[1] as PlanData;
 
         _code.text = p['code'] as String;
-        _name.text = p['name'] as String;
-        _desc.text = (p['description'] as String?) ?? '';
+
+        final translations = p['translations'] is Map
+            ? Map<String, dynamic>.from(p['translations'] as Map)
+            : <String, dynamic>{};
+
+        final en = translations['en'] is Map
+            ? Map<String, dynamic>.from(translations['en'] as Map)
+            : <String, dynamic>{};
+
+        final de = translations['de'] is Map
+            ? Map<String, dynamic>.from(translations['de'] as Map)
+            : <String, dynamic>{};
+
+        // English is optional. Customer-facing APIs fall back to German.
+        _nameEn.text = (en['name'] as String?) ?? '';
+        _descEn.text = (en['description'] as String?) ?? '';
+
+        // German also supports older plans using legacy top-level fields.
+        _nameDe.text = (de['name'] as String?) ?? (p['name'] as String? ?? '');
+
+        _descDe.text =
+            (de['description'] as String?) ??
+            (p['description'] as String? ?? '');
+
         _active = p['active'] == true;
         _hasProduct = p['has_product'] == true;
+
         _originalPriceCents = p['price_cents'] as int?;
-        _price.text = _originalPriceCents == null ? '' : _euros(_originalPriceCents!);
+        _price.text = _originalPriceCents == null
+            ? ''
+            : _euros(_originalPriceCents!);
+
         _taxRateId = p['tax_rate_id'] as int?;
         _originalTaxRateId = _taxRateId;
+
         _benefits.addAll(
-          (p['benefits'] as List<dynamic>).cast<PlanData>().map(_BenefitRow.fromJson),
+          (p['benefits'] as List<dynamic>).cast<PlanData>().map(
+            _BenefitRow.fromJson,
+          ),
         );
 
         if (_taxRateId != null && !taxRates.any((t) => t['id'] == _taxRateId)) {
@@ -171,6 +206,7 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
       });
     } on ApiException catch (e) {
       if (!mounted) return;
+
       setState(() {
         _loadError = e.message;
         _loadingData = false;
@@ -182,6 +218,7 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
 
   String? _vCode(String? v) {
     final s = (v ?? '').trim();
+
     return s.length <= 40 && RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)*$').hasMatch(s)
         ? null
         : 'Lowercase letters and numbers separated by single hyphens (maximum 40).';
@@ -189,17 +226,39 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
 
   String? _vName(String? v) {
     final s = (v ?? '').trim();
-    return s.isEmpty || s.length > 100 ? 'Name must be 1 to 100 characters.' : null;
+
+    return s.isEmpty || s.length > 100
+        ? 'Name must be 1 to 100 characters.'
+        : null;
   }
 
-  String? _vDesc(String? v) => (v ?? '').trim().length > 2000 ? 'Maximum 2000 characters.' : null;
+  String? _vEnglishName(String? v) {
+    final s = (v ?? '').trim();
+
+    if (s.isNotEmpty && s.length > 100) {
+      return 'Maximum 100 characters.';
+    }
+
+    return null;
+  }
+
+  String? _vDesc(String? v) {
+    return (v ?? '').trim().length > 2000 ? 'Maximum 2000 characters.' : null;
+  }
 
   String? _vPrice(String? v) {
     final s = (v ?? '').trim();
-    if (s.isEmpty) return _priceRequired ? 'Enter a price.' : null;
+
+    if (s.isEmpty) {
+      return _priceRequired ? 'Enter a price.' : null;
+    }
 
     final cents = parseEuroToCents(s);
-    if (cents == null) return 'Enter an amount like 200 or 49.90.';
+
+    if (cents == null) {
+      return 'Enter an amount like 200 or 49.90.';
+    }
+
     return cents > _maxCents ? 'The price is too high.' : null;
   }
 
@@ -208,32 +267,54 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
 
     if (row.kind == 'credit') {
       final cents = parseEuroToCents(s);
-      if (cents == null || cents < 1) return 'Enter an amount like 200 or 49.90.';
+
+      if (cents == null || cents < 1) {
+        return 'Enter an amount like 200 or 49.90.';
+      }
+
       return cents > _maxCents ? 'The amount is too high.' : null;
     }
 
-    if (!RegExp(r'^\d{1,3}(\.\d{1,2})?$').hasMatch(s)) return 'A number such as 10 or 7.5.';
+    if (!RegExp(r'^\d{1,3}(\.\d{1,2})?$').hasMatch(s)) {
+      return 'A number such as 10 or 7.5.';
+    }
+
     final n = double.parse(s);
+
     return n > 0 && n <= 100 ? null : 'More than 0 and at most 100.';
   }
 
   String? _vBenefitDescription(String? v) {
     final s = (v ?? '').trim();
-    return s.isEmpty || s.length > 300 ? 'Description must be 1 to 300 characters.' : null;
+
+    return s.isEmpty || s.length > 300
+        ? 'Description must be 1 to 300 characters.'
+        : null;
   }
 
   // ---------- benefits ----------
 
-  void _addBenefit(String kind) => setState(() => _benefits.add(_BenefitRow(kind: kind)));
+  void _addBenefit(String kind) {
+    setState(() {
+      _benefits.add(_BenefitRow(kind: kind));
+    });
+  }
 
   void _removeBenefit(int i) {
     final row = _benefits[i];
-    setState(() => _benefits.removeAt(i));
-    WidgetsBinding.instance.addPostFrameCallback((_) => row.dispose());
+
+    setState(() {
+      _benefits.removeAt(i);
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      row.dispose();
+    });
   }
 
   void _move(int i, int delta) {
     final j = i + delta;
+
     if (j < 0 || j >= _benefits.length) return;
 
     setState(() {
@@ -245,7 +326,14 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
   // ---------- save ----------
 
   bool _isFieldKey(String k) =>
-      const {'code', 'name', 'description', 'price_cents', 'tax_rate_id'}.contains(k) ||
+      const {
+        'code',
+        'name',
+        'description',
+        'price_cents',
+        'tax_rate_id',
+      }.contains(k) ||
+      RegExp(r'^translations\.(en|de)\.(name|description)$').hasMatch(k) ||
       RegExp(r'^benefits\.\d+\.').hasMatch(k);
 
   Future<void> _save() async {
@@ -253,47 +341,92 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
       _error = null;
       _serverErrors = {};
     });
+
     if (!_form.currentState!.validate()) return;
 
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+    });
 
     String? orNull(String s) => s.trim().isEmpty ? null : s.trim();
 
     final priceText = _price.text.trim();
-    final sendPrice = priceText.isNotEmpty && (!_editing || parseEuroToCents(priceText) != _originalPriceCents);
-    final sendTax = !_editing || (_hasProduct ? _taxRateId != _originalTaxRateId : sendPrice);
+
+    final sendPrice =
+        priceText.isNotEmpty &&
+        (!_editing || parseEuroToCents(priceText) != _originalPriceCents);
+
+    final sendTax =
+        !_editing ||
+        (_hasProduct ? _taxRateId != _originalTaxRateId : sendPrice);
+
+    final nameDe = _nameDe.text.trim();
+    final descriptionDe = orNull(_descDe.text);
 
     final body = <String, dynamic>{
       if (!_editing) 'code': _code.text.trim(),
-      'name': _name.text.trim(),
-      'description': orNull(_desc.text),
+
+      // Legacy fields remain German for backend compatibility.
+      'name': nameDe,
+      'description': descriptionDe,
+
+      // Bilingual plan translations.
+      'translations': {
+        'en': {
+          'name': _nameEn.text.trim(),
+          'description': orNull(_descEn.text),
+        },
+        'de': {'name': nameDe, 'description': descriptionDe},
+      },
+
       'active': _active,
+
       if (sendPrice) 'price_cents': parseEuroToCents(priceText)!,
       if (sendTax) 'tax_rate_id': _taxRateId,
+
       'benefits': [
         for (final b in _benefits)
           {
             'kind': b.kind,
             if (b.code != null) 'code': b.code,
-            'description': b.description.text.trim(),
-            if (b.kind == 'credit') 'credit_cents': parseEuroToCents(b.amount.text)!,
-            if (b.kind == 'discount') 'discount_percent': b.amount.text.trim().replaceAll(',', '.'),
+            if (b.kind == 'perk') ...{
+              'description_en': b.descriptionEn.text.trim(),
+              'description_de': b.descriptionDe.text.trim(),
+
+              // Keep the legacy description as German.
+              'description': b.descriptionDe.text.trim(),
+            },
+            if (b.kind == 'credit')
+              'credit_cents': parseEuroToCents(b.amount.text)!,
+            if (b.kind == 'discount')
+              'discount_percent': b.amount.text.trim().replaceAll(',', '.'),
           },
       ],
     };
 
     try {
       if (_editing) {
-        await ApiService.instance.adminUpdateMembershipPlan(widget.planId!, body);
+        await ApiService.instance.adminUpdateMembershipPlan(
+          widget.planId!,
+          body,
+        );
       } else {
         await ApiService.instance.adminCreateMembershipPlan(body);
       }
+
       if (!mounted) return;
+
       Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (!mounted) return;
+
       final errs = e.fieldErrors;
-      final general = errs.entries.where((x) => !_isFieldKey(x.key)).map((x) => x.value).join('\n');
+
+      final general = errs.entries
+          .where((x) => !_isFieldKey(x.key))
+          .map((x) => x.value)
+          .join('\n');
+
       setState(() {
         _serverErrors = errs;
         _error = errs.isEmpty ? e.message : (general.isEmpty ? null : general);
@@ -302,7 +435,7 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
     }
   }
 
-  // ---------- UI ----------
+  // ---------- UI helpers ----------
 
   Widget _text(
     String serverKey,
@@ -321,7 +454,9 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
         enabled: enabled,
         maxLines: maxLines,
         keyboardType: type,
-        textInputAction: maxLines == 1 ? TextInputAction.next : TextInputAction.newline,
+        textInputAction: maxLines == 1
+            ? TextInputAction.next
+            : TextInputAction.newline,
         autovalidateMode: AutovalidateMode.onUserInteraction,
         validator: validator,
         forceErrorText: _serverErrors[serverKey],
@@ -338,6 +473,7 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
     final b = _benefits[i];
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
+
     String? server(String f) => _serverErrors['benefits.$i.$f'];
 
     final label = switch (b.kind) {
@@ -365,7 +501,9 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
                 Expanded(
                   child: Text(
                     label,
-                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -378,12 +516,18 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
                   tooltip: 'Move down',
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.arrow_downward, size: 18),
-                  onPressed: i == _benefits.length - 1 ? null : () => _move(i, 1),
+                  onPressed: i == _benefits.length - 1
+                      ? null
+                      : () => _move(i, 1),
                 ),
                 IconButton(
                   tooltip: 'Remove benefit',
                   visualDensity: VisualDensity.compact,
-                  icon: Icon(Icons.delete_outline, size: 18, color: theme.colorScheme.error),
+                  icon: Icon(
+                    Icons.delete_outline,
+                    size: 18,
+                    color: theme.colorScheme.error,
+                  ),
                   onPressed: () => _removeBenefit(i),
                 ),
               ],
@@ -391,44 +535,71 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
             if (server('kind') != null)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Text(server('kind')!, style: TextStyle(color: theme.colorScheme.error)),
+                child: Text(
+                  server('kind')!,
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
               ),
             if (b.kind != 'perk') ...[
               const SizedBox(height: 12),
               TextFormField(
                 controller: b.amount,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 validator: (v) => _vAmount(b, v),
-                forceErrorText: server(b.kind == 'credit' ? 'credit_cents' : 'discount_percent'),
+                forceErrorText: server(
+                  b.kind == 'credit' ? 'credit_cents' : 'discount_percent',
+                ),
                 decoration: InputDecoration(
-                  labelText: b.kind == 'credit' ? 'Credit amount (€)' : 'Discount (%)',
+                  labelText: b.kind == 'credit'
+                      ? 'Credit amount (€)'
+                      : 'Discount (%)',
                 ),
               ),
             ],
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: b.description,
-              minLines: 1,
-              maxLines: 2,
-              maxLength: 300,
-              onChanged: (_) => b.descriptionTouched = true,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              validator: _vBenefitDescription,
-              forceErrorText: server('description'),
-              decoration: InputDecoration(
-                labelText: 'Line shown to customers',
-                helperText: b.kind == 'perk'
-                    ? 'e.g. Access to exclusive offers'
-                    : 'Filled in from the amount, you can reword it.',
-                helperMaxLines: 2,
+            if (b.kind == 'perk') ...[
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: b.descriptionEn,
+                minLines: 1,
+                maxLines: 2,
+                maxLength: 300,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                validator: _vBenefitDescription,
+                forceErrorText:
+                    server('description_en') ?? server('description'),
+                decoration: const InputDecoration(
+                  labelText: 'Perk description (English)',
+                  helperText: 'Shown to customers using English.',
+                  helperMaxLines: 2,
+                ),
               ),
-            ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: b.descriptionDe,
+                minLines: 1,
+                maxLines: 2,
+                maxLength: 300,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                validator: _vBenefitDescription,
+                forceErrorText: server('description_de'),
+                decoration: const InputDecoration(
+                  labelText: 'Perk description (German)',
+                  helperText:
+                      'Required. Also used as the fallback description.',
+                  helperMaxLines: 2,
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
+
+  // ---------- build ----------
 
   @override
   Widget build(BuildContext context) {
@@ -447,13 +618,21 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
         appBar: AppBar(title: Text(_editing ? 'Edit plan' : 'New plan')),
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+                Icon(
+                  Icons.error_outline,
+                  size: 48,
+                  color: theme.colorScheme.error,
+                ),
                 const SizedBox(height: 12),
-                Text(_loadError!, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+                Text(
+                  _loadError!,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium,
+                ),
                 const SizedBox(height: 16),
                 OutlinedButton.icon(
                   onPressed: () {
@@ -461,6 +640,7 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
                       _loadingData = true;
                       _loadError = null;
                     });
+
                     _init();
                   },
                   icon: const Icon(Icons.refresh, size: 18),
@@ -477,13 +657,14 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
       );
     }
 
-    final endedRateSelected = _taxRates.any((t) => t['id'] == _taxRateId && t['ended'] == true);
+    final endedRateSelected = _taxRates.any(
+      (t) => t['id'] == _taxRateId && t['ended'] == true,
+    );
+
     final full = _benefits.length >= _maxBenefits;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_editing ? 'Edit plan' : 'New plan'),
-      ),
+      appBar: AppBar(title: Text(_editing ? 'Edit plan' : 'New plan')),
       body: Form(
         key: _form,
         child: ListView(
@@ -495,25 +676,75 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
               _code,
               _vCode,
               enabled: !_editing,
-              helper: _editing ? 'The code cannot be changed.' : 'e.g. entry or gold',
+              helper: _editing
+                  ? 'The code cannot be changed.'
+                  : 'e.g. entry or gold',
             ),
-            _text('name', 'Name', _name, _vName, helper: 'e.g. Entry Membership'),
+
+            // English translation.
+            Text(
+              'English translation',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+
             _text(
-              'description',
-              'Short description (shown under the name)',
-              _desc,
+              'translations.en.name',
+              'Membership name (English)',
+              _nameEn,
+              _vEnglishName,
+              helper: 'e.g. Entry Membership',
+            ),
+
+            _text(
+              'translations.en.description',
+              'Description (English)',
+              _descEn,
               _vDesc,
               maxLines: 2,
-              helper: 'e.g. Perfect for getting to know each other',
+              helper: 'A short description shown under the membership name.',
             ),
+
+            const Divider(height: 32),
+
+            // German fallback translation.
+            Text(
+              'German translation',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            _text(
+              'translations.de.name',
+              'Membership name (German)',
+              _nameDe,
+              _vName,
+              helper: 'Required. Used as the fallback language.',
+            ),
+
+            _text(
+              'translations.de.description',
+              'Description (German)',
+              _descDe,
+              _vDesc,
+              maxLines: 2,
+              helper: 'A short description shown under the membership name.',
+            ),
+
             if (_editing && !_hasProduct)
               Padding(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: Text(
-                  'This plan has no product yet, so it cannot be bought. Set a price and a tax rate to put it on sale.',
+                  'This plan has no product yet, so it cannot be bought. '
+                  'Set a price and a tax rate to put it on sale.',
                   style: TextStyle(color: theme.colorScheme.error),
                 ),
               ),
+
             _text(
               'price_cents',
               'Price (€, incl. VAT)',
@@ -521,96 +752,142 @@ class _AdminMembershipPlanFormScreenState extends State<AdminMembershipPlanFormS
               _vPrice,
               type: const TextInputType.numberWithOptions(decimal: true),
             ),
+
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: DropdownButtonFormField<int>(
-                value: _taxRateId,
+                initialValue: _taxRateId,
                 isExpanded: true,
                 decoration: InputDecoration(
                   labelText: 'Tax rate',
                   helperText: _taxRates.isEmpty
                       ? 'No tax rate exists yet. Create one under Admin, Tax rates.'
                       : endedRateSelected
-                          ? 'This rate has ended. It still works for this plan, but a current rate should replace it.'
-                          : null,
+                      ? 'This rate has ended. It still works for this plan, '
+                            'but a current rate should replace it.'
+                      : null,
                   helperMaxLines: 3,
                   errorText: _serverErrors['tax_rate_id'],
                 ),
-                validator: (v) => v == null && _priceRequired ? 'Choose a tax rate.' : null,
+                validator: (v) =>
+                    v == null && _priceRequired ? 'Choose a tax rate.' : null,
                 items: [
                   for (final t in _taxRates)
                     DropdownMenuItem<int>(
                       value: t['id'] as int,
                       child: Text(
-                        '${t['code']} (${t['rate_percent']}%)${t['ended'] == true ? ' · ended' : ''}',
+                        '${t['code']} (${t['rate_percent']}%)'
+                        '${t['ended'] == true ? ' · ended' : ''}',
                       ),
                     ),
                 ],
-                onChanged: (v) => setState(() => _taxRateId = v),
+                onChanged: (v) {
+                  setState(() {
+                    _taxRateId = v;
+                  });
+                },
               ),
             ),
+
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              activeColor: goldColor,
+              activeThumbColor: goldColor,
+              activeTrackColor: goldColor,
               title: Text(
                 'Available to buy',
-                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               subtitle: Text(
-                'Turning this off hides the plan. Existing members keep their membership.',
+                'Turning this off hides the plan. Existing members keep '
+                'their membership.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
               ),
               value: _active,
-              onChanged: (v) => setState(() => _active = v),
+              onChanged: (v) {
+                setState(() {
+                  _active = v;
+                });
+              },
             ),
+
             const Divider(height: 32),
+
             Text(
               'Benefits',
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 4),
+
             Text(
-              'What a member gets, in the order customers read it. Use the arrows to reorder. '
-              'A plan can have one shopping credit and one discount, plus any number of perks.',
+              'What a member gets, in the order customers read it. '
+              'Use the arrows to reorder. A plan can have one shopping '
+              'credit and one discount, plus any number of perks.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
+
             const SizedBox(height: 12),
+
             for (var i = 0; i < _benefits.length; i++) _benefitCard(i),
+
             const SizedBox(height: 4),
+
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
                 OutlinedButton.icon(
-                  onPressed: full || _has('credit') ? null : () => _addBenefit('credit'),
-                  icon: const Icon(Icons.account_balance_wallet_outlined, size: 18),
+                  onPressed: full || _has('credit')
+                      ? null
+                      : () => _addBenefit('credit'),
+                  icon: const Icon(
+                    Icons.account_balance_wallet_outlined,
+                    size: 18,
+                  ),
                   label: const Text('Shopping credit'),
-                  style: OutlinedButton.styleFrom(side: BorderSide(color: goldColor)),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: goldColor),
+                  ),
                 ),
                 OutlinedButton.icon(
-                  onPressed: full || _has('discount') ? null : () => _addBenefit('discount'),
+                  onPressed: full || _has('discount')
+                      ? null
+                      : () => _addBenefit('discount'),
                   icon: const Icon(Icons.sell_outlined, size: 18),
                   label: const Text('Discount'),
-                  style: OutlinedButton.styleFrom(side: BorderSide(color: goldColor)),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: goldColor),
+                  ),
                 ),
                 OutlinedButton.icon(
                   onPressed: full ? null : () => _addBenefit('perk'),
                   icon: const Icon(Icons.check_circle_outline, size: 18),
                   label: const Text('Perk'),
-                  style: OutlinedButton.styleFrom(side: BorderSide(color: goldColor)),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: goldColor),
+                  ),
                 ),
               ],
             ),
+
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 16),
-                child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)),
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: theme.colorScheme.error),
+                ),
               ),
+
             const SizedBox(height: 24),
+
             LoadingButton(
               label: _editing ? 'Save changes' : 'Create plan',
               loading: _saving,

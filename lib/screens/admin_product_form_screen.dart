@@ -8,7 +8,8 @@ import 'admin_stock_screen.dart';
 
 typedef ProductFormData = Map<String, dynamic>;
 
-/// One editable variant. Existing variants keep their id, so saving updates them instead of adding copies.
+/// One editable variant. Existing variants keep their id, so saving updates
+/// them instead of adding duplicates.
 class _VariantRow {
   final int? id;
   final TextEditingController sku;
@@ -16,6 +17,7 @@ class _VariantRow {
   final TextEditingController pack;
   final TextEditingController unit;
   final TextEditingController ean;
+
   bool active;
   ProductFormData? stock;
 
@@ -35,11 +37,12 @@ class _VariantRow {
        ean = TextEditingController(text: ean);
 
   factory _VariantRow.fromJson(ProductFormData v) {
-    final cents = v['price_cents'] as int;
+    final cents = (v['price_cents'] as num).toInt();
     final packQty = v['pack_quantity'] as num?;
+
     return _VariantRow(
-      id: v['id'] as int,
-      sku: v['sku'] as String,
+      id: (v['id'] as num).toInt(),
+      sku: (v['sku'] as String?) ?? '',
       price: '${cents ~/ 100}.${(cents % 100).toString().padLeft(2, '0')}',
       pack: packQty == null ? '' : formatQuantity(packQty),
       unit: (v['unit'] as String?) ?? '',
@@ -78,21 +81,30 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
   static const _statuses = ['draft', 'published', 'archived'];
 
   final _form = GlobalKey<FormState>();
+
   final _slug = TextEditingController();
+
+  // German translation.
   final _name = TextEditingController();
   final _desc = TextEditingController();
   final _ingredients = TextEditingController();
   final _allergens = TextEditingController();
 
+  // English translation.
+  final _nameEn = TextEditingController();
+  final _descEn = TextEditingController();
+  final _ingredientsEn = TextEditingController();
+  final _allergensEn = TextEditingController();
+
   // Product discount.
   final _discountValue = TextEditingController();
   bool _discountEnabled = false;
   String _discountType = 'percentage';
-
   Map<String, String>? _originalDiscount;
 
   String _type = 'physical';
   String _status = 'draft';
+
   int? _taxRateId;
   int? _originalTaxRateId;
 
@@ -102,13 +114,20 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
   List<ProductFormData> _taxRates = [];
   List<ProductFormData> _categories = [];
   List<ProductFormData> _images = [];
+
   List<int> _originalImageIds = [];
 
+  // SEO translations.
   String? _seoTitle;
   String? _seoDescription;
+  String? _seoTitleEn;
+  String? _seoDescriptionEn;
+
+  bool _hadEnglishTranslation = false;
 
   bool _loadingData = true;
   String? _loadError;
+
   bool _saving = false;
   String? _error;
 
@@ -116,7 +135,9 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
   bool get _editing => widget.productId != null;
 
-  List<int> get _imageIds => [for (final i in _images) i['id'] as int];
+  List<int> get _imageIds => [
+    for (final image in _images) (image['id'] as num).toInt(),
+  ];
 
   bool get _imagesChanged {
     if (!_editing) return _images.isNotEmpty;
@@ -132,6 +153,12 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
     return false;
   }
 
+  bool get _hasEnglishContent =>
+      _nameEn.text.trim().isNotEmpty ||
+      _descEn.text.trim().isNotEmpty ||
+      _ingredientsEn.text.trim().isNotEmpty ||
+      _allergensEn.text.trim().isNotEmpty;
+
   @override
   void initState() {
     super.initState();
@@ -140,19 +167,23 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
   @override
   void dispose() {
-    for (final c in [
+    for (final controller in [
       _slug,
       _name,
       _desc,
       _ingredients,
       _allergens,
+      _nameEn,
+      _descEn,
+      _ingredientsEn,
+      _allergensEn,
       _discountValue,
     ]) {
-      c.dispose();
+      controller.dispose();
     }
 
-    for (final v in _variants) {
-      v.dispose();
+    for (final variant in _variants) {
+      variant.dispose();
     }
 
     super.dispose();
@@ -170,45 +201,81 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
       if (!mounted) return;
 
-      final taxRates = (results[0] as List<dynamic>).cast<ProductFormData>();
+      final taxRates = (results[0] as List<dynamic>)
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
 
-      final categories = (results[1] as List<dynamic>).cast<ProductFormData>();
+      final categories = (results[1] as List<dynamic>)
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
 
       if (_editing) {
-        final p = results[2] as ProductFormData;
+        final p = Map<String, dynamic>.from(results[2] as Map);
 
-        final tr = p['translations'];
-        final de = tr is Map<String, dynamic>
-            ? tr['de'] as Map<String, dynamic>?
-            : null;
+        // Read translations safely, regardless of the runtime map type.
+        final rawTranslations = p['translations'];
 
-        _slug.text = p['slug'] as String;
-        _type = p['product_type'] as String;
-        _status = p['status'] as String;
+        final translations = rawTranslations is Map
+            ? Map<String, dynamic>.from(rawTranslations)
+            : <String, dynamic>{};
 
-        _taxRateId = p['tax_rate_id'] as int;
+        final deRaw = translations['de'];
+        final enRaw = translations['en'];
+
+        final de = deRaw is Map
+            ? Map<String, dynamic>.from(deRaw)
+            : <String, dynamic>{};
+
+        final en = enRaw is Map
+            ? Map<String, dynamic>.from(enRaw)
+            : <String, dynamic>{};
+
+        _hadEnglishTranslation = en.isNotEmpty;
+
+        _slug.text = (p['slug'] as String?) ?? '';
+        _type = (p['product_type'] as String?) ?? 'physical';
+        _status = (p['status'] as String?) ?? 'draft';
+
+        _taxRateId = (p['tax_rate_id'] as num?)?.toInt();
         _originalTaxRateId = _taxRateId;
 
-        _name.text = (de?['name'] as String?) ?? '';
-        _desc.text = (de?['description'] as String?) ?? '';
-        _ingredients.text = (de?['ingredients'] as String?) ?? '';
-        _allergens.text = (de?['allergens'] as String?) ?? '';
+        // German translation.
+        _name.text = (de['name'] as String?) ?? '';
+        _desc.text = (de['description'] as String?) ?? '';
+        _ingredients.text = (de['ingredients'] as String?) ?? '';
+        _allergens.text = (de['allergens'] as String?) ?? '';
 
-        _seoTitle = de?['seo_title'] as String?;
-        _seoDescription = de?['seo_description'] as String?;
+        _seoTitle = de['seo_title'] as String?;
+        _seoDescription = de['seo_description'] as String?;
 
-        _categoryIds.addAll((p['category_ids'] as List<dynamic>).cast<int>());
+        // English translation.
+        _nameEn.text = (en['name'] as String?) ?? '';
+        _descEn.text = (en['description'] as String?) ?? '';
+        _ingredientsEn.text = (en['ingredients'] as String?) ?? '';
+        _allergensEn.text = (en['allergens'] as String?) ?? '';
+
+        _seoTitleEn = en['seo_title'] as String?;
+        _seoDescriptionEn = en['seo_description'] as String?;
+
+        final rawCategoryIds = p['category_ids'] as List? ?? [];
+
+        _categoryIds.addAll(rawCategoryIds.map((id) => (id as num).toInt()));
+
+        final rawImages = p['images'] as List? ?? [];
 
         _images = [
-          for (final i in (p['images'] as List<dynamic>))
-            Map<String, dynamic>.from(i as Map),
+          for (final image in rawImages)
+            Map<String, dynamic>.from(image as Map),
         ];
 
         _originalImageIds = _imageIds;
 
+        final rawVariants = p['variants'] as List? ?? [];
+
         _variants.addAll(
-          (p['variants'] as List<dynamic>).cast<ProductFormData>().map(
-            _VariantRow.fromJson,
+          rawVariants.map(
+            (variant) =>
+                _VariantRow.fromJson(Map<String, dynamic>.from(variant as Map)),
           ),
         );
 
@@ -233,7 +300,10 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
           }
         }
 
-        if (!taxRates.any((t) => t['id'] == _taxRateId)) {
+        if (_taxRateId != null &&
+            !taxRates.any((t) {
+              return (t['id'] as num?)?.toInt() == _taxRateId;
+            })) {
           taxRates.add({
             'id': _taxRateId,
             'code': p['tax_rate_code'],
@@ -243,11 +313,13 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
         }
       } else {
         if (taxRates.isNotEmpty) {
-          _taxRateId = taxRates.first['id'] as int;
+          _taxRateId = (taxRates.first['id'] as num).toInt();
         }
 
         _variants.add(_VariantRow());
       }
+
+      if (!mounted) return;
 
       setState(() {
         _taxRates = taxRates;
@@ -261,60 +333,94 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
         _loadError = e.message;
         _loadingData = false;
       });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _loadError = 'Unable to load product data: $e';
+        _loadingData = false;
+      });
     }
   }
 
-  // ---------- validation ----------
+  // ---------------------------------------------------------------------------
+  // Validation
+  // ---------------------------------------------------------------------------
 
-  String? _vSlug(String? v) {
-    final s = (v ?? '').trim();
+  String? _vSlug(String? value) {
+    final s = (value ?? '').trim();
 
     return s.length <= 190 && RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)*$').hasMatch(s)
         ? null
         : 'Lowercase letters and numbers separated by single hyphens.';
   }
 
-  String? _vName(String? v) {
-    final s = (v ?? '').trim();
+  String? _vName(String? value) {
+    final s = (value ?? '').trim();
 
     return s.isEmpty || s.length > 190
         ? 'Name must be 1 to 190 characters.'
         : null;
   }
 
-  String? _vMax(String? v, int max) =>
-      (v ?? '').trim().length > max ? 'Maximum $max characters.' : null;
+  String? _vEnglishName(String? value) {
+    final s = (value ?? '').trim();
 
-  String? _vSku(String? v) =>
-      RegExp(r'^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$').hasMatch((v ?? '').trim())
-      ? null
-      : 'Letters, numbers and . _ / - (maximum 100).';
+    if (s.isEmpty && !_hasEnglishContent && !_hadEnglishTranslation) {
+      return null;
+    }
 
-  String? _vPrice(String? v) =>
-      parseEuroToCents(v ?? '') == null ? 'Enter an amount like 6.99.' : null;
+    return s.isEmpty || s.length > 190
+        ? 'Enter an English name between 1 and 190 characters.'
+        : null;
+  }
 
-  String? _vPack(String? v) {
-    final s = (v ?? '').trim().replaceAll(',', '.');
+  String? _vMax(String? value, int max) {
+    return (value ?? '').trim().length > max
+        ? 'Maximum $max characters.'
+        : null;
+  }
+
+  String? _vSku(String? value) {
+    return RegExp(
+          r'^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$',
+        ).hasMatch((value ?? '').trim())
+        ? null
+        : 'Letters, numbers and . _ / - (maximum 100).';
+  }
+
+  String? _vPrice(String? value) {
+    return parseEuroToCents(value ?? '') == null
+        ? 'Enter an amount like 6.99.'
+        : null;
+  }
+
+  String? _vPack(String? value) {
+    final s = (value ?? '').trim().replaceAll(',', '.');
 
     if (s.isEmpty) return null;
 
-    final ok =
+    final valid =
         RegExp(r'^\d{1,9}(\.\d{1,3})?$').hasMatch(s) &&
         double.parse(s) >= 0.001;
 
-    return ok ? null : 'A number from 0.001 with at most 3 decimals.';
+    return valid ? null : 'A number from 0.001 with at most 3 decimals.';
   }
 
-  String? _vEan(String? v) {
-    final s = (v ?? '').trim();
+  String? _vEan(String? value) {
+    final s = (value ?? '').trim();
 
     return s.isEmpty || RegExp(r'^[0-9]{8,14}$').hasMatch(s)
         ? null
         : '8 to 14 digits.';
   }
 
-  /// Normalises a discount value without using floating-point arithmetic.
-  /// For example: 15.5 becomes 15.50.
+  // ---------------------------------------------------------------------------
+  // Discount calculations and preview
+  // ---------------------------------------------------------------------------
+
+  /// Normalises a discount value without relying on floating-point arithmetic.
+  /// Example: 15.5 becomes 15.50.
   String? _normaliseDiscountValue(String raw) {
     final value = raw.trim().replaceAll(',', '.');
 
@@ -368,8 +474,6 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
     return null;
   }
 
-  // ---------- discount calculations and preview ----------
-
   int _discountForVariant(int originalCents) {
     if (!_discountEnabled || originalCents <= 0) return 0;
 
@@ -391,7 +495,9 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
     return discountCents.clamp(0, originalCents);
   }
 
-  String _formatMoney(int cents) => '€${(cents / 100).toStringAsFixed(2)}';
+  String _formatMoney(int cents) {
+    return '€${(cents / 100).toStringAsFixed(2)}';
+  }
 
   Widget _discountPreview() {
     final theme = Theme.of(context);
@@ -449,18 +555,16 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
     final theme = Theme.of(context);
     final originalCents = parseEuroToCents(variant.price.text);
 
+    final label = variant.sku.text.trim().isEmpty
+        ? 'Variant #${index + 1}'
+        : variant.sku.text.trim();
+
     if (originalCents == null) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 5),
         child: Row(
           children: [
-            Expanded(
-              child: Text(
-                variant.sku.text.trim().isEmpty
-                    ? 'Variant #${index + 1}'
-                    : variant.sku.text.trim(),
-              ),
-            ),
+            Expanded(child: Text(label)),
             Text(
               'Enter a valid price',
               style: theme.textTheme.bodySmall?.copyWith(
@@ -474,10 +578,6 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
     final discountCents = _discountForVariant(originalCents);
     final discountedCents = originalCents - discountCents;
-
-    final label = variant.sku.text.trim().isEmpty
-        ? 'Variant #${index + 1}'
-        : variant.sku.text.trim();
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -519,7 +619,8 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
         ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          activeColor: goldColor,
+          activeThumbColor: goldColor,
+          activeTrackColor: goldColor,
           title: const Text('Enable product discount'),
           subtitle: const Text(
             'Customers will see the discounted price throughout the shop.',
@@ -537,7 +638,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
         if (_discountEnabled) ...[
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            value: _discountType,
+            initialValue: _discountType,
             isExpanded: true,
             decoration: InputDecoration(
               labelText: 'Discount Type',
@@ -595,57 +696,75 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
     );
   }
 
-  // ---------- variants and stock ----------
+  // ---------------------------------------------------------------------------
+  // Variants and stock
+  // ---------------------------------------------------------------------------
 
-  void _addVariant() => setState(() => _variants.add(_VariantRow()));
-
-  void _removeVariant(int i) {
-    final row = _variants[i];
-
-    setState(() => _variants.removeAt(i));
-
-    WidgetsBinding.instance.addPostFrameCallback((_) => row.dispose());
+  void _addVariant() {
+    setState(() {
+      _variants.add(_VariantRow());
+    });
   }
 
-  Future<void> _openStock(_VariantRow v) async {
+  void _removeVariant(int index) {
+    final row = _variants[index];
+
+    setState(() {
+      _variants.removeAt(index);
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      row.dispose();
+    });
+  }
+
+  Future<void> _openStock(_VariantRow variant) async {
+    if (variant.id == null) return;
+
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => AdminStockScreen(variantId: v.id!, title: v.sku.text),
+        builder: (_) =>
+            AdminStockScreen(variantId: variant.id!, title: variant.sku.text),
       ),
     );
 
     try {
-      final data = await ApiService.instance.adminVariantStock(v.id!);
+      final data = await ApiService.instance.adminVariantStock(variant.id!);
 
       if (mounted) {
         setState(() {
-          v.stock = data['totals'] as ProductFormData;
+          variant.stock = Map<String, dynamic>.from(data['totals'] as Map);
         });
       }
     } on ApiException {
-      // Keep old numbers if call fails.
+      // Keep the previous stock numbers if the request fails.
     }
   }
 
-  String _stockText(ProductFormData s) =>
-      '${formatQuantity(s['on_hand'] as num)} on hand · '
-      '${formatQuantity(s['reserved'] as num)} reserved · '
-      '${formatQuantity(s['available'] as num)} available';
+  String _stockText(ProductFormData stock) {
+    return '${formatQuantity(stock['on_hand'] as num)} on hand · '
+        '${formatQuantity(stock['reserved'] as num)} reserved · '
+        '${formatQuantity(stock['available'] as num)} available';
+  }
 
-  // ---------- save ----------
+  // ---------------------------------------------------------------------------
+  // Save
+  // ---------------------------------------------------------------------------
 
-  bool _isFieldKey(String k) =>
-      const {
-        'slug',
-        'product_type',
-        'status',
-        'tax_rate_id',
-        'discount',
-      }.contains(k) ||
-      k.startsWith('discount.') ||
-      k.startsWith('translations.de.') ||
-      RegExp(r'^variants\.\d+\.').hasMatch(k);
+  bool _isFieldKey(String key) {
+    return const {
+          'slug',
+          'product_type',
+          'status',
+          'tax_rate_id',
+          'discount',
+        }.contains(key) ||
+        key.startsWith('discount.') ||
+        key.startsWith('translations.de.') ||
+        key.startsWith('translations.en.') ||
+        RegExp(r'^variants\.\d+\.').hasMatch(key);
+  }
 
   Map<String, String> _currentDiscount() => {
     'discount_type': _discountType,
@@ -675,16 +794,50 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
     if (!_form.currentState!.validate()) return;
 
-    if (_status == 'published' && !_variants.any((v) => v.active)) {
+    if (_status == 'published' && !_variants.any((variant) => variant.active)) {
       setState(() {
         _error = 'A published product needs at least one active variant.';
       });
       return;
     }
 
-    setState(() => _saving = true);
+    if (_status == 'published' && _name.text.trim().isEmpty) {
+      setState(() {
+        _error = 'A published product needs a German translation.';
+      });
+      return;
+    }
 
-    String? orNull(String s) => s.trim().isEmpty ? null : s.trim();
+    setState(() {
+      _saving = true;
+    });
+
+    String? orNull(String value) {
+      return value.trim().isEmpty ? null : value.trim();
+    }
+
+    final translations = <String, dynamic>{
+      'de': {
+        'name': _name.text.trim(),
+        'description': orNull(_desc.text),
+        'ingredients': orNull(_ingredients.text),
+        'allergens': orNull(_allergens.text),
+        'seo_title': _seoTitle,
+        'seo_description': _seoDescription,
+      },
+    };
+
+    // English is optional. Send it only when an English name is provided.
+    if (_nameEn.text.trim().isNotEmpty) {
+      translations['en'] = {
+        'name': _nameEn.text.trim(),
+        'description': orNull(_descEn.text),
+        'ingredients': orNull(_ingredientsEn.text),
+        'allergens': orNull(_allergensEn.text),
+        'seo_title': _seoTitleEn,
+        'seo_description': _seoDescriptionEn,
+      };
+    }
 
     final body = <String, dynamic>{
       'slug': _slug.text.trim(),
@@ -692,29 +845,20 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
       'status': _status,
       if (!_editing || _taxRateId != _originalTaxRateId)
         'tax_rate_id': _taxRateId,
-      'translations': {
-        'de': {
-          'name': _name.text.trim(),
-          'description': orNull(_desc.text),
-          'ingredients': orNull(_ingredients.text),
-          'allergens': orNull(_allergens.text),
-          'seo_title': _seoTitle,
-          'seo_description': _seoDescription,
-        },
-      },
+      'translations': translations,
       'category_ids': _categoryIds.toList(),
       'variants': [
-        for (final v in _variants)
+        for (final variant in _variants)
           {
-            if (v.id != null) 'id': v.id,
-            'sku': v.sku.text.trim(),
-            'price_cents': parseEuroToCents(v.price.text)!,
-            'pack_quantity': v.pack.text.trim().isEmpty
+            if (variant.id != null) 'id': variant.id,
+            'sku': variant.sku.text.trim(),
+            'price_cents': parseEuroToCents(variant.price.text)!,
+            'pack_quantity': variant.pack.text.trim().isEmpty
                 ? null
-                : v.pack.text.trim().replaceAll(',', '.'),
-            'unit': orNull(v.unit.text),
-            'ean': orNull(v.ean.text),
-            'active': v.active,
+                : variant.pack.text.trim().replaceAll(',', '.'),
+            'unit': orNull(variant.unit.text),
+            'ean': orNull(variant.ean.text),
+            'active': variant.active,
           },
       ],
       if (_imagesChanged) 'media_ids': _imageIds,
@@ -739,22 +883,33 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
 
-      final errs = e.fieldErrors;
+      final errors = e.fieldErrors;
 
-      final general = errs.entries
-          .where((x) => !_isFieldKey(x.key))
-          .map((x) => x.value)
+      final general = errors.entries
+          .where((entry) => !_isFieldKey(entry.key))
+          .map((entry) => entry.value)
           .join('\n');
 
       setState(() {
-        _serverErrors = errs;
-        _error = errs.isEmpty ? e.message : (general.isEmpty ? null : general);
+        _serverErrors = errors;
+        _error = errors.isEmpty
+            ? e.message
+            : (general.isEmpty ? null : general);
+        _saving = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _error = 'Unable to save product: $e';
         _saving = false;
       });
     }
   }
 
-  // ---------- UI Helper Components ----------
+  // ---------------------------------------------------------------------------
+  // UI helper components
+  // ---------------------------------------------------------------------------
 
   Widget _sectionHeader(
     BuildContext context,
@@ -792,7 +947,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
   Widget _text(
     String serverKey,
     String label,
-    TextEditingController c,
+    TextEditingController controller,
     String? Function(String?) validator, {
     int maxLines = 1,
     TextInputType? type,
@@ -801,7 +956,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: TextFormField(
-        controller: c,
+        controller: controller,
         maxLines: maxLines,
         keyboardType: type,
         textInputAction: maxLines == 1
@@ -815,17 +970,19 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
     );
   }
 
-  Widget _variantCard(int i) {
-    final v = _variants[i];
+  Widget _variantCard(int index) {
+    final variant = _variants[index];
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
 
     const money = TextInputType.numberWithOptions(decimal: true);
 
-    String? server(String f) => _serverErrors['variants.$i.$f'];
+    String? server(String field) {
+      return _serverErrors['variants.$index.$field'];
+    }
 
     return Container(
-      key: ObjectKey(v),
+      key: ObjectKey(variant),
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -839,14 +996,14 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
           Row(
             children: [
               Text(
-                'Variant #${i + 1}',
+                'Variant #${index + 1}',
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
                 ),
               ),
               const Spacer(),
-              if (v.id == null)
+              if (variant.id == null)
                 IconButton(
                   tooltip: 'Remove variant',
                   icon: Icon(
@@ -854,7 +1011,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                     size: 20,
                     color: theme.colorScheme.error.withValues(alpha: 0.8),
                   ),
-                  onPressed: () => _removeVariant(i),
+                  onPressed: () => _removeVariant(index),
                 ),
             ],
           ),
@@ -865,7 +1022,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
               Expanded(
                 flex: 3,
                 child: TextFormField(
-                  controller: v.sku,
+                  controller: variant.sku,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   validator: _vSku,
                   forceErrorText: server('sku'),
@@ -879,18 +1036,18 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
               Expanded(
                 flex: 2,
                 child: TextFormField(
-                  controller: v.price,
+                  controller: variant.price,
                   keyboardType: money,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   validator: _vPrice,
                   forceErrorText: server('price_cents'),
+                  onChanged: (_) {
+                    if (_discountEnabled) setState(() {});
+                  },
                   decoration: const InputDecoration(
                     labelText: 'Price (€)',
                     helperText: 'incl. VAT',
                   ),
-                  onChanged: (_) {
-                    if (_discountEnabled) setState(() {});
-                  },
                 ),
               ),
             ],
@@ -901,7 +1058,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
             children: [
               Expanded(
                 child: TextFormField(
-                  controller: v.pack,
+                  controller: variant.pack,
                   keyboardType: money,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   validator: _vPack,
@@ -912,9 +1069,9 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: TextFormField(
-                  controller: v.unit,
+                  controller: variant.unit,
                   autovalidateMode: AutovalidateMode.onUserInteraction,
-                  validator: (x) => _vMax(x, 20),
+                  validator: (value) => _vMax(value, 20),
                   forceErrorText: server('unit'),
                   decoration: const InputDecoration(
                     labelText: 'Unit (g, ml...)',
@@ -925,14 +1082,16 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
           ),
           const SizedBox(height: 12),
           TextFormField(
-            controller: v.ean,
+            controller: variant.ean,
             keyboardType: TextInputType.number,
             autovalidateMode: AutovalidateMode.onUserInteraction,
             validator: _vEan,
             forceErrorText: server('ean'),
             decoration: const InputDecoration(labelText: 'EAN (optional)'),
           ),
-          if (v.id != null && _type == 'physical' && v.stock != null) ...[
+          if (variant.id != null &&
+              _type == 'physical' &&
+              variant.stock != null) ...[
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -946,7 +1105,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      _stockText(v.stock!),
+                      _stockText(variant.stock!),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurface.withValues(
                           alpha: 0.7,
@@ -955,7 +1114,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                     ),
                   ),
                   TextButton.icon(
-                    onPressed: () => _openStock(v),
+                    onPressed: () => _openStock(variant),
                     icon: Icon(
                       Icons.warehouse_outlined,
                       size: 16,
@@ -977,20 +1136,29 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
           const SizedBox(height: 8),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            activeColor: goldColor,
+            activeThumbColor: goldColor,
+            activeTrackColor: goldColor,
             title: Text(
               'Active variant',
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w500,
               ),
             ),
-            value: v.active,
-            onChanged: (x) => setState(() => v.active = x),
+            value: variant.active,
+            onChanged: (value) {
+              setState(() {
+                variant.active = value;
+              });
+            },
           ),
         ],
       ),
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Build
+  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -1011,7 +1179,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
         appBar: AppBar(title: Text(_editing ? 'Edit product' : 'New product')),
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1047,7 +1215,8 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
     }
 
     final endedRateSelected = _taxRates.any(
-      (t) => t['id'] == _taxRateId && t['ended'] == true,
+      (rate) =>
+          (rate['id'] as num?)?.toInt() == _taxRateId && rate['ended'] == true,
     );
 
     return Scaffold(
@@ -1060,7 +1229,9 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
+            // Basic settings.
             _sectionHeader(context, 'Basic Settings'),
+
             _text(
               'slug',
               'Slug (URL name)',
@@ -1068,46 +1239,55 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
               _vSlug,
               helper: 'e.g. ceylon-zimt',
             ),
+
             Padding(
               padding: const EdgeInsets.only(bottom: 14),
               child: DropdownButtonFormField<String>(
-                value: _type,
+                initialValue: _type,
                 decoration: InputDecoration(
                   labelText: 'Product Type',
                   errorText: _serverErrors['product_type'],
                 ),
                 items: [
-                  for (final t in _types)
+                  for (final type in _types)
                     DropdownMenuItem(
-                      value: t,
-                      child: Text(t.replaceAll('_', ' ')),
+                      value: type,
+                      child: Text(type.replaceAll('_', ' ')),
                     ),
                 ],
-                onChanged: (v) => setState(() => _type = v!),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() => _type = value);
+                },
               ),
             ),
+
             Padding(
               padding: const EdgeInsets.only(bottom: 14),
               child: DropdownButtonFormField<String>(
-                value: _status,
+                initialValue: _status,
                 decoration: InputDecoration(
                   labelText: 'Status',
                   helperText:
-                      'Publishing requires active text and at least one active variant.',
+                      'Publishing requires a German translation and at least one active variant.',
                   helperMaxLines: 2,
                   errorText: _serverErrors['status'],
                 ),
                 items: [
-                  for (final s in _statuses)
-                    DropdownMenuItem(value: s, child: Text(s)),
+                  for (final status in _statuses)
+                    DropdownMenuItem(value: status, child: Text(status)),
                 ],
-                onChanged: (v) => setState(() => _status = v!),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() => _status = value);
+                },
               ),
             ),
+
             Padding(
               padding: const EdgeInsets.only(bottom: 14),
               child: DropdownButtonFormField<int>(
-                value: _taxRateId,
+                initialValue: _taxRateId,
                 isExpanded: true,
                 decoration: InputDecoration(
                   labelText: 'Tax Rate',
@@ -1117,69 +1297,145 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                   helperMaxLines: 2,
                   errorText: _serverErrors['tax_rate_id'],
                 ),
-                validator: (v) => v == null ? 'Choose a tax rate.' : null,
+                validator: (value) =>
+                    value == null ? 'Choose a tax rate.' : null,
                 items: [
-                  for (final t in _taxRates)
+                  for (final rate in _taxRates)
                     DropdownMenuItem(
-                      value: t['id'] as int,
+                      value: (rate['id'] as num).toInt(),
                       child: Text(
-                        '${t['code']} (${t['rate_percent']}%)'
-                        '${t['ended'] == true ? ' · ended' : ''}',
+                        '${rate['code']} (${rate['rate_percent']}%)'
+                        '${rate['ended'] == true ? ' · ended' : ''}',
                       ),
                     ),
                 ],
-                onChanged: (v) => setState(() => _taxRateId = v),
+                onChanged: (value) {
+                  setState(() => _taxRateId = value);
+                },
               ),
             ),
-            _sectionHeader(context, 'Product Details'),
-            _text('translations.de.name', 'Name', _name, _vName),
+
+            // German translation.
+            _sectionHeader(
+              context,
+              'Product Details — German',
+              subtitle: 'German is currently required for publishing products.',
+            ),
+
+            _text(
+              'translations.de.name',
+              'Product Name (German)',
+              _name,
+              _vName,
+            ),
+
             _text(
               'translations.de.description',
-              'Description (optional)',
+              'Description (German)',
               _desc,
-              (v) => _vMax(v, 20000),
+              (value) => _vMax(value, 20000),
               maxLines: 4,
             ),
+
             _text(
               'translations.de.ingredients',
-              'Ingredients (optional)',
+              'Ingredients (German)',
               _ingredients,
-              (v) => _vMax(v, 5000),
+              (value) => _vMax(value, 5000),
               maxLines: 3,
             ),
+
             _text(
               'translations.de.allergens',
-              'Allergens (optional)',
+              'Allergens (German)',
               _allergens,
-              (v) => _vMax(v, 5000),
+              (value) => _vMax(value, 5000),
               maxLines: 2,
             ),
+
+            const Divider(height: 32),
+
+            // English translation.
+            _sectionHeader(
+              context,
+              'Product Details — English',
+              subtitle:
+                  'Optional. Add an English name to make this product available in English.',
+            ),
+
+            _text(
+              'translations.en.name',
+              'Product Name (English)',
+              _nameEn,
+              _vEnglishName,
+              helper: 'Required if you enter any other English details.',
+            ),
+
+            _text(
+              'translations.en.description',
+              'Description (English)',
+              _descEn,
+              (value) => _vMax(value, 20000),
+              maxLines: 4,
+            ),
+
+            _text(
+              'translations.en.ingredients',
+              'Ingredients (English)',
+              _ingredientsEn,
+              (value) => _vMax(value, 5000),
+              maxLines: 3,
+            ),
+
+            _text(
+              'translations.en.allergens',
+              'Allergens (English)',
+              _allergensEn,
+              (value) => _vMax(value, 5000),
+              maxLines: 2,
+            ),
+
+            const Divider(height: 32),
+
+            // Images.
             _sectionHeader(
               context,
               'Images',
               subtitle:
                   'The first image will be set as the primary catalog cover.',
             ),
+
             ImageManager(
               images: _images,
-              onChanged: (list) => setState(() => _images = list),
+              onChanged: (list) {
+                setState(() {
+                  _images = list;
+                });
+              },
             ),
+
+            // Categories.
             if (_categories.isNotEmpty) ...[
               _sectionHeader(context, 'Categories'),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  for (final c in _categories)
+                  for (final category in _categories)
                     FilterChip(
                       label: Text(
-                        '${c['name']}'
-                        '${c['active'] == true ? '' : ' (hidden)'}',
+                        '${category['name']}'
+                        '${category['active'] == true ? '' : ' (hidden)'}',
                       ),
-                      selected: _categoryIds.contains(c['id']),
+                      selected: _categoryIds.contains(
+                        (category['id'] as num).toInt(),
+                      ),
                       showCheckmark: false,
                       side: BorderSide(
-                        color: _categoryIds.contains(c['id'])
+                        color:
+                            _categoryIds.contains(
+                              (category['id'] as num).toInt(),
+                            )
                             ? goldColor
                             : theme.colorScheme.onSurface.withValues(
                                 alpha: 0.15,
@@ -1188,29 +1444,46 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                       selectedColor: goldColor.withValues(alpha: 0.15),
                       labelStyle: TextStyle(
                         fontSize: 13,
-                        color: _categoryIds.contains(c['id'])
+                        color:
+                            _categoryIds.contains(
+                              (category['id'] as num).toInt(),
+                            )
                             ? goldColor
                             : theme.colorScheme.onSurface.withValues(
                                 alpha: 0.7,
                               ),
-                        fontWeight: _categoryIds.contains(c['id'])
+                        fontWeight:
+                            _categoryIds.contains(
+                              (category['id'] as num).toInt(),
+                            )
                             ? FontWeight.w600
                             : FontWeight.normal,
                       ),
-                      onSelected: (on) => setState(() {
-                        final id = c['id'] as int;
-                        on ? _categoryIds.add(id) : _categoryIds.remove(id);
-                      }),
+                      onSelected: (selected) {
+                        final id = (category['id'] as num).toInt();
+
+                        setState(() {
+                          if (selected) {
+                            _categoryIds.add(id);
+                          } else {
+                            _categoryIds.remove(id);
+                          }
+                        });
+                      },
                     ),
                 ],
               ),
             ],
+
+            // Variants.
             _sectionHeader(
               context,
               'Variants',
               subtitle: 'Configure pack sizes, SKUs, and original pricing.',
             ),
+
             for (var i = 0; i < _variants.length; i++) _variantCard(i),
+
             OutlinedButton.icon(
               onPressed: _addVariant,
               icon: const Icon(Icons.add, size: 18),
@@ -1222,8 +1495,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
               ),
             ),
 
-            // Product discount is configured after variant prices,
-            // allowing the preview to show every variant.
+            // Discount controls and preview.
             _discountSection(),
 
             if (_error != null)
@@ -1237,7 +1509,9 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                   ),
                 ),
               ),
+
             const SizedBox(height: 24),
+
             LoadingButton(
               label: _editing ? 'Save Changes' : 'Create Product',
               loading: _saving,

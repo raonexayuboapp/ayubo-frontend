@@ -19,7 +19,7 @@ class HomeHeader extends StatelessWidget {
     required this.onOpenSettings,
   });
 
-  bool get _isGuest => user == null;
+  bool get _isGuest => user == null || user!.isEmpty || user!['id'] == null;
 
   String _greetingText(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -38,12 +38,17 @@ class HomeHeader extends StatelessWidget {
   }
 
   Future<void> _handleProfileTap(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
+    final isDe = l10n?.localeName.startsWith('de') ?? false;
+
     if (_isGuest && !await ApiService.instance.hasToken()) {
       if (!context.mounted) return;
       final loggedUser = await showAuthPrompt(
         context,
-        title: 'Ayubo Account',
-        message: 'Sign in or create an account to view your profile, manage addresses, and check order history.',
+        title: isDe ? 'Ayubo-Konto' : 'Ayubo Account',
+        message: isDe
+            ? 'Melden Sie sich an oder erstellen Sie ein Konto, um Ihr Profil anzuzeigen, Adressen zu verwalten und Ihren Bestellverlauf einzusehen.'
+            : 'Sign in or create an account to view your profile, manage addresses, and check order history.',
       );
       if (loggedUser == null || !context.mounted) return;
       await Navigator.push(

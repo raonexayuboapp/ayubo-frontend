@@ -516,7 +516,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: DropdownButtonFormField<String>(
-        value: _preferredLanguage,
+        initialValue: _preferredLanguage,
         decoration: InputDecoration(
           labelText: 'Preferred language',
           prefixIcon: const Icon(

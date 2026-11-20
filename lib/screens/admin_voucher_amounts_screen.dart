@@ -8,7 +8,8 @@ class AdminVoucherAmountsScreen extends StatefulWidget {
   const AdminVoucherAmountsScreen({super.key});
 
   @override
-  State<AdminVoucherAmountsScreen> createState() => _AdminVoucherAmountsScreenState();
+  State<AdminVoucherAmountsScreen> createState() =>
+      _AdminVoucherAmountsScreenState();
 }
 
 class _AdminVoucherAmountsScreenState extends State<AdminVoucherAmountsScreen> {
@@ -23,58 +24,83 @@ class _AdminVoucherAmountsScreenState extends State<AdminVoucherAmountsScreen> {
     _load();
   }
 
-  void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  void _snack(String text) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
-  String _msg(ApiException e) => e.fieldErrors.isNotEmpty ? e.fieldErrors.values.join('\n') : e.message;
+  String _msg(ApiException e) =>
+      e.fieldErrors.isNotEmpty ? e.fieldErrors.values.join('\n') : e.message;
 
   Future<void> _load() async {
     setState(() {
       _loading = _amounts.isEmpty;
       _error = null;
     });
+
     try {
       final amounts = await ApiService.instance.adminVoucherAmounts();
       if (!mounted) return;
+
       setState(() {
         _amounts = amounts;
         _loading = false;
       });
     } on ApiException catch (e) {
       if (!mounted) return;
+
       setState(() {
         _loading = false;
         if (_amounts.isEmpty) _error = e.message;
       });
+
       if (_amounts.isNotEmpty) _snack(e.message);
     }
   }
 
   Future<void> _add() async {
-    final cents = await showDialog<int>(context: context, builder: (_) => const _NewAmountDialog());
-    if (cents == null || !mounted) return;
+    final result = await showDialog<_NewVoucherAmountData>(
+      context: context,
+      builder: (_) => const _NewAmountDialog(),
+    );
+
+    if (result == null || !mounted) return;
 
     setState(() => _busy = true);
+
     try {
-      await ApiService.instance.adminCreateVoucherAmount(cents);
-      if (mounted) _snack('${formatCents(cents)} vouchers are on sale now.');
+      await ApiService.instance.adminCreateVoucherAmount(
+        result.cents,
+        nameDe: result.nameDe,
+        nameEn: result.nameEn,
+      );
+
+      if (mounted) {
+        _snack('${formatCents(result.cents)} voucher added.');
+      }
     } on ApiException catch (e) {
       if (mounted) _snack(_msg(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+
     if (mounted) await _load();
   }
 
   Future<void> _toggle(Map<String, dynamic> a, bool onSale) async {
     if (_busy) return;
+
     setState(() => _busy = true);
+
     try {
-      await ApiService.instance.adminSetVoucherAmountOnSale(a['variant_id'] as int, onSale);
+      await ApiService.instance.adminSetVoucherAmountOnSale(
+        a['variant_id'] as int,
+        onSale,
+      );
     } on ApiException catch (e) {
       if (mounted) _snack(_msg(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+
     if (mounted) await _load();
   }
 
@@ -83,10 +109,13 @@ class _AdminVoucherAmountsScreenState extends State<AdminVoucherAmountsScreen> {
 
     if (_error != null) {
       return Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(_error!),
-          TextButton(onPressed: _load, child: const Text('Retry')),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_error!),
+            TextButton(onPressed: _load, child: const Text('Retry')),
+          ],
+        ),
       );
     }
 
@@ -103,16 +132,30 @@ class _AdminVoucherAmountsScreenState extends State<AdminVoucherAmountsScreen> {
             style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: 12),
-          if (_busy) const Padding(padding: EdgeInsets.only(bottom: 8), child: LinearProgressIndicator()),
+          if (_busy)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: LinearProgressIndicator(),
+            ),
           if (_amounts.isEmpty)
-            const Padding(padding: EdgeInsets.only(top: 48), child: Center(child: Text('No voucher amounts yet. Add the first one.'))),
+            const Padding(
+              padding: EdgeInsets.only(top: 48),
+              child: Center(
+                child: Text('No voucher amounts yet. Add the first one.'),
+              ),
+            ),
           for (final a in _amounts)
             Card(
               key: ValueKey(a['variant_id']),
               child: SwitchListTile(
                 secondary: const Icon(Icons.card_giftcard_outlined),
-                title: Text(formatCents(a['price_cents'] as int), style: theme.textTheme.titleMedium),
-                subtitle: Text('${a['sold']} sold · ${a['on_sale'] == true ? 'on sale' : 'not on sale'}'),
+                title: Text(
+                  formatCents(a['price_cents'] as int),
+                  style: theme.textTheme.titleMedium,
+                ),
+                subtitle: Text(
+                  '${a['sold']} sold · ${a['on_sale'] == true ? 'on sale' : 'not on sale'}',
+                ),
                 value: a['on_sale'] == true,
                 onChanged: _busy ? null : (v) => _toggle(a, v),
               ),
@@ -136,6 +179,18 @@ class _AdminVoucherAmountsScreenState extends State<AdminVoucherAmountsScreen> {
   }
 }
 
+class _NewVoucherAmountData {
+  const _NewVoucherAmountData({
+    required this.cents,
+    required this.nameDe,
+    required this.nameEn,
+  });
+
+  final int cents;
+  final String nameDe;
+  final String nameEn;
+}
+
 class _NewAmountDialog extends StatefulWidget {
   const _NewAmountDialog();
 
@@ -145,23 +200,49 @@ class _NewAmountDialog extends StatefulWidget {
 
 class _NewAmountDialogState extends State<_NewAmountDialog> {
   final _form = GlobalKey<FormState>();
+
   final _amount = TextEditingController();
+  final _nameEn = TextEditingController();
+  final _nameDe = TextEditingController();
 
   @override
   void dispose() {
     _amount.dispose();
+    _nameEn.dispose();
+    _nameDe.dispose();
     super.dispose();
   }
 
-  String? _validate(String? v) {
+  String? _validateAmount(String? v) {
     final cents = parseEuroToCents((v ?? '').trim());
+
     if (cents == null) return 'Enter an amount like 30 or 12.50.';
-    return cents < 100 || cents > 1000000 ? 'The amount must be from €1.00 to €10,000.00.' : null;
+
+    return cents < 100 || cents > 1000000
+        ? 'The amount must be from €1.00 to €10,000.00.'
+        : null;
+  }
+
+  String? _validateName(String? value) {
+    final name = (value ?? '').trim();
+
+    if (name.isEmpty) return 'Please enter a product name.';
+    if (name.length > 200) return 'Maximum 200 characters.';
+
+    return null;
   }
 
   void _submit() {
     if (!_form.currentState!.validate()) return;
-    Navigator.pop(context, parseEuroToCents(_amount.text.trim())!); // safe: validate() accepted it
+
+    Navigator.pop(
+      context,
+      _NewVoucherAmountData(
+        cents: parseEuroToCents(_amount.text.trim())!,
+        nameDe: _nameDe.text.trim(),
+        nameEn: _nameEn.text.trim(),
+      ),
+    );
   }
 
   @override
@@ -170,22 +251,54 @@ class _NewAmountDialogState extends State<_NewAmountDialog> {
       title: const Text('New voucher amount'),
       content: Form(
         key: _form,
-        child: TextFormField(
-          controller: _amount,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          autovalidateMode: AutovalidateMode.onUserInteraction,
-          validator: _validate,
-          onFieldSubmitted: (_) => _submit(),
-          decoration: const InputDecoration(
-            labelText: 'Amount (€)',
-            helperText: 'Customers pay this much and the voucher is worth this much. No VAT is charged.',
-            helperMaxLines: 3,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _amount,
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                validator: _validateAmount,
+                decoration: const InputDecoration(
+                  labelText: 'Amount (€)',
+                  helperText:
+                      'Customers pay this much and the voucher is worth this much. No VAT is charged.',
+                  helperMaxLines: 3,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _nameEn,
+                textCapitalization: TextCapitalization.sentences,
+                validator: _validateName,
+                decoration: const InputDecoration(
+                  labelText: 'Product name (English)',
+                  hintText: 'Gift Voucher €30.00',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _nameDe,
+                textCapitalization: TextCapitalization.sentences,
+                validator: _validateName,
+                decoration: const InputDecoration(
+                  labelText: 'Product name (German)',
+                  hintText: 'Geschenkgutschein 30,00 €',
+                ),
+              ),
+            ],
           ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         FilledButton(onPressed: _submit, child: const Text('Add')),
       ],
     );

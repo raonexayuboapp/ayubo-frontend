@@ -660,4 +660,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get added => 'Added';
+
+  @override
+  String get bestsellersSubtitle => 'Customer favorites & organic essentials';
+
+  @override
+  String get exploreAyuboFamily => 'Explore Ayubo Family';
+
+  @override
+  String get familyPromoTag => 'AYUBO FAMILY';
+
+  @override
+  String get familyPromoHeadline => 'Unlock Exclusive Wellness Privileges';
+
+  @override
+  String get familyBenefitCredit => '100% shopping credit back on membership';
+
+  @override
+  String get familyBenefitDiscount =>
+      'Exclusive member discounts on select organics';
+
+  @override
+  String get familyBenefitHeritage => 'Pure Ceylon organic wellness privileges';
+
+  @override
+  String get experienceAyubo => 'Experience Ayubo Organics';
+
+  @override
+  String get experienceAyuboTag => 'OUR PHYSICAL BOUTIQUE';
+
+  @override
+  String get experienceAyuboSubtitle =>
+      'Visit our physical store to experience pure Ceylon organic spices, wellness teas, and Ayurvedic traditions in person.';
+
+  @override
+  String get shopFeatureOrganic => '100% Certified Organic';
+
+  @override
+  String get shopFeatureFairTrade => 'Direct Fair Trade';
+
+  @override
+  String get shopFeatureAuthentic => 'Authentic Ceylon Heritage';
+
+  @override
+  String get exploreStoreCollection => 'Explore In-Store Collection';
 }

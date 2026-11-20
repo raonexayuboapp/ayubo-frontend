@@ -49,7 +49,14 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
         page: _page,
         lang: currentAppLocale,
       );
-      final list = (data['products'] as List<dynamic>).cast<ProductListData>();
+      final list = (data['products'] as List<dynamic>)
+          .cast<ProductListData>()
+          .where(
+            (p) =>
+                p['product_type'] != 'gift_voucher' &&
+                p['product_type'] != 'membership',
+          )
+          .toList();
       if (!mounted) return;
       setState(() {
         _products = reset ? list : [..._products, ...list];

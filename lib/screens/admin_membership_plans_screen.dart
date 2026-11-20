@@ -10,10 +10,12 @@ class AdminMembershipPlansScreen extends StatefulWidget {
   const AdminMembershipPlansScreen({super.key});
 
   @override
-  State<AdminMembershipPlansScreen> createState() => _AdminMembershipPlansScreenState();
+  State<AdminMembershipPlansScreen> createState() =>
+      _AdminMembershipPlansScreenState();
 }
 
-class _AdminMembershipPlansScreenState extends State<AdminMembershipPlansScreen> {
+class _AdminMembershipPlansScreenState
+    extends State<AdminMembershipPlansScreen> {
   List<PlanData> _plans = [];
   bool _loading = true;
   String? _error;
@@ -25,7 +27,8 @@ class _AdminMembershipPlansScreenState extends State<AdminMembershipPlansScreen>
     _load();
   }
 
-  void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  void _snack(String text) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
   Future<void> _load() async {
     setState(() {
@@ -52,7 +55,9 @@ class _AdminMembershipPlansScreenState extends State<AdminMembershipPlansScreen>
   Future<void> _openForm([int? id]) async {
     final saved = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder: (_) => AdminMembershipPlanFormScreen(planId: id)),
+      MaterialPageRoute(
+        builder: (_) => AdminMembershipPlanFormScreen(planId: id),
+      ),
     );
     if (saved == true) _load();
   }
@@ -72,12 +77,14 @@ class _AdminMembershipPlansScreenState extends State<AdminMembershipPlansScreen>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           active ? 'Deactivate plan?' : 'Activate plan?',
-          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         content: Text(
           active
               ? '"${plan['name']}" can no longer be bought.'
-                  '${members > 0 ? ' Its $members member${members == 1 ? '' : 's'} keep${members == 1 ? 's' : ''} the membership.' : ''}'
+                    '${members > 0 ? ' Its $members member${members == 1 ? '' : 's'} keep${members == 1 ? 's' : ''} the membership.' : ''}'
               : '"${plan['name']}" will be available to buy again.',
           style: theme.textTheme.bodyMedium,
         ),
@@ -86,13 +93,17 @@ class _AdminMembershipPlansScreenState extends State<AdminMembershipPlansScreen>
             onPressed: () => Navigator.pop(context, false),
             child: Text(
               'Cancel',
-              style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+              style: TextStyle(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
             ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: active ? Colors.redAccent : theme.colorScheme.primary,
+              backgroundColor: active
+                  ? Colors.redAccent
+                  : theme.colorScheme.primary,
               foregroundColor: Colors.white,
               elevation: 0,
             ),
@@ -105,7 +116,9 @@ class _AdminMembershipPlansScreenState extends State<AdminMembershipPlansScreen>
 
     setState(() => _busy.add(id));
     try {
-      await ApiService.instance.adminUpdateMembershipPlan(id, {'active': !active});
+      await ApiService.instance.adminUpdateMembershipPlan(id, {
+        'active': !active,
+      });
       await _load();
     } on ApiException catch (e) {
       if (mounted) _snack(e.message);
@@ -118,12 +131,44 @@ class _AdminMembershipPlansScreenState extends State<AdminMembershipPlansScreen>
     final benefits = (plan['benefits'] as List<dynamic>).cast<PlanData>();
     if (benefits.isEmpty) return 'No benefits';
 
-    return benefits.map((b) {
-      final code = b['code'] as String?;
-      final name = code != null ? code.replaceAll('_', ' ') : (b['description'] as String? ?? 'Benefit');
-      final d = b['discount_percent'] as num?;
-      return d == null ? name : '${formatPercent(d)}% $name';
-    }).join(', ');
+    return benefits
+        .map((b) {
+          final kind = b['kind'] as String?;
+
+          if (kind == 'credit') {
+            final cents = b['credit_cents'] as int?;
+            return cents == null
+                ? (b['description'] as String? ?? 'Shopping credit')
+                : '${formatCents(cents)} shopping credit';
+          }
+
+          if (kind == 'discount') {
+            final percent = b['discount_percent'] as num?;
+            return percent == null
+                ? (b['description'] as String? ?? 'Discount on all products')
+                : '${formatPercent(percent)}% discount on all products';
+          }
+
+          if (kind == 'perk') {
+            final en = (b['description_en'] as String?)?.trim() ?? '';
+            final de =
+                (b['description_de'] as String?)?.trim() ??
+                (b['description'] as String? ?? '').trim();
+
+            if (en.isNotEmpty && de.isNotEmpty) {
+              return 'EN: $en · DE: $de';
+            }
+
+            return en.isNotEmpty
+                ? 'EN: $en'
+                : de.isNotEmpty
+                ? 'DE: $de'
+                : 'Perk';
+          }
+
+          return (b['description'] as String?) ?? 'Benefit';
+        })
+        .join(', ');
   }
 
   Widget _tile(PlanData p) {
@@ -146,18 +191,16 @@ class _AdminMembershipPlansScreenState extends State<AdminMembershipPlansScreen>
           color: goldColor.withValues(alpha: 0.1),
           shape: BoxShape.circle,
         ),
-        child: Icon(
-          Icons.card_membership_outlined,
-          color: goldColor,
-          size: 24,
-        ),
+        child: Icon(Icons.card_membership_outlined, color: goldColor, size: 24),
       ),
       title: Row(
         children: [
           Flexible(
             child: Text(
               p['name'] as String,
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           if (!active) ...[
@@ -165,7 +208,9 @@ class _AdminMembershipPlansScreenState extends State<AdminMembershipPlansScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+                color: isDark
+                    ? Colors.white10
+                    : Colors.black.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -185,14 +230,19 @@ class _AdminMembershipPlansScreenState extends State<AdminMembershipPlansScreen>
           '${_benefitSummary(p)}'
           '${hasProduct ? '' : '\nNot for sale: open it and set a price and tax rate.'}',
           style: hasProduct
-              ? theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.6))
-              : theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+              ? theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                )
+              : theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                ),
         ),
       ),
       isThreeLine: true,
       trailing: Switch(
         value: active,
-        activeColor: goldColor,
+        activeThumbColor: goldColor,
+        activeTrackColor: goldColor,
         onChanged: _busy.contains(id) ? null : (_) => _toggle(p),
       ),
     );
@@ -214,9 +264,17 @@ class _AdminMembershipPlansScreenState extends State<AdminMembershipPlansScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+              Icon(
+                Icons.error_outline,
+                size: 48,
+                color: theme.colorScheme.error,
+              ),
               const SizedBox(height: 12),
-              Text(_error!, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium,
+              ),
               const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: _load,
@@ -259,9 +317,7 @@ class _AdminMembershipPlansScreenState extends State<AdminMembershipPlansScreen>
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Membership plans'),
-      ),
+      appBar: AppBar(title: const Text('Membership plans')),
       body: body,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openForm(),
