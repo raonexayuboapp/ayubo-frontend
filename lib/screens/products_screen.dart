@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_bottom_bar.dart';
@@ -11,14 +10,14 @@ typedef ProductData = Map<String, dynamic>;
 typedef CategoryData = Map<String, dynamic>;
 
 class ProductsScreen extends StatefulWidget {
-  final Map<String, dynamic> user;
+  final dynamic user;
   final String initialSearch;
   final int? initialCategoryId;
   final String initialSort;
 
   const ProductsScreen({
     super.key,
-    required this.user,
+    this.user,
     this.initialSearch = '',
     this.initialCategoryId,
     this.initialSort = 'newest',
@@ -29,56 +28,33 @@ class ProductsScreen extends StatefulWidget {
 }
 
 class _ProductsScreenState extends State<ProductsScreen> {
-  static const _sortKeys = ['newest', 'name', 'price_asc', 'price_desc'];
-
-  String _sortLabel(String key, [BuildContext? ctx]) {
-    final l10n = ctx != null ? AppLocalizations.of(ctx) : null;
-    final isDe =
-        (l10n?.localeName ?? Localizations.localeOf(context).languageCode)
-            .startsWith('de');
-
-    if (isDe) {
-      return switch (key) {
-        'newest' => 'Neuheiten',
-        'name' => 'Name A bis Z',
-        'price_asc' => 'Preis: Aufsteigend',
-        'price_desc' => 'Preis: Absteigend',
-        _ => key,
-      };
-    }
-
-    return switch (key) {
-      'newest' => 'Newest',
-      'name' => 'Name A to Z',
-      'price_asc' => 'Price: Low to High',
-      'price_desc' => 'Price: High to Low',
-      _ => key,
-    };
-  }
-
-  final _scroll = ScrollController();
-<<<<<<< Updated upstream
-  late final TextEditingController _searchController =
-      TextEditingController(text: widget.initialSearch.trim());
-=======
+  static const List<String> _sortKeys = [
+    'newest',
+    'name',
+    'price_asc',
+    'price_desc',
+  ];
 
   late final TextEditingController _searchController = TextEditingController(
     text: widget.initialSearch.trim(),
   );
->>>>>>> Stashed changes
+
+  final ScrollController _scrollController = ScrollController();
 
   List<CategoryData> _categories = [];
   List<ProductData> _products = [];
 
-  late String _searchQuery;
-
+  String _searchQuery = '';
   int? _categoryId;
-  late String _sort;
+  String _sort = 'newest';
+
   int _page = 1;
   int _total = 0;
 
   bool _loading = true;
   bool _loadingMore = false;
+  bool _loadingCategories = true;
+
   String? _error;
 
   int _requestId = 0;
@@ -89,91 +65,151 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
     _searchQuery = widget.initialSearch.trim();
     _categoryId = widget.initialCategoryId;
-    _sort = widget.initialSort;
+    _sort = _sortKeys.contains(widget.initialSort)
+        ? widget.initialSort
+        : 'newest';
 
-    _scroll.addListener(_onScroll);
+    _searchController.addListener(_onSearchChanged);
+    _scrollController.addListener(_onScroll);
 
     _loadCategories();
     _load();
   }
 
+  void _onSearchChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
-    _scroll.removeListener(_onScroll);
-    _scroll.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  bool get _isGerman => Localizations.localeOf(context).languageCode == 'de';
+
+  String _sortLabel(String key) {
+    switch (key) {
+      case 'name':
+        return 'Name (A–Z)';
+      case 'price_asc':
+        return _isGerman ? 'Preis: aufsteigend' : 'Price: Low to High';
+      case 'price_desc':
+        return _isGerman ? 'Preis: absteigend' : 'Price: High to Low';
+      case 'newest':
+      default:
+        return _isGerman ? 'Neueste zuerst' : 'Newest First';
+    }
   }
 
   Future<void> _loadCategories() async {
     try {
-      final tree = await ApiService.instance.listCategories();
-
-      if (mounted) {
-        setState(() {
-          _categories = tree.cast<CategoryData>();
-        });
-      }
+      final response = await ApiService.instance.listCategories();
+      if (!mounted) return;
+      setState(() {
+        _categories = response;
+        _loadingCategories = false;
+      });
     } on ApiException {
-      // Categories are optional.
+      if (!mounted) return;
+      setState(() => _loadingCategories = false);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingCategories = false);
     }
   }
 
-  Future<void> _applySearch(String query) async {
-    if (!mounted) return;
+  void _applySearch() {
+    FocusScope.of(context).unfocus();
+    final query = _searchController.text.trim();
+    if (query == _searchQuery) return;
 
     setState(() {
-      _searchQuery = query.trim();
+      _searchQuery = query;
     });
+    _load();
+  }
 
-    await _load();
+  void _resetFilters() {
+    _searchController.clear();
+    setState(() {
+      _searchQuery = '';
+      _categoryId = null;
+      _sort = 'newest';
+    });
+    _load();
   }
 
   Future<void> _load({bool reset = true}) async {
-    final request = ++_requestId;
+    if (reset) {
+      _requestId++;
 
-    setState(() {
-      if (reset) {
-        _page = 1;
+      setState(() {
         _loading = true;
         _loadingMore = false;
         _error = null;
-      } else {
-        _loadingMore = true;
+        _page = 1;
+        _products = [];
+      });
+    } else {
+      if (_loading || _loadingMore || _products.length >= _total) {
+        return;
       }
-    });
+
+      setState(() {
+        _loadingMore = true;
+        _page++;
+      });
+    }
+
+    final currentRequestId = _requestId;
+    final requestedPage = _page;
 
     try {
-      final data = await ApiService.instance.listProducts(
+      final response = await ApiService.instance.listProducts(
         search: _searchQuery,
         categoryId: _categoryId,
         sort: _sort,
-        page: _page,
+        page: requestedPage,
       );
 
-      if (!mounted || request != _requestId) return;
+      if (!mounted || currentRequestId != _requestId) return;
 
-      final products = (data['products'] as List<dynamic>).cast<ProductData>();
+      final products = (response['products'] as List? ?? [])
+          .whereType()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
 
-      final meta = data['meta'] as Map<String, dynamic>;
+      final meta = response['meta'] is Map
+          ? Map<String, dynamic>.from(response['meta'] as Map)
+          : <String, dynamic>{};
+
+      final total = (meta['total'] as num?)?.toInt() ?? products.length;
 
       setState(() {
-        _products = reset ? products : [..._products, ...products];
-        _total = (meta['total'] as num).toInt();
+        if (reset) {
+          _products = products;
+        } else {
+          _products = [..._products, ...products];
+        }
+
+        _total = total;
         _loading = false;
         _loadingMore = false;
+        _error = null;
       });
     } on ApiException catch (e) {
-      if (!mounted || request != _requestId) return;
+      if (!mounted || currentRequestId != _requestId) return;
 
       setState(() {
         _loading = false;
         _loadingMore = false;
+        _error = e.message;
 
-        if (reset) {
-          _error = e.message;
-        } else {
-          _page--;
+        if (!reset) {
+          _page = (_page - 1).clamp(1, 999999);
         }
       });
 
@@ -182,502 +218,426 @@ class _ProductsScreenState extends State<ProductsScreen> {
           SnackBar(
             content: Text(e.message),
             backgroundColor: AppTheme.primaryGreen,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
     } catch (_) {
-      if (!mounted || request != _requestId) return;
+      if (!mounted || currentRequestId != _requestId) return;
 
       setState(() {
         _loading = false;
         _loadingMore = false;
+        _error = 'Something went wrong. Please try again.';
 
-        if (reset) {
-          _error = 'Unable to load products. Please try again.';
-        } else {
-          _page--;
+        if (!reset) {
+          _page = (_page - 1).clamp(1, 999999);
         }
       });
     }
   }
 
   void _onScroll() {
-    if (!_scroll.hasClients) return;
+    if (!_scrollController.hasClients) return;
 
-    final nearEnd = _scroll.position.pixels >=
-        _scroll.position.maxScrollExtent - 300;
+    final position = _scrollController.position;
 
-    if (nearEnd && !_loading && !_loadingMore && _products.length < _total) {
-      _page++;
-      _load(reset: false);
+    if (position.pixels >= position.maxScrollExtent - 400) {
+      if (!_loading && !_loadingMore && _products.length < _total) {
+        _load(reset: false);
+      }
     }
   }
 
-<<<<<<< Updated upstream
-  Future<void> _openDetail(ProductData product) async {
-    final favourite = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ProductDetailScreen(
-          productId: product['id'] as int,
-          title: product['name'] as String,
+  // ===========================================================================
+  // 1. SEARCH BAR (Using AppTheme.inputDecoration)
+  // ===========================================================================
+  Widget _buildSearchRow() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+      child: TextField(
+        controller: _searchController,
+        textInputAction: TextInputAction.search,
+        onSubmitted: (_) => _applySearch(),
+        style: AppTheme.bodyStyle(context),
+        decoration: AppTheme.inputDecoration(
+          context,
+          hintText: _isGerman
+              ? 'Nach Bio-Tee, Gewürzen & mehr suchen...'
+              : 'Search organic teas, spices & more...',
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            size: 20,
+            color: AppTheme.goldAccent(context),
+          ),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  tooltip: _isGerman ? 'Suche löschen' : 'Clear search',
+                  icon: Icon(
+                    Icons.close_rounded,
+                    size: 18,
+                    color: AppTheme.textSecondary(context),
+                  ),
+                  onPressed: () {
+                    _searchController.clear();
+                    _applySearch();
+                  },
+                )
+              : null,
         ),
       ),
     );
-
-    if (favourite != null && mounted) {
-      setState(() {
-        product['is_favourite'] = favourite;
-      });
-    }
   }
 
-  Widget _card(ProductData product) {
-    final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final price = product['price_cents'] as int?;
-    final inStock = product['in_stock'] == true;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? AppTheme.surfaceDark : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
-          width: 1,
+  // ===========================================================================
+  // 2. CATEGORY FILTER PILLS
+  // ===========================================================================
+  Widget _buildCategoryFilters() {
+    if (_loadingCategories && _categories.isEmpty) {
+      return const SizedBox(
+        height: 44,
+        child: Center(
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppTheme.brandGold,
+            ),
+          ),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.brandGold.withValues(alpha: 0.04),
-            blurRadius: 10,
-            spreadRadius: 1,
+      );
+    }
+
+    if (_categories.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return SizedBox(
+      height: 42,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        children: [
+          _categoryPill(
+            label: _isGerman ? 'Alle' : 'All',
+            selected: _categoryId == null,
+            onTap: () {
+              if (_categoryId == null) return;
+              setState(() => _categoryId = null);
+              _load();
+            },
+          ),
+          ..._categories.map((category) {
+            final id = (category['id'] as num?)?.toInt();
+            final name = (category['name'] ?? '').toString();
+
+            if (id == null || name.isEmpty) {
+              return const SizedBox.shrink();
+            }
+
+            return _categoryPill(
+              label: name,
+              selected: _categoryId == id,
+              onTap: () {
+                if (_categoryId == id) return;
+                setState(() => _categoryId = id);
+                _load();
+              },
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _categoryPill({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    final isDark = AppTheme.isDark(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          decoration: BoxDecoration(
+            color: selected
+                ? (isDark ? AppTheme.brandGold : AppTheme.primaryGreen)
+                : AppTheme.cardColor(context),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: selected
+                  ? (isDark ? AppTheme.brandGold : AppTheme.primaryGreen)
+                  : AppTheme.borderColor(context),
+              width: 1,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color:
+                          (isDark ? AppTheme.brandGold : AppTheme.primaryGreen)
+                              .withValues(alpha: 0.2),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected
+                    ? (isDark ? const Color(0xFF0E1712) : Colors.white)
+                    : AppTheme.textPrimary(context),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // 3. RESULTS COUNT & SORT PILL CONTROL
+  // ===========================================================================
+  Widget _buildSortControl() {
+    final countText = _loading && _products.isEmpty
+        ? (_isGerman ? 'Produkte laden...' : 'Loading products...')
+        : (_isGerman
+              ? '$_total ${_total == 1 ? 'Produkt' : 'Produkte'}'
+              : '$_total ${_total == 1 ? 'Product' : 'Products'}');
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              countText,
+              style: AppTheme.sectionHeadingStyle(
+                context,
+              ).copyWith(fontSize: 14, color: AppTheme.textSecondary(context)),
+            ),
+          ),
+          Container(
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: AppTheme.cardColor(context),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.borderColor(context)),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _sort,
+                isDense: true,
+                dropdownColor: AppTheme.cardColor(context),
+                borderRadius: BorderRadius.circular(14),
+                icon: Icon(
+                  Icons.tune_rounded,
+                  size: 16,
+                  color: AppTheme.goldAccent(context),
+                ),
+                items: _sortKeys.map((key) {
+                  final isSelected = key == _sort;
+                  return DropdownMenuItem<String>(
+                    value: key,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: Text(
+                        _sortLabel(key),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: isSelected
+                              ? AppTheme.goldAccent(context)
+                              : AppTheme.textPrimary(context),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value == null || value == _sort) return;
+                  setState(() => _sort = value);
+                  _load();
+                },
+              ),
+            ),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => _openDetail(product),
+    );
+  }
+
+  // ===========================================================================
+  // 4. PRODUCT GRID & STATES
+  // ===========================================================================
+  Widget _buildContent() {
+    if (_loading && _products.isEmpty) {
+      return const Expanded(
+        child: Center(
+          child: CircularProgressIndicator(
+            color: AppTheme.brandGold,
+            strokeWidth: 2.5,
+          ),
+        ),
+      );
+    }
+
+    if (_error != null && _products.isEmpty) {
+      return Expanded(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ProductImage(
-                        url: product['image_url'] as String?,
-                      ),
-                      Positioned(
-                        top: 6,
-                        right: 6,
-                        child: FavouriteButton(
-                          productId: product['id'] as int,
-                          isFavourite: product['is_favourite'] == true,
-                          overlay: true,
-                          onChanged: (value) {
-                            if (!mounted) return;
-                            setState(() {
-                              product['is_favourite'] = value;
-                            });
-                          },
-                        ),
-                      ),
-                    ],
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.cardSubtleColor(context),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.wifi_off_rounded,
+                    size: 32,
+                    color: AppTheme.goldAccent(context),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        product['name'] as String,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: scheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          if (price != null)
-                            Text(
-                              formatCents(price),
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.brandGoldDark,
-                              ),
-                            ),
-                          if (!inStock)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: scheme.error.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                AppLocalizations.of(context)?.outOfStock ?? 'Out of stock',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: scheme.error,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
+                const SizedBox(height: 14),
+                Text(
+                  _error!,
+                  textAlign: TextAlign.center,
+                  style: AppTheme.bodyStyle(context),
+                ),
+                const SizedBox(height: 18),
+                ElevatedButton.icon(
+                  onPressed: () => _load(),
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: Text(_isGerman ? 'Erneut versuchen' : 'Try Again'),
                 ),
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
-
-=======
->>>>>>> Stashed changes
-  Widget _content() {
-    final scheme = Theme.of(context).colorScheme;
-    final l10n = AppLocalizations.of(context);
-
-    if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.brandGold),
-        ),
-      );
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline_rounded, size: 48, color: scheme.error),
-            const SizedBox(height: 12),
-            Text(
-              _error!,
-              style: TextStyle(color: scheme.onSurface),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => _load(),
-              child: Text(l10n?.retry ?? 'Retry'),
-            ),
-          ],
-        ),
       );
     }
 
     if (_products.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: () => _load(),
-        color: AppTheme.brandGold,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            const SizedBox(height: 120),
-            Center(
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppTheme.brandGold.withValues(alpha: 0.1),
-                ),
-                child: const Icon(
-                  Icons.search_off_rounded,
-                  size: 64,
-                  color: AppTheme.brandGoldDark,
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              l10n?.noProductsFound ?? 'No Products Found',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
+      final hasActiveFilter = _searchQuery.isNotEmpty || _categoryId != null;
+
+      return Expanded(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: AppTheme.cardSubtleColor(context),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppTheme.borderColor(context)),
                   ),
+                  child: Icon(
+                    Icons.spa_outlined,
+                    size: 34,
+                    color: AppTheme.goldAccent(context),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _isGerman ? 'Keine Produkte gefunden' : 'No products found',
+                  style: AppTheme.sectionHeadingStyle(context),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _isGerman
+                      ? 'Versuche einen anderen Suchbegriff oder wähle eine andere Kategorie.'
+                      : 'Try another search term or explore a different category.',
+                  textAlign: TextAlign.center,
+                  style: AppTheme.descriptionStyle(context),
+                ),
+                if (hasActiveFilter) ...[
+                  const SizedBox(height: 18),
+                  OutlinedButton.icon(
+                    onPressed: _resetFilters,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.textPrimary(context),
+                      side: BorderSide(color: AppTheme.goldAccent(context)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 10,
+                      ),
+                    ),
+                    icon: const Icon(Icons.filter_alt_off_outlined, size: 17),
+                    label: Text(
+                      _isGerman ? 'Filter zurücksetzen' : 'Reset Filters',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              l10n?.noProductsFoundMessage ??
-                  'Try clearing your search query or choosing another category.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: scheme.onSurface.withValues(alpha: 0.65),
-                fontSize: 14,
-              ),
-            ),
-          ],
+          ),
         ),
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: () => _load(),
-      color: AppTheme.brandGold,
-      child: GridView.builder(
-        controller: _scroll,
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 0.70,
-          crossAxisSpacing: 14,
-          mainAxisSpacing: 14,
-        ),
-        itemCount: _products.length,
-        itemBuilder: (_, index) {
-          final product = _products[index];
+    return Expanded(
+      child: RefreshIndicator(
+        onRefresh: () => _load(),
+        color: AppTheme.brandGold,
+        child: GridView.builder(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 28),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 14,
+            childAspectRatio: 0.62,
+          ),
+          itemCount: _products.length + (_loadingMore ? 2 : 0),
+          itemBuilder: (context, index) {
+            if (index >= _products.length) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppTheme.brandGold,
+                  ),
+                ),
+              );
+            }
 
-          return CompactProductCard(
-            product: product,
-            user: widget.user,
-            onFavouriteChanged: (value) {
-              if (!mounted) return;
+            final product = _products[index];
 
-              setState(() {
+            return CompactProductCard(
+              product: product,
+              user: widget.user,
+              onFavouriteChanged: (value) {
                 product['is_favourite'] = value;
-              });
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildSortControl() {
-    final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final l10n = AppLocalizations.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.grid_view_rounded,
-                size: 18,
-                color: AppTheme.primaryGreen,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${l10n?.catalogue ?? 'Catalogue'} ($_total)',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
-              ),
-            ],
-          ),
-          PopupMenuButton<String>(
-            initialValue: _sort,
-            color: isDark ? AppTheme.surfaceDark : Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            onSelected: (value) {
-              setState(() => _sort = value);
-              _load();
-            },
-            itemBuilder: (_) => _sortKeys
-                .map(
-                  (key) => PopupMenuItem<String>(
-                    value: key,
-                    child: Text(
-                      _sortLabel(key, context),
-                      style: TextStyle(
-                        fontWeight: _sort == key
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        color: _sort == key
-                            ? AppTheme.brandGoldDark
-                            : scheme.onSurface,
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppTheme.brandGold.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppTheme.brandGold.withValues(alpha: 0.4),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.sort_rounded,
-                    size: 16,
-                    color: AppTheme.brandGoldDark,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    _sortLabel(_sort, context),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.brandGoldDark,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategoryFilters() {
-    if (_categories.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final l10n = AppLocalizations.of(context);
-
-    return SizedBox(
-      height: 54,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              label: Text(l10n?.allProducts ?? 'All Products'),
-              selected: _categoryId == null,
-              selectedColor: AppTheme.primaryGreen,
-              backgroundColor: isDark ? AppTheme.surfaceDark : Colors.white,
-              labelStyle: TextStyle(
-                color: _categoryId == null ? Colors.white : AppTheme.primaryGreen,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: AppTheme.brandGold.withValues(alpha: 0.4),
-                ),
-              ),
-              onSelected: (_) {
-                setState(() => _categoryId = null);
-                _load();
               },
-            ),
-          ),
-          for (final category in _categories)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text(category['name'] as String),
-                selected: _categoryId == category['id'],
-                selectedColor: AppTheme.primaryGreen,
-                backgroundColor: isDark ? AppTheme.surfaceDark : Colors.white,
-                labelStyle: TextStyle(
-                  color: _categoryId == category['id']
-                      ? Colors.white
-                      : AppTheme.primaryGreen,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: AppTheme.brandGold.withValues(alpha: 0.4),
-                  ),
-                ),
-                onSelected: (_) {
-                  setState(() {
-                    _categoryId = category['id'] as int;
-                  });
-                  _load();
-                },
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSearchRow() {
-    final l10n = AppLocalizations.of(context);
-    final hint = l10n?.searchWellness ?? 'Search products, wellness...';
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      child: Container(
-        height: 44,
-        decoration: BoxDecoration(
-          color: AppTheme.cardColor(context),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: AppTheme.borderColor(context),
-            width: 1.1,
-          ),
-        ),
-        child: Row(
-          children: [
-            const SizedBox(width: 12),
-            const Icon(
-              Icons.search_rounded,
-              size: 20,
-              color: AppTheme.primaryGreen,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                controller: _searchController,
-                textInputAction: TextInputAction.search,
-                onSubmitted: _applySearch,
-                style: TextStyle(
-                  fontSize: 13.5,
-                  color: AppTheme.textPrimary(context),
-                ),
-                decoration: InputDecoration(
-                  hintText: hint,
-                  hintStyle: TextStyle(
-                    fontSize: 13.5,
-                    color: AppTheme.textSecondary(context).withValues(alpha: 0.7),
-                  ),
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-            ),
-            if (_searchController.text.isNotEmpty)
-              IconButton(
-                icon: const Icon(Icons.clear_rounded, size: 18),
-                visualDensity: VisualDensity.compact,
-                onPressed: () {
-                  _searchController.clear();
-                  _applySearch('');
-                },
-              ),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -685,35 +645,23 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final isDe =
-        (l10n?.localeName ?? Localizations.localeOf(context).languageCode)
-            .startsWith('de');
-
     return Scaffold(
       appBar: AppHeader(
-        title: l10n?.navProducts ?? 'Shop',
-        subtitle: isDe ? 'Reine Bio-Ceylon-Kräuter & Tees' : 'Pure Organic Ceylon Botanicals',
         user: widget.user,
-        showBackButton: Navigator.canPop(context),
+        title: _isGerman ? 'Produkte' : 'Products',
+        subtitle: _isGerman
+            ? 'Ceylon Bio-Kollektion'
+            : 'Ceylon Organic Collection',
       ),
       body: Column(
         children: [
           _buildSearchRow(),
-          _buildSortControl(),
           _buildCategoryFilters(),
-          Expanded(child: _content()),
-          if (_loadingMore)
-            const LinearProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.brandGold),
-              backgroundColor: AppTheme.primaryGreen,
-            ),
+          _buildSortControl(),
+          _buildContent(),
         ],
       ),
-      bottomNavigationBar: AppBottomBar(
-        currentIndex: 1,
-        user: widget.user,
-      ),
+      bottomNavigationBar: AppBottomBar(currentIndex: 1, user: widget.user),
     );
   }
 }
