@@ -226,5 +226,20 @@
   "originalValue": "Original value",
   "redeemedSoFar": "Redeemed so far",
   "validUntil": "Valid until",
-  "added": "Added"
+  "added": "Added",
+
+  "bestsellersSubtitle": "Customer favorites & organic essentials",
+  "exploreAyuboFamily": "Explore Ayubo Family",
+  "familyPromoTag": "AYUBO FAMILY",
+  "familyPromoHeadline": "Unlock Exclusive Wellness Privileges",
+  "familyBenefitCredit": "100% shopping credit back on membership",
+  "familyBenefitDiscount": "Exclusive member discounts on select organics",
+  "familyBenefitHeritage": "Pure Ceylon organic wellness privileges",
+  "experienceAyubo": "Experience Ayubo Organics",
+  "experienceAyuboTag": "OUR PHYSICAL BOUTIQUE",
+  "experienceAyuboSubtitle": "Visit our physical store to experience pure Ceylon organic spices, wellness teas, and Ayurvedic traditions in person.",
+  "shopFeatureOrganic": "100% Certified Organic",
+  "shopFeatureFairTrade": "Direct Fair Trade",
+  "shopFeatureAuthentic": "Authentic Ceylon Heritage",
+  "exploreStoreCollection": "Explore In-Store Collection"
 }

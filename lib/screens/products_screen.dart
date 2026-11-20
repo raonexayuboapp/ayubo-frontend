@@ -3,12 +3,9 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
-import '../utils/money.dart';
 import '../widgets/app_bottom_bar.dart';
 import '../widgets/app_header.dart';
-import '../widgets/favourite_button.dart';
-import '../widgets/product_image.dart';
-import 'product_detail_screen.dart';
+import '../widgets/compact_product_card.dart';
 
 typedef ProductData = Map<String, dynamic>;
 typedef CategoryData = Map<String, dynamic>;
@@ -17,12 +14,14 @@ class ProductsScreen extends StatefulWidget {
   final Map<String, dynamic> user;
   final String initialSearch;
   final int? initialCategoryId;
+  final String initialSort;
 
   const ProductsScreen({
     super.key,
     required this.user,
     this.initialSearch = '',
     this.initialCategoryId,
+    this.initialSort = 'newest',
   });
 
   @override
@@ -34,7 +33,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   String _sortLabel(String key, [BuildContext? ctx]) {
     final l10n = ctx != null ? AppLocalizations.of(ctx) : null;
-    final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
+    final isDe =
+        (l10n?.localeName ?? Localizations.localeOf(context).languageCode)
+            .startsWith('de');
+
     if (isDe) {
       return switch (key) {
         'newest' => 'Neuheiten',
@@ -44,6 +46,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
         _ => key,
       };
     }
+
     return switch (key) {
       'newest' => 'Newest',
       'name' => 'Name A to Z',
@@ -54,8 +57,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 
   final _scroll = ScrollController();
+<<<<<<< Updated upstream
   late final TextEditingController _searchController =
       TextEditingController(text: widget.initialSearch.trim());
+=======
+
+  late final TextEditingController _searchController = TextEditingController(
+    text: widget.initialSearch.trim(),
+  );
+>>>>>>> Stashed changes
 
   List<CategoryData> _categories = [];
   List<ProductData> _products = [];
@@ -63,7 +73,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   late String _searchQuery;
 
   int? _categoryId;
-  String _sort = 'newest';
+  late String _sort;
   int _page = 1;
   int _total = 0;
 
@@ -79,8 +89,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
     _searchQuery = widget.initialSearch.trim();
     _categoryId = widget.initialCategoryId;
+    _sort = widget.initialSort;
 
     _scroll.addListener(_onScroll);
+
     _loadCategories();
     _load();
   }
@@ -88,6 +100,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _scroll.removeListener(_onScroll);
     _scroll.dispose();
     super.dispose();
   }
@@ -97,7 +110,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
       final tree = await ApiService.instance.listCategories();
 
       if (mounted) {
-        setState(() => _categories = tree.cast<CategoryData>());
+        setState(() {
+          _categories = tree.cast<CategoryData>();
+        });
       }
     } on ApiException {
       // Categories are optional.
@@ -139,6 +154,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
       if (!mounted || request != _requestId) return;
 
       final products = (data['products'] as List<dynamic>).cast<ProductData>();
+
       final meta = data['meta'] as Map<String, dynamic>;
 
       setState(() {
@@ -197,6 +213,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     }
   }
 
+<<<<<<< Updated upstream
   Future<void> _openDetail(ProductData product) async {
     final favourite = await Navigator.push<bool>(
       context,
@@ -331,6 +348,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
+=======
+>>>>>>> Stashed changes
   Widget _content() {
     final scheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context);
@@ -423,7 +442,21 @@ class _ProductsScreenState extends State<ProductsScreen> {
           mainAxisSpacing: 14,
         ),
         itemCount: _products.length,
-        itemBuilder: (_, index) => _card(_products[index]),
+        itemBuilder: (_, index) {
+          final product = _products[index];
+
+          return CompactProductCard(
+            product: product,
+            user: widget.user,
+            onFavouriteChanged: (value) {
+              if (!mounted) return;
+
+              setState(() {
+                product['is_favourite'] = value;
+              });
+            },
+          );
+        },
       ),
     );
   }
@@ -653,7 +686,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
+    final isDe =
+        (l10n?.localeName ?? Localizations.localeOf(context).languageCode)
+            .startsWith('de');
 
     return Scaffold(
       appBar: AppHeader(

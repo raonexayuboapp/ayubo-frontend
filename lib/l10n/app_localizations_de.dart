@@ -663,4 +663,49 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get added => 'Hinzugefügt';
+
+  @override
+  String get bestsellersSubtitle => 'Beliebte Kundenfavoriten & Bio-Klassiker';
+
+  @override
+  String get exploreAyuboFamily => 'Ayubo Familie entdecken';
+
+  @override
+  String get familyPromoTag => 'AYUBO FAMILIE';
+
+  @override
+  String get familyPromoHeadline => 'Exklusive Vorteile für Ihr Wohlbefinden';
+
+  @override
+  String get familyBenefitCredit =>
+      '100% Einkaufsguthaben auf Ihre Mitgliedschaft';
+
+  @override
+  String get familyBenefitDiscount =>
+      'Exklusive Rabatte auf ausgewählte Bio-Produkte';
+
+  @override
+  String get familyBenefitHeritage => 'Reine Ceylon-Bio- und Ayurveda-Vorteile';
+
+  @override
+  String get experienceAyubo => 'Ayubo Organics erleben';
+
+  @override
+  String get experienceAyuboTag => 'UNSERE BOUTIQUE';
+
+  @override
+  String get experienceAyuboSubtitle =>
+      'Besuchen Sie unser Ladengeschäft und erleben Sie reine Ceylon-Bio-Gewürze, Wellness-Tees und Ayurveda-Tradition vor Ort.';
+
+  @override
+  String get shopFeatureOrganic => '100% Bio-zertifiziert';
+
+  @override
+  String get shopFeatureFairTrade => 'Direkter fairer Handel';
+
+  @override
+  String get shopFeatureAuthentic => 'Authentische Ceylon-Tradition';
+
+  @override
+  String get exploreStoreCollection => 'Boutique-Sortiment entdecken';
 }

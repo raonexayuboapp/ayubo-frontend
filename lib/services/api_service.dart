@@ -99,6 +99,7 @@ class ApiService {
 
     if (auth && code == 401) {
       await _storage.delete(key: _tokenKey);
+      CartState.instance.clear();
     }
 
     final errs = map['errors'];
@@ -405,10 +406,15 @@ class ApiService {
   }
 
   // ---------- memberships ----------
-
   /// {plans: [...], membership: {...} or null}
+  /// Requests membership data in the currently selected app language.
   Future<Map<String, dynamic>> membershipPlans() async {
-    final res = await _send('GET', '/api/membership-plans', auth: true);
+    final path = Uri(
+      path: '/api/membership-plans',
+      queryParameters: {'lang': currentAppLocale},
+    ).toString();
+
+    final res = await _send('GET', path, auth: true);
     return res['data'] as Map<String, dynamic>;
   }
 
@@ -476,8 +482,62 @@ class ApiService {
         if (categoryId != null) 'category_id': '$categoryId',
       },
     ).toString();
+
+    final res = await _send('GET', path);
+    final data = res['data'];
+
+    if (data is Map<String, dynamic>) {
+      final products = data['products'];
+
+      return {
+        'products': products is List
+            ? products.whereType<Map<String, dynamic>>().toList()
+            : <Map<String, dynamic>>[],
+        'meta': data['meta'] is Map<String, dynamic>
+            ? data['meta'] as Map<String, dynamic>
+            : <String, dynamic>{},
+      };
+    }
+
+    return <String, dynamic>{
+      'products': <Map<String, dynamic>>[],
+      'meta': <String, dynamic>{},
+    };
+  }
+
+  /// Returns the best-selling physical products.
+  /// Public endpoint; an available token adds the customer's favourite state.
+  Future<List<Map<String, dynamic>>> getBestSellers() async {
+    final path = Uri(
+      path: '/api/products/best-sellers',
+      queryParameters: {'lang': currentAppLocale},
+    ).toString();
+
     final res = await _send('GET', path, auth: true);
-    return res['data'] as Map<String, dynamic>;
+    final data = res['data'];
+
+    if (data is Map<String, dynamic>) {
+      final products = data['products'];
+
+      if (products is List) {
+        return products.whereType<Map<String, dynamic>>().toList();
+      }
+    }
+
+    return <Map<String, dynamic>>[];
+  }
+
+  /// Returns up to six newest products for the home screen.
+  Future<List<Map<String, dynamic>>> getNewArrivals() async {
+    final result = await listProducts(page: 1, sort: 'newest');
+
+    final products = result['products'];
+
+    if (products is List) {
+      return products.whereType<Map<String, dynamic>>().take(6).toList();
+    }
+
+    return <Map<String, dynamic>>[];
   }
 
   Future<Map<String, dynamic>> getProduct(int id) async {
@@ -486,19 +546,24 @@ class ApiService {
       '/api/products/$id?lang=$currentAppLocale',
       auth: true,
     );
+
     return (res['data'] as Map<String, dynamic>)['product']
         as Map<String, dynamic>;
   }
 
   Future<List<Map<String, dynamic>>> listCategories() async {
-    final res = await _send(
-      'GET',
-      '/api/categories?lang=$currentAppLocale',
-      auth: true,
-    );
-    final list =
-        (res['data'] as Map<String, dynamic>)['categories'] as List<dynamic>;
-    return list.cast<Map<String, dynamic>>();
+    final res = await _send('GET', '/api/categories?lang=$currentAppLocale');
+    final data = res['data'];
+
+    if (data is Map<String, dynamic>) {
+      final list = data['categories'];
+
+      if (list is List) {
+        return list.whereType<Map<String, dynamic>>().toList();
+      }
+    }
+
+    return <Map<String, dynamic>>[];
   }
 
   // ---------- products (admin) ----------
@@ -1040,12 +1105,16 @@ class ApiService {
         .cast<Map<String, dynamic>>();
   }
 
-  Future<void> adminCreateVoucherAmount(int cents) async {
+  Future<void> adminCreateVoucherAmount(
+    int cents, {
+    required String nameDe,
+    required String nameEn,
+  }) async {
     await _send(
       'POST',
       '/api/admin/gift-voucher-amounts',
       auth: true,
-      body: {'value_cents': cents},
+      body: {'value_cents': cents, 'name_de': nameDe, 'name_en': nameEn},
     );
   }
 

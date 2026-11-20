@@ -139,7 +139,6 @@ class HomePromoBanner extends StatelessWidget {
               // Image Thumbnail Side
               SizedBox(
                 width: 100,
-                height: double.infinity,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [

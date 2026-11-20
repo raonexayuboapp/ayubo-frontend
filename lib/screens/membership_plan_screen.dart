@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../services/cart_state.dart';
 import '../utils/money.dart';
@@ -10,10 +11,11 @@ import '../widgets/benefit_line.dart';
 
 typedef PlanData = Map<String, dynamic>;
 
-/// One plan in full, with every benefit and the Join button (which adds the membership to the cart).
+/// One plan in full, with every benefit and the Join button
+/// (which adds the membership to the cart).
 class MembershipPlanScreen extends StatefulWidget {
   final Map<String, dynamic> plan;
-  final Map<String, dynamic>? membership; // customer's own membership, if any
+  final Map<String, dynamic>? membership;
   final Map<String, dynamic> user;
   final Color accent;
 
@@ -32,8 +34,14 @@ class MembershipPlanScreen extends StatefulWidget {
 class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
   bool _joining = false;
 
-  void _snack(String text) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  bool get _isDe =>
+      AppLocalizations.of(context)?.localeName.startsWith('de') ?? false;
+
+  String _text(String en, String de) => _isDe ? de : en;
+
+  void _snack(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
 
   String? get _membershipStatus {
     final raw = widget.membership?['status'];
@@ -41,7 +49,7 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
     return raw.trim().toLowerCase();
   }
 
-  /// Keep the frontend aligned with the backend purchase rules:
+  /// Keep the frontend aligned with backend purchase rules:
   /// active, paused and cancelled memberships block another purchase;
   /// inactive and expired memberships do not.
   String? _membershipPurchaseBlockedMessage() {
@@ -49,51 +57,83 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
 
     switch (_membershipStatus) {
       case 'active':
-        return 'You already have an active membership. You can join another plan after your shopping credit is used or your membership expires.';
+        return _text(
+          'You already have an active membership. You can join another plan after your shopping credit is used or your membership expires.',
+          'Sie haben bereits eine aktive Mitgliedschaft. Sie können einen weiteren Plan erwerben, sobald Ihr Einkaufsguthaben aufgebraucht ist oder Ihre Mitgliedschaft abläuft.',
+        );
       case 'paused':
-        return 'Your membership is paused. You cannot purchase another membership while it is paused.';
+        return _text(
+          'Your membership is paused. You cannot purchase another membership while it is paused.',
+          'Ihre Mitgliedschaft ist pausiert. Währenddessen können Sie keine weitere Mitgliedschaft erwerben.',
+        );
       case 'cancelled':
-        return 'Your membership has been cancelled. You cannot purchase another membership at this time.';
+        return _text(
+          'Your membership has been cancelled. You cannot purchase another membership at this time.',
+          'Ihre Mitgliedschaft wurde gekündigt. Derzeit können Sie keine weitere Mitgliedschaft erwerben.',
+        );
       case 'inactive':
       case 'expired':
         return null;
       default:
-        // Fail closed if the backend introduces a status this screen does not know.
-        return 'Your membership status could not be verified. Please refresh your membership details before purchasing another plan.';
+        return _text(
+          'Your membership status could not be verified. Please refresh your membership details before purchasing another plan.',
+          'Ihr Mitgliedschaftsstatus konnte nicht bestätigt werden. Bitte aktualisieren Sie Ihre Mitgliedschaftsdaten, bevor Sie einen weiteren Plan erwerben.',
+        );
     }
   }
 
-  String? _membershipStatusLabel() {
+  String _membershipStatusLabel() {
     switch (_membershipStatus) {
       case 'active':
-        return 'Active membership';
+        return _text('Active membership', 'Aktive Mitgliedschaft');
       case 'inactive':
-        return 'Credit used';
+        return _text('Credit used', 'Guthaben aufgebraucht');
       case 'paused':
-        return 'Paused';
+        return _text('Paused', 'Pausiert');
       case 'cancelled':
-        return 'Cancelled';
+        return _text('Cancelled', 'Gekündigt');
       case 'expired':
-        return 'Expired';
+        return _text('Expired', 'Abgelaufen');
       default:
-        return 'Membership status unavailable';
+        return _text(
+          'Membership status unavailable',
+          'Mitgliedschaftsstatus nicht verfügbar',
+        );
     }
   }
 
-  String? _membershipStatusDescription() {
+  String _membershipStatusDescription() {
     switch (_membershipStatus) {
       case 'active':
-        return 'Your membership is active. You can use your available shopping credit at checkout. Another membership can be purchased after the credit is fully used or the membership expires.';
+        return _text(
+          'Your membership is active. You can use your available shopping credit at checkout. Another membership can be purchased after the credit is fully used or the membership expires.',
+          'Ihre Mitgliedschaft ist aktiv. Sie können Ihr verfügbares Einkaufsguthaben beim Checkout verwenden. Eine weitere Mitgliedschaft kann erworben werden, sobald das Guthaben vollständig aufgebraucht ist oder die Mitgliedschaft abläuft.',
+        );
       case 'inactive':
-        return 'Your shopping credit has been fully used. You can purchase a new membership.';
+        return _text(
+          'Your shopping credit has been fully used. You can purchase a new membership.',
+          'Ihr Einkaufsguthaben wurde vollständig aufgebraucht. Sie können eine neue Mitgliedschaft erwerben.',
+        );
       case 'paused':
-        return 'Your membership is paused. Another membership cannot be purchased while it remains paused.';
+        return _text(
+          'Your membership is paused. Another membership cannot be purchased while it remains paused.',
+          'Ihre Mitgliedschaft ist pausiert. Solange sie pausiert ist, kann keine weitere Mitgliedschaft erworben werden.',
+        );
       case 'cancelled':
-        return 'This membership has been cancelled. Contact support if you need help with your membership.';
+        return _text(
+          'This membership has been cancelled. Contact support if you need help with your membership.',
+          'Diese Mitgliedschaft wurde gekündigt. Wenn Sie Hilfe benötigen, wenden Sie sich bitte an den Support.',
+        );
       case 'expired':
-        return 'Your membership has expired. You can choose and purchase a new membership.';
+        return _text(
+          'Your membership has expired. You can choose and purchase a new membership.',
+          'Ihre Mitgliedschaft ist abgelaufen. Sie können eine neue Mitgliedschaft auswählen und erwerben.',
+        );
       default:
-        return 'Your membership is on record, but its current status could not be identified. Please refresh your membership details.';
+        return _text(
+          'Your membership is on record, but its current status could not be identified. Please refresh your membership details.',
+          'Ihre Mitgliedschaft ist gespeichert, ihr aktueller Status konnte jedoch nicht ermittelt werden. Bitte aktualisieren Sie Ihre Mitgliedschaftsdaten.',
+        );
     }
   }
 
@@ -108,16 +148,21 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
 
     if (!await ApiService.instance.hasToken()) {
       if (!mounted) return;
+
       final user = await showAuthPrompt(
         context,
-        title: 'Join Ayubo Family',
-        message:
-            'Sign in or create an account to join the ${widget.plan['name']} membership plan.',
+        title: _text('Join Ayubo Family', 'Ayubo Family beitreten'),
+        message: _text(
+          'Sign in or create an account to join the ${widget.plan['name']} membership plan.',
+          'Melden Sie sich an oder erstellen Sie ein Konto, um dem Mitgliedschaftsplan ${widget.plan['name']} beizutreten.',
+        ),
       );
+
       if (user == null || !mounted) return;
     }
 
     setState(() => _joining = true);
+
     try {
       final planId = (widget.plan['id'] as num?)?.toInt();
       final variantId = (widget.plan['variant_id'] as num?)?.toInt();
@@ -127,22 +172,36 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
       } else if (variantId != null) {
         await ApiService.instance.addToCart(variantId, 1);
       } else {
-        _snack('This plan is not available for purchase online.');
+        _snack(
+          _text(
+            'This plan is not available for purchase online.',
+            'Dieser Plan ist derzeit nicht online erhältlich.',
+          ),
+        );
         return;
       }
 
       if (!mounted) return;
+
       CartState.instance.refresh();
+
       ScaffoldMessenger.of(context)
         ..clearSnackBars()
         ..showSnackBar(
           SnackBar(
-            content: Text('"${widget.plan['name']}" added to your cart.'),
+            content: Text(
+              _text(
+                '"${widget.plan['name']}" added to your cart.',
+                '"${widget.plan['name']}" wurde Ihrem Warenkorb hinzugefügt.',
+              ),
+            ),
             action: SnackBarAction(
-              label: 'View cart',
+              label: _text('View cart', 'Warenkorb ansehen'),
               textColor: Theme.of(context).colorScheme.secondary,
               onPressed: () {
-                if (mounted) AppBottomBar.open(context, 3, widget.user);
+                if (mounted) {
+                  AppBottomBar.open(context, 3, widget.user);
+                }
               },
             ),
           ),
@@ -155,9 +214,13 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
         CartState.instance.refresh();
       }
 
-      if (e.statusCode != 401) _snack(e.message);
+      if (e.statusCode != 401) {
+        _snack(e.message);
+      }
     } finally {
-      if (mounted) setState(() => _joining = false);
+      if (mounted) {
+        setState(() => _joining = false);
+      }
     }
   }
 
@@ -166,24 +229,37 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
     final p = widget.plan;
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
-    final tagline = p['description'] as String?;
-    final benefits = (p['benefits'] as List<dynamic>).cast<PlanData>();
+
+    // Customer API supplies localized top-level values.
+    // German is the backend fallback when a translation is missing.
+    final planName = (p['name'] as String?)?.trim().isNotEmpty == true
+        ? (p['name'] as String).trim()
+        : _text('Membership Plan', 'Mitgliedschaftsplan');
+
+    final tagline = (p['description'] as String?)?.trim();
+
+    final rawBenefits = p['benefits'] as List<dynamic>? ?? const [];
+    final benefits = rawBenefits.whereType<Map<String, dynamic>>().toList();
+
     final blocked = _membershipPurchaseBlockedMessage();
     final priceCents = (p['price_cents'] as num?)?.toInt();
+
     final price = priceCents != null
         ? formatCents(priceCents)
-        : 'Price unavailable';
+        : _text('Price unavailable', 'Preis nicht verfügbar');
+
     final membershipStatusLabel = widget.membership == null
         ? null
         : _membershipStatusLabel();
+
     final membershipStatusDescription = widget.membership == null
         ? null
         : _membershipStatusDescription();
 
     return Scaffold(
       appBar: AppHeader(
-        title: p['name'] as String,
-        subtitle: 'Membership Tier',
+        title: planName,
+        subtitle: _text('Membership Tier', 'Mitgliedschaftsstufe'),
         user: widget.user,
         showBackButton: true,
       ),
@@ -203,7 +279,7 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  p['name'] as String,
+                  planName,
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -220,7 +296,7 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
             ),
           ),
           Text(
-            'incl. VAT',
+            _text('incl. VAT', 'inkl. MwSt.'),
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
             ),
@@ -274,7 +350,7 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
           ],
           const SizedBox(height: 24),
           Text(
-            'What you get',
+            _text('What you get', 'Ihre Vorteile'),
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
             ),
@@ -293,7 +369,10 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
               padding: const EdgeInsets.all(16),
               child: benefits.isEmpty
                   ? Text(
-                      'No benefits are listed for this membership yet.',
+                      _text(
+                        'No benefits are listed for this membership yet.',
+                        'Für diese Mitgliedschaft sind noch keine Vorteile aufgeführt.',
+                      ),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurface.withValues(
                           alpha: 0.6,
@@ -302,11 +381,11 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
                     )
                   : Column(
                       children: [
-                        for (final b in benefits)
+                        for (final benefit in benefits)
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 6),
                             child: BenefitLine(
-                              benefit: b,
+                              benefit: benefit,
                               color: widget.accent,
                             ),
                           ),
@@ -316,7 +395,10 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Your membership starts when your order is paid.',
+            _text(
+              'Your membership starts when your order is paid.',
+              'Ihre Mitgliedschaft beginnt, sobald Ihre Bestellung bezahlt wurde.',
+            ),
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
             ),
@@ -351,8 +433,11 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
                 : const Icon(Icons.add_shopping_cart, size: 20),
             label: Text(
               blocked != null
-                  ? 'Membership purchase unavailable'
-                  : 'Join for $price',
+                  ? _text(
+                      'Membership purchase unavailable',
+                      'Mitgliedschaft derzeit nicht verfügbar',
+                    )
+                  : _text('Join for $price', 'Jetzt beitreten für $price'),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
           ),
@@ -368,7 +453,10 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                'This plan is currently unavailable for purchase.',
+                _text(
+                  'This plan is currently unavailable for purchase.',
+                  'Dieser Plan ist derzeit nicht zum Kauf verfügbar.',
+                ),
                 style: TextStyle(color: theme.colorScheme.error, fontSize: 13),
               ),
             ),

@@ -432,7 +432,7 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
               ),
               child: SwitchListTile.adaptive(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                activeColor: AppTheme.brandGold,
+                activeThumbColor: AppTheme.brandGold,
                 activeTrackColor: AppTheme.primaryGreen,
                 title: Text(
                   'Use as default ${_type == 'shipping' ? 'shipping' : 'billing'} address',

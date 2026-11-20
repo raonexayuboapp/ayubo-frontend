@@ -35,14 +35,22 @@ class _FamilyScreenState extends State<FamilyScreen> {
   static const _previewCount = 3;
 
   late Map<String, dynamic> _user = widget.user;
+
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _plansKey = GlobalKey();
   final GlobalKey _vouchersKey = GlobalKey();
 
   Map<String, dynamic>? _data;
   List<VoucherAmountData> _voucherAmounts = [];
+
   bool _loading = true;
   String? _error;
+
+  // Tracks the language used for the most recently requested data.
+  String? _loadedLanguage;
+
+  // Prevents the initial-section scroll from running more than once.
+  bool _initialScrollHandled = false;
 
   List<PlanData> get _plans =>
       ((_data?['plans'] as List<dynamic>?) ?? const []).cast<PlanData>();
@@ -107,13 +115,35 @@ class _FamilyScreenState extends State<FamilyScreen> {
   @override
   void initState() {
     super.initState();
-    _load().then((_) {
-      if (mounted && widget.initialSection == 1) {
-        WidgetsBinding.instance.addPostFrameCallback(
-          (_) => _scrollTo(_vouchersKey),
-        );
-      }
-    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final language = Localizations.localeOf(context).languageCode.toLowerCase();
+
+    if (_loadedLanguage != language) {
+      _loadedLanguage = language;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+
+        await _load();
+
+        if (!mounted || _initialScrollHandled) return;
+
+        _initialScrollHandled = true;
+
+        if (widget.initialSection == 1) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _scrollTo(_vouchersKey);
+            }
+          });
+        }
+      });
+    }
   }
 
   @override
@@ -124,6 +154,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
 
   void _scrollTo(GlobalKey key) {
     final ctx = key.currentContext;
+
     if (ctx != null) {
       Scrollable.ensureVisible(
         ctx,
@@ -134,6 +165,8 @@ class _FamilyScreenState extends State<FamilyScreen> {
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
+
     setState(() {
       _loading = true;
       _error = null;
@@ -150,6 +183,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
       ]);
 
       if (!mounted) return;
+
       setState(() {
         _data = results[0] as Map<String, dynamic>;
         _voucherAmounts = (results[1] as List<dynamic>)
@@ -158,14 +192,17 @@ class _FamilyScreenState extends State<FamilyScreen> {
       });
     } on ApiException catch (e) {
       if (!mounted) return;
+
       setState(() {
         _loading = false;
+
         if (_data == null) {
           _error = e.statusCode == 401
               ? 'Unable to load Ayubo Family data.'
               : e.message;
         }
       });
+
       if (_data != null && e.statusCode != 401) {
         ScaffoldMessenger.of(
           context,
@@ -173,6 +210,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
       }
     } catch (_) {
       if (!mounted) return;
+
       setState(() {
         _loading = false;
         _error = 'Unable to connect. Swipe down to retry.';
@@ -182,10 +220,15 @@ class _FamilyScreenState extends State<FamilyScreen> {
 
   Future<bool> _ensureSignedIn(String title, String message) async {
     if (await ApiService.instance.hasToken()) return true;
+
     if (!mounted) return false;
+
     final user = await showAuthPrompt(context, title: title, message: message);
+
     if (user == null || !mounted) return false;
+
     setState(() => _user = user);
+
     return true;
   }
 
@@ -201,11 +244,15 @@ class _FamilyScreenState extends State<FamilyScreen> {
         ),
       ),
     );
-    if (mounted) _load();
+
+    if (mounted) {
+      _load();
+    }
   }
 
   Future<void> _quickJoin(PlanData plan) async {
     final blocked = joinBlockedMessage(_membership);
+
     if (blocked != null) {
       ScaffoldMessenger.of(
         context,
@@ -215,6 +262,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
 
     final planId = (plan['id'] as num?)?.toInt();
     final variantId = (plan['variant_id'] as num?)?.toInt();
+
     if (planId == null && variantId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -237,9 +285,11 @@ class _FamilyScreenState extends State<FamilyScreen> {
       } else {
         await ApiService.instance.addToCart(variantId!, 1);
       }
+
       if (!mounted) return;
 
       CartState.instance.refresh();
+
       _showCartSnack(
         '"${plan['name']}" added to your cart.',
         'View Cart',
@@ -250,6 +300,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
         _load();
         CartState.instance.refresh();
       }
+
       if (mounted && e.statusCode != 401) {
         ScaffoldMessenger.of(
           context,
@@ -265,6 +316,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
   /// the backend after successful payment.
   Future<void> _reactivateMembership() async {
     final membership = _membership;
+
     if (membership == null || !_canReactivateMembership) return;
 
     final nestedPlan = membership['plan'] as Map<String, dynamic>?;
@@ -275,6 +327,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
 
     if (planId == null) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -282,6 +335,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
           ),
         ),
       );
+
       return;
     }
 
@@ -308,6 +362,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
   }
 
   Future<void> _buyVoucher(VoucherAmountData amount, int quantity) async {
+    final locale = Localizations.localeOf(context).languageCode;
     final priceCents = (amount['price_cents'] as num?)?.toInt();
     final variantId = (amount['variant_id'] as num?)?.toInt();
     final name = amount['name'] as String? ?? 'Gift voucher';
@@ -330,11 +385,13 @@ class _FamilyScreenState extends State<FamilyScreen> {
 
     try {
       await ApiService.instance.addGiftVouchersToCart(variantId, quantity);
+
       CartState.instance.refresh();
+
       if (!mounted) return;
 
       _showCartSnack(
-        'Added $quantity × ${formatCents(priceCents)} voucher.',
+        'Added $quantity × ${formatCents(priceCents, locale)} voucher.',
         'Checkout',
         () => Navigator.push(
           context,
@@ -410,12 +467,17 @@ class _FamilyScreenState extends State<FamilyScreen> {
     )) {
       return;
     }
+
     if (!mounted) return;
+
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const VouchersScreen()),
     );
-    if (mounted) _load();
+
+    if (mounted) {
+      _load();
+    }
   }
 
   Future<void> _claimVoucherCode() async {
@@ -425,6 +487,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
     )) {
       return;
     }
+
     if (!mounted) return;
 
     final result = await showPrompt(
@@ -441,12 +504,16 @@ class _FamilyScreenState extends State<FamilyScreen> {
         ),
       ],
     );
+
     if (result == null || !mounted) return;
 
     try {
       final claimed = await ApiService.instance.claimVoucher(result['code']!);
+
       if (!mounted) return;
+
       final balance = (claimed['balance_cents'] as num?)?.toInt() ?? 0;
+
       ScaffoldMessenger.of(context)
         ..clearSnackBars()
         ..showSnackBar(
@@ -458,6 +525,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
+
       _load();
     } on ApiException catch (e) {
       if (mounted) {
@@ -481,7 +549,9 @@ class _FamilyScreenState extends State<FamilyScreen> {
     )) {
       return;
     }
+
     if (!mounted) return;
+
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const LoyaltyScreen()),
@@ -491,24 +561,49 @@ class _FamilyScreenState extends State<FamilyScreen> {
   // ===========================================================================
   // 1. HERO / MEMBER STATUS CARD
   // ===========================================================================
+
   Widget _buildHeroSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final isDe = l10n?.localeName.startsWith('de') ?? false;
 
     if (_hasMembership) {
-      final plan = _membership!['plan'] as Map<String, dynamic>? ?? {};
+      final membershipPlan =
+          _membership!['plan'] as Map<String, dynamic>? ?? {};
+
+      // Prefer the localized plan name from the customer plans response.
+      // The membership endpoint's plan_name is retained as a fallback.
+      final membershipPlanId =
+          (_membership!['plan_id'] as num?)?.toInt() ??
+          (membershipPlan['id'] as num?)?.toInt();
+
+      String? localizedPlanName;
+
+      for (final candidate in _plans) {
+        final candidateId = (candidate['id'] as num?)?.toInt();
+
+        if (candidateId == membershipPlanId) {
+          localizedPlanName = (candidate['name'] as String?)?.trim();
+          break;
+        }
+      }
+
       final planName =
-          (_membership!['plan_name'] as String?) ??
-          (plan['name'] as String?) ??
-          'Ayubo Family Member';
+          (localizedPlanName != null && localizedPlanName.isNotEmpty)
+          ? localizedPlanName
+          : (_membership!['plan_name'] as String?) ??
+                (membershipPlan['name'] as String?) ??
+                'Ayubo Family Member';
+
       final cardNo =
           (_membership!['member_number'] as String?) ??
           (_membership!['card_number'] as String?) ??
           'AYU-MEMBER';
+
       final creditCents = (_membership!['credit_cents'] as num?)?.toInt() ?? 0;
+
       final discount =
           (_membership!['discount_percent'] as num?)?.toDouble() ??
-          (plan['discount_percent'] as num?)?.toDouble() ??
+          (membershipPlan['discount_percent'] as num?)?.toDouble() ??
           0.0;
 
       // A membership discount is only displayed while the membership is active.
@@ -708,7 +803,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
       );
     }
 
-    // Guest / Non-Member Hero Banner with Ceylon Plantation Backdrop
+    // Guest / Non-Member Hero Banner with Ceylon Plantation Backdrop.
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       decoration: BoxDecoration(
@@ -843,6 +938,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
   // ===========================================================================
   // 2. QUICK WALLET & LOYALTY STRIP
   // ===========================================================================
+
   Widget _buildQuickActionStrip(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final isDe = l10n?.localeName.startsWith('de') ?? false;
@@ -909,6 +1005,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
   // ===========================================================================
   // 3. MEMBERSHIP PLANS SECTION
   // ===========================================================================
+
   String _planAsset(int rank) => switch (rank % 3) {
     0 => 'assets/images/cinnamon plantation.jpg',
     1 => 'assets/images/pepper plantation.jpg',
@@ -983,21 +1080,34 @@ class _FamilyScreenState extends State<FamilyScreen> {
     final isDe = l10n?.localeName.startsWith('de') ?? false;
 
     final benefits = (plan['benefits'] as List<dynamic>? ?? const []);
+
     final priceCents = (plan['price_cents'] as num?)?.toInt();
+
     final creditCents = (plan['credit_cents'] as num?)?.toInt();
+
     final discountPercent =
         (plan['discount_percent'] as num?)?.toDouble() ??
         (plan['discount_percentage'] as num?)?.toDouble();
+
     final durationMonths = (plan['duration_months'] as num?)?.toInt();
+
     final planId = plan['id'];
+
+    // These fields are localized by the backend customer API.
+    // The backend returns German as the fallback when a translation is absent.
+    final planName = (plan['name'] as String?)?.trim();
+    final planDescription = (plan['description'] as String?)?.trim();
 
     final isCurrent =
         _isActiveMember &&
         ((_membership!['plan_id'] != null &&
                 _membership!['plan_id'] == planId) ||
             ((_membership!['plan'] as Map<String, dynamic>?)?['id'] == planId));
+
     final purchaseBlocked = membershipBlocksJoining(_membership);
+
     final variantId = (plan['variant_id'] as num?)?.toInt();
+
     final canPurchasePlan =
         priceCents != null && (planId is num || variantId != null);
 
@@ -1028,7 +1138,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Visual Image Header Banner
+          // Visual Image Header Banner.
           Container(
             height: 76,
             decoration: BoxDecoration(
@@ -1055,7 +1165,9 @@ class _FamilyScreenState extends State<FamilyScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          plan['name'] as String? ?? 'Plan',
+                          planName?.isNotEmpty == true ? planName! : 'Plan',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 17,
@@ -1105,7 +1217,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
             ),
           ),
 
-          // Body
+          // Plan details and benefits.
           Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
@@ -1131,7 +1243,22 @@ class _FamilyScreenState extends State<FamilyScreen> {
                       ),
                   ],
                 ),
+
+                // Localized plan description.
+                if (planDescription != null && planDescription.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    planDescription,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.45,
+                      color: AppTheme.textSecondary(context),
+                    ),
+                  ),
+                ],
+
                 const SizedBox(height: 10),
+
                 for (final b in benefits.take(_previewCount))
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4),
@@ -1142,7 +1269,9 @@ class _FamilyScreenState extends State<FamilyScreen> {
                       color: accent,
                     ),
                   ),
+
                 const SizedBox(height: 12),
+
                 Row(
                   children: [
                     Expanded(
@@ -1234,6 +1363,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
   // ===========================================================================
   // 4. GIFT VOUCHERS SECTION
   // ===========================================================================
+
   Widget _buildVouchersSection(BuildContext context) {
     final isDark = AppTheme.isDark(context);
     final l10n = AppLocalizations.of(context);
@@ -1265,7 +1395,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
           ),
           const SizedBox(height: 10),
 
-          // Gifting Showcase Card with Asset Image
+          // Gifting Showcase Card with Asset Image.
           Container(
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
@@ -1360,9 +1490,12 @@ class _FamilyScreenState extends State<FamilyScreen> {
   }
 
   Widget _buildVoucherCard(BuildContext context, VoucherAmountData amount) {
+    final locale = Localizations.localeOf(context).languageCode;
     final isDark = AppTheme.isDark(context);
     final l10n = AppLocalizations.of(context);
+
     final priceCents = (amount['price_cents'] as num?)?.toInt();
+
     final name = amount['name'] as String? ?? 'Gift Voucher';
 
     return Container(
@@ -1394,7 +1527,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
           onTap: () => _showBuyVoucherSheet(amount),
           child: Stack(
             children: [
-              // Subtle Decorative Gold Watermark
+              // Subtle Decorative Gold Watermark.
               Positioned(
                 right: -14,
                 top: -14,
@@ -1412,7 +1545,6 @@ class _FamilyScreenState extends State<FamilyScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Top Row: Gold Emblem + Pill Tag
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -1460,9 +1592,10 @@ class _FamilyScreenState extends State<FamilyScreen> {
 
                     const Spacer(),
 
-                    // Denomination Amount & Label
                     Text(
-                      priceCents != null ? formatCents(priceCents) : '—',
+                      priceCents != null
+                          ? formatCents(priceCents, locale)
+                          : '—',
                       style: TextStyle(
                         fontSize: 25,
                         fontWeight: FontWeight.w800,
@@ -1486,7 +1619,6 @@ class _FamilyScreenState extends State<FamilyScreen> {
 
                     const Spacer(),
 
-                    // Metallic Gold CTA Button
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -1523,12 +1655,14 @@ class _FamilyScreenState extends State<FamilyScreen> {
   // ===========================================================================
   // MAIN BUILD
   // ===========================================================================
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final isDe = l10n?.localeName.startsWith('de') ?? false;
 
     Widget body;
+
     if (_loading && _data == null) {
       body = const Center(
         child: CircularProgressIndicator(
@@ -1599,6 +1733,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
 // =============================================================================
 // MODAL SHEET: VOUCHER QUANTITY & PURCHASE
 // =============================================================================
+
 class _VoucherPurchaseSheet extends StatefulWidget {
   final VoucherAmountData amount;
   final ValueChanged<int> onConfirm;
@@ -1611,15 +1746,19 @@ class _VoucherPurchaseSheet extends StatefulWidget {
 
 class _VoucherPurchaseSheetState extends State<_VoucherPurchaseSheet> {
   static const _max = 10;
+
   int _quantity = 1;
 
   @override
   Widget build(BuildContext context) {
+    final locale = Localizations.localeOf(context).languageCode;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final l10n = AppLocalizations.of(context);
     final isDe = l10n?.localeName.startsWith('de') ?? false;
 
     final priceCents = (widget.amount['price_cents'] as num?)?.toInt() ?? 0;
+
     final name = widget.amount['name'] as String? ?? 'Gift Voucher';
 
     return Container(
@@ -1672,7 +1811,7 @@ class _VoucherPurchaseSheetState extends State<_VoucherPurchaseSheet> {
                         ),
                       ),
                       Text(
-                        '${formatCents(priceCents)} · ${isDe ? 'Sofort per E-Mail' : 'Instant Email Delivery'}',
+                        '${formatCents(priceCents, locale)} · ${isDe ? 'Sofort per E-Mail' : 'Instant Email Delivery'}',
                         style: TextStyle(
                           fontSize: 11.5,
                           color: AppTheme.textSecondary(context),
@@ -1741,7 +1880,7 @@ class _VoucherPurchaseSheetState extends State<_VoucherPurchaseSheet> {
                   elevation: 0,
                 ),
                 child: Text(
-                  '${isDe ? 'In den Warenkorb' : 'Add to Cart'} · ${formatCents(priceCents * _quantity)}',
+                  '${isDe ? 'In den Warenkorb' : 'Add to Cart'} · ${formatCents(priceCents * _quantity, locale)}',
                   style: const TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.bold,

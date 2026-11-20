@@ -106,7 +106,7 @@ class HomeCategoriesSection extends StatelessWidget {
 
         // Categories Horizontal Strip
         SizedBox(
-          height: 98,
+          height: 104,
           child: ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             scrollDirection: Axis.horizontal,

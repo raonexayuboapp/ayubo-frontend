@@ -203,7 +203,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 18),
       child: DropdownButtonFormField<String>(
-        value: _preferredLanguage,
+        initialValue: _preferredLanguage,
         decoration: InputDecoration(
           labelText: 'Preferred language',
           prefixIcon: const Icon(

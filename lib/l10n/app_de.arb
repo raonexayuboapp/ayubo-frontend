@@ -225,5 +225,20 @@
   "originalValue": "Ursprünglicher Wert",
   "redeemedSoFar": "Bisher eingelöst",
   "validUntil": "Gültig bis",
-  "added": "Hinzugefügt"
+  "added": "Hinzugefügt",
+
+  "bestsellersSubtitle": "Beliebte Kundenfavoriten & Bio-Klassiker",
+  "exploreAyuboFamily": "Ayubo Familie entdecken",
+  "familyPromoTag": "AYUBO FAMILIE",
+  "familyPromoHeadline": "Exklusive Vorteile für Ihr Wohlbefinden",
+  "familyBenefitCredit": "100% Einkaufsguthaben auf Ihre Mitgliedschaft",
+  "familyBenefitDiscount": "Exklusive Rabatte auf ausgewählte Bio-Produkte",
+  "familyBenefitHeritage": "Reine Ceylon-Bio- und Ayurveda-Vorteile",
+  "experienceAyubo": "Ayubo Organics erleben",
+  "experienceAyuboTag": "UNSERE BOUTIQUE",
+  "experienceAyuboSubtitle": "Besuchen Sie unser Ladengeschäft und erleben Sie reine Ceylon-Bio-Gewürze, Wellness-Tees und Ayurveda-Tradition vor Ort.",
+  "shopFeatureOrganic": "100% Bio-zertifiziert",
+  "shopFeatureFairTrade": "Direkter fairer Handel",
+  "shopFeatureAuthentic": "Authentische Ceylon-Tradition",
+  "exploreStoreCollection": "Boutique-Sortiment entdecken"
 }

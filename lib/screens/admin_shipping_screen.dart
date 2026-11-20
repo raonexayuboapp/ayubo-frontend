@@ -288,7 +288,8 @@ class _AdminShippingScreenState extends State<AdminShippingScreen> {
               ),
               Switch(
                 value: active,
-                activeColor: goldColor,
+                activeThumbColor: goldColor,
+                activeTrackColor: goldColor,
                 onChanged: _busy.contains('m${m['id']}') ? null : (_) => _toggle(m),
               ),
             ],
@@ -710,7 +711,7 @@ class _RateDialogState extends State<_RateDialog> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _country,
+                initialValue: _country,
                 isExpanded: true,
                 decoration: InputDecoration(labelText: 'Country', errorText: _serverErrors['country_code']),
                 items: countryItems,
@@ -757,7 +758,7 @@ class _RateDialogState extends State<_RateDialog> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
-                value: _taxRateId,
+                initialValue: _taxRateId,
                 isExpanded: true,
                 decoration: InputDecoration(
                   labelText: 'Tax rate',

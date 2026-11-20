@@ -61,7 +61,9 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
 
   Future<void> _load({required bool reset}) async {
     final request = ++_request;
-    if (reset) _page = 1;
+    if (reset) {
+      _page = 1;
+    }
     setState(() {
       _loading = true;
       _error = null;
@@ -92,10 +94,11 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           _page--; // let "Load more" try the same page again
         }
       });
-      if (!reset)
+      if (!reset) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -212,8 +215,9 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   }
 
   Widget _body() {
-    if (_loading && _orders.isEmpty)
+    if (_loading && _orders.isEmpty) {
       return const Center(child: CircularProgressIndicator());
+    }
 
     if (_error != null) {
       return Center(
