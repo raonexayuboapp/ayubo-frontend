@@ -46,11 +46,30 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int _imagePage = 0;
   bool? _favourite;
   bool _adding = false;
+  String? _loadedLanguage;
+  int _loadRequestId = 0;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final language = Localizations.localeOf(context).languageCode;
+
+    if (_loadedLanguage == null) {
+      _loadedLanguage = language;
+      return;
+    }
+
+    if (_loadedLanguage != language) {
+      _loadedLanguage = language;
+      _load(preserveSelection: true);
+    }
   }
 
   void _snack(String text) {
@@ -68,7 +87,23 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       );
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool preserveSelection = false}) async {
+    final requestId = ++_loadRequestId;
+
+    final previousQuantity = _quantity;
+    int? previousVariantId;
+
+    if (preserveSelection && _product != null) {
+      final previousVariants = (_product!['variants'] as List<dynamic>)
+          .cast<ProductData>();
+
+      if (previousVariants.isNotEmpty &&
+          _variant >= 0 &&
+          _variant < previousVariants.length) {
+        previousVariantId = previousVariants[_variant]['id'] as int?;
+      }
+    }
+
     setState(() {
       _loading = true;
       _error = null;
@@ -77,18 +112,37 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     try {
       final p = await ApiService.instance.getProduct(widget.productId);
 
-      if (!mounted) return;
+      if (!mounted || requestId != _loadRequestId) return;
+
+      final newVariants = (p['variants'] as List<dynamic>).cast<ProductData>();
+
+      var selectedVariant = 0;
+
+      if (previousVariantId != null) {
+        final index = newVariants.indexWhere(
+          (variant) => variant['id'] == previousVariantId,
+        );
+
+        if (index >= 0) {
+          selectedVariant = index;
+        }
+      }
+
+      final productType = p['product_type'] as String;
+      final maxQuantity = _maxByType[productType] ?? 1;
 
       setState(() {
         _product = p;
         _favourite = p['is_favourite'] == true;
-        _variant = 0;
-        _quantity = 1;
+        _variant = selectedVariant;
+        _quantity = preserveSelection
+            ? previousQuantity.clamp(1, maxQuantity)
+            : 1;
         _imagePage = 0;
         _loading = false;
       });
     } on ApiException catch (e) {
-      if (!mounted) return;
+      if (!mounted || requestId != _loadRequestId) return;
 
       setState(() {
         _error = e.message;
@@ -1010,7 +1064,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       },
       child: Scaffold(
         appBar: AppHeader(
-          title: widget.title,
+          title: _product?['name'] as String? ?? widget.title,
           subtitle: _product?['category']?['name'] as String?,
           showBackButton: true,
           onBack: () => Navigator.pop(context, _favourite),

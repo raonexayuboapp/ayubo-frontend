@@ -58,6 +58,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
   String? _error;
 
   int _requestId = 0;
+  String? _loadedLanguage;
+  int _categoryRequestId = 0;
 
   @override
   void initState() {
@@ -74,6 +76,27 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
     _loadCategories();
     _load();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final language = Localizations.localeOf(context).languageCode;
+
+    if (_loadedLanguage == null) {
+      // Initial load is already handled by initState().
+      _loadedLanguage = language;
+      return;
+    }
+
+    if (_loadedLanguage != language) {
+      _loadedLanguage = language;
+
+      // Reload database-backed translations in the selected language.
+      _loadCategories();
+      _load();
+    }
   }
 
   void _onSearchChanged() {
@@ -105,18 +128,22 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 
   Future<void> _loadCategories() async {
+    final requestId = ++_categoryRequestId;
+
     try {
       final response = await ApiService.instance.listCategories();
-      if (!mounted) return;
+
+      if (!mounted || requestId != _categoryRequestId) return;
+
       setState(() {
         _categories = response;
         _loadingCategories = false;
       });
     } on ApiException {
-      if (!mounted) return;
+      if (!mounted || requestId != _categoryRequestId) return;
       setState(() => _loadingCategories = false);
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || requestId != _categoryRequestId) return;
       setState(() => _loadingCategories = false);
     }
   }

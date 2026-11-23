@@ -388,7 +388,7 @@ class _AdminMembershipPlanFormScreenState
         for (final b in _benefits)
           {
             'kind': b.kind,
-            if (b.code != null) 'code': b.code,
+            if (b.kind == 'perk' && b.code != null) 'code': b.code,
             if (b.kind == 'perk') ...{
               'description_en': b.descriptionEn.text.trim(),
               'description_de': b.descriptionDe.text.trim(),
