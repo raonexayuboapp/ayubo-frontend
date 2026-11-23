@@ -43,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   String? _error;
   int _loadRequestId = 0;
+  String? _loadedLanguage;
 
   bool get _isGuest => _user == null || _user!.isEmpty || _user!['id'] == null;
 
@@ -56,6 +57,23 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     _loadHomeData();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final language = Localizations.localeOf(context).languageCode;
+
+    if (_loadedLanguage == null) {
+      _loadedLanguage = language;
+      return;
+    }
+
+    if (_loadedLanguage != language) {
+      _loadedLanguage = language;
+      _loadHomeData();
+    }
   }
 
   @override

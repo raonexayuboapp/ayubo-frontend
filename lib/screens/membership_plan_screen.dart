@@ -32,7 +32,57 @@ class MembershipPlanScreen extends StatefulWidget {
 }
 
 class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
+  late PlanData _plan;
   bool _joining = false;
+  String? _loadedLanguage;
+  int _loadRequestId = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _plan = Map<String, dynamic>.from(widget.plan);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final language = Localizations.localeOf(context).languageCode.toLowerCase();
+
+    if (_loadedLanguage == null) {
+      _loadedLanguage = language;
+    } else if (_loadedLanguage != language) {
+      _loadedLanguage = language;
+      _refreshPlan();
+    }
+  }
+
+  Future<void> _refreshPlan() async {
+    final planId = (_plan['id'] as num?)?.toInt();
+    if (planId == null) return;
+
+    final requestId = ++_loadRequestId;
+
+    try {
+      final data = await ApiService.instance.membershipPlans();
+
+      if (!mounted || requestId != _loadRequestId) return;
+
+      final plans = (data['plans'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>();
+
+      for (final plan in plans) {
+        if ((plan['id'] as num?)?.toInt() == planId) {
+          setState(() {
+            _plan = Map<String, dynamic>.from(plan);
+          });
+          return;
+        }
+      }
+    } catch (_) {
+      // Keep the currently displayed plan if refreshing fails.
+    }
+  }
 
   bool get _isDe =>
       AppLocalizations.of(context)?.localeName.startsWith('de') ?? false;
@@ -153,8 +203,8 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
         context,
         title: _text('Join Ayubo Family', 'Ayubo Family beitreten'),
         message: _text(
-          'Sign in or create an account to join the ${widget.plan['name']} membership plan.',
-          'Melden Sie sich an oder erstellen Sie ein Konto, um dem Mitgliedschaftsplan ${widget.plan['name']} beizutreten.',
+          'Sign in or create an account to join the ${_plan['name']} membership plan.',
+          'Melden Sie sich an oder erstellen Sie ein Konto, um dem Mitgliedschaftsplan ${_plan['name']} beizutreten.',
         ),
       );
 
@@ -164,8 +214,8 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
     setState(() => _joining = true);
 
     try {
-      final planId = (widget.plan['id'] as num?)?.toInt();
-      final variantId = (widget.plan['variant_id'] as num?)?.toInt();
+      final planId = (_plan['id'] as num?)?.toInt();
+      final variantId = (_plan['variant_id'] as num?)?.toInt();
 
       if (planId != null) {
         await ApiService.instance.purchaseMembership(planId);
@@ -191,8 +241,8 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
           SnackBar(
             content: Text(
               _text(
-                '"${widget.plan['name']}" added to your cart.',
-                '"${widget.plan['name']}" wurde Ihrem Warenkorb hinzugefügt.',
+                '"${_plan['name']}" added to your cart.',
+                '"${_plan['name']}" wurde Ihrem Warenkorb hinzugefügt.',
               ),
             ),
             action: SnackBarAction(
@@ -225,8 +275,14 @@ class _MembershipPlanScreenState extends State<MembershipPlanScreen> {
   }
 
   @override
+  void dispose() {
+    _loadRequestId++;
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final p = widget.plan;
+    final p = _plan;
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
 
