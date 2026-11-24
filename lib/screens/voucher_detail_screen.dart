@@ -44,10 +44,11 @@ class _VoucherDetailScreenState extends State<VoucherDetailScreen> {
         _loading = false;
         if (_voucher == null) _error = e.message;
       });
-      if (_voucher != null)
+      if (_voucher != null) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 
@@ -131,10 +132,11 @@ class _VoucherDetailScreenState extends State<VoucherDetailScreen> {
             TextButton.icon(
               onPressed: () async {
                 await Clipboard.setData(ClipboardData(text: code));
-                if (mounted)
+                if (mounted) {
                   ScaffoldMessenger.of(
                     context,
                   ).showSnackBar(const SnackBar(content: Text('Code copied.')));
+                }
               },
               icon: const Icon(Icons.copy, size: 18),
               label: const Text('Copy code'),

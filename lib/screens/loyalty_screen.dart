@@ -56,10 +56,11 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
           _page--;
         }
       });
-      if (!reset)
+      if (!reset) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 

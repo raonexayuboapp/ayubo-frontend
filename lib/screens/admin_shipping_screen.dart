@@ -14,8 +14,9 @@ String _euros(int cents) =>
     '${cents ~/ 100}.${(cents % 100).toString().padLeft(2, '0')}';
 
 String _rangeText(int min, int? max) {
-  if (max == null)
+  if (max == null) {
     return min == 0 ? 'Any order value' : '${formatCents(min)} and above';
+  }
   return min == 0
       ? 'Under ${formatCents(max)}'
       : '${formatCents(min)} to under ${formatCents(max)}';
