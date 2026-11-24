@@ -704,4 +704,693 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get exploreStoreCollection => 'Explore In-Store Collection';
+
+  @override
+  String get adminConsole => 'Admin Console';
+
+  @override
+  String get adminStoreOps => 'Store Operations & Catalog';
+
+  @override
+  String get adminUsers => 'Users';
+
+  @override
+  String get adminProducts => 'Products';
+
+  @override
+  String get adminCategories => 'Categories';
+
+  @override
+  String get adminTaxRates => 'Tax rates';
+
+  @override
+  String get adminMembershipPlans => 'Membership plans';
+
+  @override
+  String get adminShipping => 'Shipping';
+
+  @override
+  String get adminVouchers => 'Vouchers';
+
+  @override
+  String get adminOrders => 'Orders';
+
+  @override
+  String get adminActive => 'Active';
+
+  @override
+  String get adminInactive => 'Inactive';
+
+  @override
+  String get adminDraft => 'Draft';
+
+  @override
+  String get adminPublished => 'Published';
+
+  @override
+  String get adminArchived => 'Archived';
+
+  @override
+  String get adminPending => 'Pending';
+
+  @override
+  String get adminProcessing => 'Processing';
+
+  @override
+  String get adminShipped => 'Shipped';
+
+  @override
+  String get adminDelivered => 'Delivered';
+
+  @override
+  String get adminCancelled => 'Cancelled';
+
+  @override
+  String get adminExpired => 'Expired';
+
+  @override
+  String get adminUsed => 'Used';
+
+  @override
+  String get adminPartiallyRedeemed => 'Partially redeemed';
+
+  @override
+  String get adminOnHold => 'On hold';
+
+  @override
+  String get adminUnpaid => 'Awaiting payment';
+
+  @override
+  String get adminPaid => 'Paid';
+
+  @override
+  String get adminRefunded => 'Refunded';
+
+  @override
+  String get adminPartiallyRefunded => 'Partly refunded';
+
+  @override
+  String get adminCurrent => 'Current';
+
+  @override
+  String get adminEnded => 'Ended';
+
+  @override
+  String get adminUpcoming => 'Upcoming';
+
+  @override
+  String get adminRoleAdmin => 'Admin';
+
+  @override
+  String get adminRoleCustomer => 'Customer';
+
+  @override
+  String get adminSearch => 'Search';
+
+  @override
+  String get adminFilter => 'Filter';
+
+  @override
+  String get adminAll => 'All';
+
+  @override
+  String get adminAllStatuses => 'All statuses';
+
+  @override
+  String get adminAllStates => 'All states';
+
+  @override
+  String get adminAllKinds => 'All kinds';
+
+  @override
+  String get adminAllPayments => 'All payments';
+
+  @override
+  String get adminNoActiveVariant => 'No active variant';
+
+  @override
+  String get adminVariants => 'variant(s)';
+
+  @override
+  String get adminLoadMore => 'Load more';
+
+  @override
+  String get adminRetry => 'Retry';
+
+  @override
+  String get adminCreate => 'Create';
+
+  @override
+  String get adminUpdate => 'Update';
+
+  @override
+  String get adminActions => 'Actions';
+
+  @override
+  String get adminConfirm => 'Confirm';
+
+  @override
+  String get adminDetails => 'Details';
+
+  @override
+  String get adminNone => 'None';
+
+  @override
+  String get adminNotAvailable => 'Not available';
+
+  @override
+  String get adminSearchProductsHint => 'Search by name, SKU or slug...';
+
+  @override
+  String get adminNoProductsFound => 'No products found.';
+
+  @override
+  String get adminNewProduct => 'New product';
+
+  @override
+  String get adminEditProduct => 'Edit product';
+
+  @override
+  String get adminBasicInfo => 'Basic Information';
+
+  @override
+  String get adminGermanTranslation => 'German (required)';
+
+  @override
+  String get adminEnglishTranslation => 'English (optional)';
+
+  @override
+  String get adminProductName => 'Product name';
+
+  @override
+  String get adminProductDescription => 'Description';
+
+  @override
+  String get adminIngredients => 'Ingredients';
+
+  @override
+  String get adminAllergens => 'Allergens';
+
+  @override
+  String get adminSlug => 'Slug';
+
+  @override
+  String get adminProductType => 'Product type';
+
+  @override
+  String get adminProductStatus => 'Product status';
+
+  @override
+  String get adminTaxRate => 'Tax rate';
+
+  @override
+  String get adminAddVariant => 'Add variant';
+
+  @override
+  String get adminSku => 'SKU';
+
+  @override
+  String get adminPriceGross => 'Price (€ gross)';
+
+  @override
+  String get adminPackQuantity => 'Pack quantity';
+
+  @override
+  String get adminUnit => 'Unit';
+
+  @override
+  String get adminEan => 'EAN';
+
+  @override
+  String get adminDiscount => 'Discount';
+
+  @override
+  String get adminDiscountNone => 'No discount';
+
+  @override
+  String get adminDiscountPercentage => 'Percentage';
+
+  @override
+  String get adminDiscountFixed => 'Fixed amount';
+
+  @override
+  String get adminDiscountValue => 'Discount value';
+
+  @override
+  String get adminDiscountPreview => 'Discounted price preview';
+
+  @override
+  String get adminImages => 'Images';
+
+  @override
+  String get adminStock => 'Stock';
+
+  @override
+  String get adminStockOnHand => 'On hand';
+
+  @override
+  String get adminStockReserved => 'Reserved';
+
+  @override
+  String get adminStockAvailable => 'Available';
+
+  @override
+  String get adminManageStock => 'Manage Stock';
+
+  @override
+  String get adminSaveProduct => 'Save Product';
+
+  @override
+  String get adminProductSaved => 'Product saved.';
+
+  @override
+  String get adminMembershipsManagedUnder =>
+      'Memberships are managed under Admin > Membership plans.';
+
+  @override
+  String get adminNoCategoriesYet => 'No categories yet.';
+
+  @override
+  String get adminNewCategory => 'New category';
+
+  @override
+  String get adminEditCategory => 'Edit category';
+
+  @override
+  String get adminCategoryName => 'Category name';
+
+  @override
+  String get adminCategoryDescription => 'Description';
+
+  @override
+  String get adminParentCategory => 'Parent category';
+
+  @override
+  String get adminNoParent => 'None (top level)';
+
+  @override
+  String get adminSortOrder => 'Sort order';
+
+  @override
+  String get adminDeleteCategory => 'Delete category?';
+
+  @override
+  String get adminDeleteCategoryConfirm =>
+      'will be removed. This cannot be undone.';
+
+  @override
+  String get adminCategoryDeleted => 'Category deleted.';
+
+  @override
+  String get adminSubCategories => 'sub-categories';
+
+  @override
+  String get adminProductsInCat => 'products';
+
+  @override
+  String get adminSaveCategory => 'Save Category';
+
+  @override
+  String get adminNoPlansYet => 'No membership plans yet.';
+
+  @override
+  String get adminNewPlan => 'New plan';
+
+  @override
+  String get adminEditPlan => 'Edit plan';
+
+  @override
+  String get adminPlanCode => 'Plan code';
+
+  @override
+  String get adminPlanPrice => 'Price (€ gross)';
+
+  @override
+  String get adminMemberCount => 'members';
+
+  @override
+  String get adminActivatePlan => 'Activate plan?';
+
+  @override
+  String get adminDeactivatePlan => 'Deactivate plan?';
+
+  @override
+  String get adminActivatePlanConfirm => 'will be available to buy again.';
+
+  @override
+  String get adminDeactivatePlanConfirm => 'can no longer be bought.';
+
+  @override
+  String get adminBenefits => 'Benefits';
+
+  @override
+  String get adminShoppingCredit => 'shopping credit';
+
+  @override
+  String get adminStoreDiscount => 'discount on all products';
+
+  @override
+  String get adminCustomPerk => 'Custom perk';
+
+  @override
+  String get adminAddBenefit => 'Add benefit';
+
+  @override
+  String get adminSavePlan => 'Save Plan';
+
+  @override
+  String get adminNoBenefits => 'No benefits';
+
+  @override
+  String get adminSearchVouchersHint => 'Search by code, order # or email...';
+
+  @override
+  String get adminIssueVouchers => 'Issue Vouchers';
+
+  @override
+  String get adminVoucherAmounts => 'Voucher Amounts';
+
+  @override
+  String get adminVoucherSuffix => 'Suffix';
+
+  @override
+  String get adminBalance => 'Balance';
+
+  @override
+  String get adminOriginalValue => 'Original value';
+
+  @override
+  String get adminOwner => 'Owner';
+
+  @override
+  String get adminOrderNumber => 'Order #';
+
+  @override
+  String get adminExpires => 'Expires';
+
+  @override
+  String get adminNeverExpires => 'Never expires';
+
+  @override
+  String get adminChangeExpiry => 'Change expiry...';
+
+  @override
+  String get adminRemoveExpiry => 'Remove expiry';
+
+  @override
+  String get adminAssignOwner => 'Assign owner...';
+
+  @override
+  String get adminCancelVoucher => 'Cancel voucher';
+
+  @override
+  String get adminCancelVoucherConfirm =>
+      'Cancel this voucher? The remaining balance will be lost.';
+
+  @override
+  String get adminVoucherHistory => 'Voucher History';
+
+  @override
+  String get adminIssueQuantity => 'Quantity (1-100)';
+
+  @override
+  String get adminCustomerEmail => 'Customer email';
+
+  @override
+  String get adminStaffNote => 'Internal note (optional)';
+
+  @override
+  String get adminExpiryOption => 'Expiry date';
+
+  @override
+  String get adminExpiryDefault => 'Default (3 years)';
+
+  @override
+  String get adminExpirySpecific => 'Specific date';
+
+  @override
+  String get adminExpiryNever => 'Never';
+
+  @override
+  String get adminNewAmount => 'New Voucher Amount';
+
+  @override
+  String get adminAmountValue => 'Amount (€)';
+
+  @override
+  String get adminNameGerman => 'German Name';
+
+  @override
+  String get adminNameEnglish => 'English Name';
+
+  @override
+  String get adminOnSale => 'On Sale';
+
+  @override
+  String get adminSold => 'Sold';
+
+  @override
+  String get adminAddVoucherAmount => 'Add Voucher Amount';
+
+  @override
+  String get adminSearchOrdersHint => 'Search by order #, name or email...';
+
+  @override
+  String get adminNoOrdersFound => 'No orders found.';
+
+  @override
+  String get adminOrderItems => 'Items';
+
+  @override
+  String get adminCustomerDetails => 'Customer Details';
+
+  @override
+  String get adminOrderSummary => 'Order Summary';
+
+  @override
+  String get adminPayments => 'Payments';
+
+  @override
+  String get adminShipments => 'Shipments & Parcels';
+
+  @override
+  String get adminAddShipment => 'Add shipment...';
+
+  @override
+  String get adminCarrier => 'Carrier';
+
+  @override
+  String get adminTrackingNumber => 'Tracking number';
+
+  @override
+  String get adminOrderNotes => 'Order Notes';
+
+  @override
+  String get adminAddNote => 'Add note...';
+
+  @override
+  String get adminMarkPaid => 'Mark as paid...';
+
+  @override
+  String get adminAdvanceToProcessing => 'Advance to processing';
+
+  @override
+  String get adminAdvanceToDelivered => 'Mark as delivered';
+
+  @override
+  String get adminRefundOrder => 'Refund order...';
+
+  @override
+  String get adminFullRefund => 'Full refund';
+
+  @override
+  String get adminPartialRefund => 'Partial refund';
+
+  @override
+  String get adminRefundAmount => 'Refund amount (€)';
+
+  @override
+  String get adminRefundReason => 'Reason (optional)';
+
+  @override
+  String get adminRestockItems => 'Restock returned items';
+
+  @override
+  String get adminResendVouchers => 'Resend digital vouchers';
+
+  @override
+  String get adminNoShipmentsYet => 'No shipments added yet.';
+
+  @override
+  String get adminNoNotesYet => 'No notes added yet.';
+
+  @override
+  String get adminNoPaymentsYet => 'No payments recorded yet.';
+
+  @override
+  String get adminSearchUsersHint => 'Search by name or email...';
+
+  @override
+  String get adminNoUsersFound => 'No users found.';
+
+  @override
+  String get adminUserDetails => 'User Details';
+
+  @override
+  String get adminAccountStatus => 'Account status';
+
+  @override
+  String get adminAccountEnabled => 'Enabled';
+
+  @override
+  String get adminAccountDisabled => 'Disabled';
+
+  @override
+  String get adminEmailVerified => 'Email verified';
+
+  @override
+  String get adminEmailUnverified => 'Email unverified';
+
+  @override
+  String get adminRegisteredOn => 'Registered on';
+
+  @override
+  String get adminChangeRole => 'Change role';
+
+  @override
+  String get adminDisableAccount => 'Disable account';
+
+  @override
+  String get adminEnableAccount => 'Enable account';
+
+  @override
+  String get adminMembership => 'Membership';
+
+  @override
+  String get adminMemberNumber => 'Member number';
+
+  @override
+  String get adminPauseMembership => 'Pause membership';
+
+  @override
+  String get adminResumeMembership => 'Resume membership';
+
+  @override
+  String get adminCancelMembership => 'Cancel membership';
+
+  @override
+  String get adminJoinedOn => 'Joined on';
+
+  @override
+  String get adminExpiresOn => 'Expires on';
+
+  @override
+  String get adminAvailableCredit => 'Available Credit';
+
+  @override
+  String get adminShippingMethods => 'Shipping Methods';
+
+  @override
+  String get adminNewShippingMethod => 'New shipping method';
+
+  @override
+  String get adminEditShippingMethod => 'Edit shipping method';
+
+  @override
+  String get adminMethodName => 'Method name';
+
+  @override
+  String get adminRates => 'Rates';
+
+  @override
+  String get adminAddRate => 'Add rate';
+
+  @override
+  String get adminEditRate => 'Edit rate';
+
+  @override
+  String get adminCountry => 'Country';
+
+  @override
+  String get adminOrderValueRange => 'Order value range';
+
+  @override
+  String get adminShippingFee => 'Shipping fee (€)';
+
+  @override
+  String get adminAnyOrderValue => 'Any order value';
+
+  @override
+  String get adminNewTaxRate => 'New tax rate';
+
+  @override
+  String get adminTaxCode => 'Tax code';
+
+  @override
+  String get adminRatePercent => 'Rate (%)';
+
+  @override
+  String get adminValidFrom => 'Valid from';
+
+  @override
+  String get adminValidTo => 'Valid to';
+
+  @override
+  String get adminSetEndDate => 'Set end date...';
+
+  @override
+  String get adminStockMovements => 'Stock Movements';
+
+  @override
+  String get adminStockLocations => 'Locations';
+
+  @override
+  String get adminReceiveGoods => 'Receive goods';
+
+  @override
+  String get adminAdjustStock => 'Adjust stock';
+
+  @override
+  String get adminStocktake => 'Stocktake';
+
+  @override
+  String get adminNewLocation => 'New location';
+
+  @override
+  String get adminLocationName => 'Location name';
+
+  @override
+  String get adminMovementReason => 'Reason';
+
+  @override
+  String get adminReasonReceipt => 'Goods received';
+
+  @override
+  String get adminReasonAdjustment => 'Adjustment';
+
+  @override
+  String get adminReasonStocktake => 'Stocktake';
+
+  @override
+  String get adminReasonSale => 'Sale';
+
+  @override
+  String get adminDescribeImage => 'Describe the image';
+
+  @override
+  String get adminAltTextLabel => 'Alt text (optional)';
+
+  @override
+  String get adminAltTextHelper =>
+      'Read aloud by screen readers and shown if the image cannot load.';
+
+  @override
+  String get adminUpload => 'Upload';
+
+  @override
+  String get adminImageTooLarge =>
+      'This image is larger than 5 MB. Choose a smaller one.';
+
+  @override
+  String get adminMakeMain => 'Make main';
 }

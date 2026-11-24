@@ -37,10 +37,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
 
   void _snack(String text) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(text),
-        backgroundColor: AppTheme.primaryGreen,
-      ),
+      SnackBar(content: Text(text), backgroundColor: AppTheme.primaryGreen),
     );
   }
 
@@ -165,7 +162,9 @@ class _AddressesScreenState extends State<AddressesScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.brandGold.withValues(alpha: a['is_default'] == true ? 0.12 : 0.03),
+            color: AppTheme.brandGold.withValues(
+              alpha: a['is_default'] == true ? 0.12 : 0.03,
+            ),
             blurRadius: 12,
             spreadRadius: 1,
           ),
@@ -173,7 +172,10 @@ class _AddressesScreenState extends State<AddressesScreen> {
       ),
       child: ListTile(
         key: ValueKey(id),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 12,
+        ),
         onTap: () => _openForm(a),
         title: a['is_default'] == true
             ? Padding(
@@ -182,16 +184,26 @@ class _AddressesScreenState extends State<AddressesScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: AppTheme.brandGold.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.brandGold, width: 0.8),
+                        border: Border.all(
+                          color: AppTheme.brandGold,
+                          width: 0.8,
+                        ),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.star_rounded, size: 14, color: AppTheme.brandGoldDark),
+                          Icon(
+                            Icons.star_rounded,
+                            size: 14,
+                            color: AppTheme.brandGoldDark,
+                          ),
                           SizedBox(width: 4),
                           Text(
                             'DEFAULT ADDRESS',
@@ -211,11 +223,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
             : null,
         subtitle: Text(
           _block(a),
-          style: TextStyle(
-            color: scheme.onSurface,
-            fontSize: 14,
-            height: 1.4,
-          ),
+          style: TextStyle(color: scheme.onSurface, fontSize: 14, height: 1.4),
         ),
         isThreeLine: true,
         trailing: Row(
@@ -269,15 +277,9 @@ class _AddressesScreenState extends State<AddressesScreen> {
           children: [
             Icon(Icons.error_outline_rounded, size: 48, color: scheme.error),
             const SizedBox(height: 12),
-            Text(
-              _error!,
-              style: TextStyle(color: scheme.onSurface),
-            ),
+            Text(_error!, style: TextStyle(color: scheme.onSurface)),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _load,
-              child: const Text('Retry'),
-            ),
+            ElevatedButton(onPressed: _load, child: const Text('Retry')),
           ],
         ),
       );
@@ -309,9 +311,9 @@ class _AddressesScreenState extends State<AddressesScreen> {
             Text(
               'No Saved Addresses',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
@@ -338,9 +340,9 @@ class _AddressesScreenState extends State<AddressesScreen> {
           child: Text(
             _titles[type]!,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryGreen,
-                ),
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryGreen,
+            ),
           ),
         ),
       );
@@ -366,7 +368,9 @@ class _AddressesScreenState extends State<AddressesScreen> {
     return Scaffold(
       appBar: AppHeader(
         title: isDe ? 'Gespeicherte Adressen' : 'Saved Addresses',
-        subtitle: isDe ? 'Liefer- & Rechnungsadressen' : 'Shipping & billing addresses',
+        subtitle: isDe
+            ? 'Liefer- & Rechnungsadressen'
+            : 'Shipping & billing addresses',
         showBackButton: true,
       ),
       body: _body(),

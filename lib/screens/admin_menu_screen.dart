@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../widgets/app_header.dart';
 import 'admin_categories_screen.dart';
 import 'admin_membership_plans_screen.dart';
@@ -52,11 +53,12 @@ class AdminMenuScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      appBar: const AppHeader(
-        title: 'Admin Console',
-        subtitle: 'Store Operations & Catalog',
+      appBar: AppHeader(
+        title: l10n?.adminConsole ?? 'Admin Console',
+        subtitle: l10n?.adminStoreOps ?? 'Store Operations & Catalog',
         showBackButton: true,
         showAdmin: false,
       ),
@@ -66,7 +68,7 @@ class AdminMenuScreen extends StatelessWidget {
           _entry(
             context,
             Icons.people_outline,
-            'Users',
+            l10n?.adminUsers ?? 'Users',
             AdminUsersScreen(currentUserId: currentUserId),
           ),
           Divider(
@@ -78,7 +80,7 @@ class AdminMenuScreen extends StatelessWidget {
           _entry(
             context,
             Icons.inventory_2_outlined,
-            'Products',
+            l10n?.adminProducts ?? 'Products',
             const AdminProductsScreen(),
           ),
           Divider(
@@ -90,7 +92,7 @@ class AdminMenuScreen extends StatelessWidget {
           _entry(
             context,
             Icons.category_outlined,
-            'Categories',
+            l10n?.adminCategories ?? 'Categories',
             const AdminCategoriesScreen(),
           ),
           Divider(
@@ -102,7 +104,7 @@ class AdminMenuScreen extends StatelessWidget {
           _entry(
             context,
             Icons.percent,
-            'Tax rates',
+            l10n?.adminTaxRates ?? 'Tax rates',
             const AdminTaxRatesScreen(),
           ),
           Divider(
@@ -114,7 +116,7 @@ class AdminMenuScreen extends StatelessWidget {
           _entry(
             context,
             Icons.card_membership_outlined,
-            'Membership plans',
+            l10n?.adminMembershipPlans ?? 'Membership plans',
             const AdminMembershipPlansScreen(),
           ),
           Divider(
@@ -126,7 +128,7 @@ class AdminMenuScreen extends StatelessWidget {
           _entry(
             context,
             Icons.local_shipping_outlined,
-            'Shipping',
+            l10n?.adminShipping ?? 'Shipping',
             const AdminShippingScreen(),
           ),
           Divider(
@@ -138,7 +140,7 @@ class AdminMenuScreen extends StatelessWidget {
           _entry(
             context,
             Icons.card_giftcard_outlined,
-            'Vouchers',
+            l10n?.adminVouchers ?? 'Vouchers',
             const AdminVouchersScreen(),
           ),
           Divider(
@@ -150,7 +152,7 @@ class AdminMenuScreen extends StatelessWidget {
           _entry(
             context,
             Icons.receipt_long_outlined,
-            'Orders',
+            l10n?.adminOrders ?? 'Orders',
             const AdminOrdersScreen(),
           ),
         ],

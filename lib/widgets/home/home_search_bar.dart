@@ -7,10 +7,7 @@ import '../../theme/app_theme.dart';
 class HomeSearchBar extends StatefulWidget {
   final Map<String, dynamic>? user;
 
-  const HomeSearchBar({
-    super.key,
-    required this.user,
-  });
+  const HomeSearchBar({super.key, required this.user});
 
   @override
   State<HomeSearchBar> createState() => _HomeSearchBarState();
@@ -24,10 +21,8 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ProductsScreen(
-          user: widget.user ?? const {},
-          initialSearch: clean,
-        ),
+        builder: (_) =>
+            ProductsScreen(user: widget.user ?? const {}, initialSearch: clean),
       ),
     );
   }
@@ -51,10 +46,7 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
         decoration: BoxDecoration(
           color: AppTheme.cardColor(context),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppTheme.borderColor(context),
-            width: 1.2,
-          ),
+          border: Border.all(color: AppTheme.borderColor(context), width: 1.2),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
@@ -87,7 +79,9 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
                   hintStyle: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.normal,
-                    color: AppTheme.textSecondary(context).withValues(alpha: 0.75),
+                    color: AppTheme.textSecondary(
+                      context,
+                    ).withValues(alpha: 0.75),
                   ),
                   border: InputBorder.none,
                   isDense: true,
@@ -127,4 +121,3 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
     );
   }
 }
-

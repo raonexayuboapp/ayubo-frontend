@@ -31,7 +31,12 @@ Future<Map<String, String>?> showPrompt(
 }) {
   return showDialog<Map<String, String>>(
     context: context,
-    builder: (_) => _PromptDialog(title: title, message: message, fields: fields, confirmLabel: confirmLabel),
+    builder: (_) => _PromptDialog(
+      title: title,
+      message: message,
+      fields: fields,
+      confirmLabel: confirmLabel,
+    ),
   );
 }
 
@@ -40,7 +45,12 @@ class _PromptDialog extends StatefulWidget {
   final String? message;
   final List<PromptField> fields;
   final String confirmLabel;
-  const _PromptDialog({required this.title, required this.message, required this.fields, required this.confirmLabel});
+  const _PromptDialog({
+    required this.title,
+    required this.message,
+    required this.fields,
+    required this.confirmLabel,
+  });
 
   @override
   State<_PromptDialog> createState() => _PromptDialogState();
@@ -49,7 +59,8 @@ class _PromptDialog extends StatefulWidget {
 class _PromptDialogState extends State<_PromptDialog> {
   final _form = GlobalKey<FormState>();
   late final Map<String, TextEditingController> _controllers = {
-    for (final f in widget.fields) f.key: TextEditingController(text: f.initial),
+    for (final f in widget.fields)
+      f.key: TextEditingController(text: f.initial),
   };
 
   @override
@@ -62,7 +73,9 @@ class _PromptDialogState extends State<_PromptDialog> {
 
   void _submit() {
     if (!_form.currentState!.validate()) return;
-    Navigator.pop(context, {for (final e in _controllers.entries) e.key: e.value.text.trim()});
+    Navigator.pop(context, {
+      for (final e in _controllers.entries) e.key: e.value.text.trim(),
+    });
   }
 
   @override
@@ -72,23 +85,39 @@ class _PromptDialogState extends State<_PromptDialog> {
       content: SingleChildScrollView(
         child: Form(
           key: _form,
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            if (widget.message != null) ...[Text(widget.message!), const SizedBox(height: 12)],
-            for (final f in widget.fields)
-              TextFormField(
-                controller: _controllers[f.key],
-                maxLength: f.maxLength,
-                minLines: 1,
-                maxLines: f.maxLines,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-                validator: (v) => f.required && (v ?? '').trim().isEmpty ? 'Required.' : null,
-                decoration: InputDecoration(labelText: f.label, helperText: f.helper, helperMaxLines: 2),
-              ),
-          ]),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (widget.message != null) ...[
+                Text(widget.message!),
+                const SizedBox(height: 12),
+              ],
+              for (final f in widget.fields)
+                TextFormField(
+                  controller: _controllers[f.key],
+                  maxLength: f.maxLength,
+                  minLines: 1,
+                  maxLines: f.maxLines,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  validator: (v) => f.required && (v ?? '').trim().isEmpty
+                      ? 'Required.'
+                      : null,
+                  decoration: InputDecoration(
+                    labelText: f.label,
+                    helperText: f.helper,
+                    helperMaxLines: 2,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         FilledButton(onPressed: _submit, child: Text(widget.confirmLabel)),
       ],
     );

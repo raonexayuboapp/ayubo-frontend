@@ -89,7 +89,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               height: 320,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppTheme.primaryGreen.withValues(alpha: isDark ? 0.2 : 0.08),
+                color: AppTheme.primaryGreen.withValues(
+                  alpha: isDark ? 0.2 : 0.08,
+                ),
               ),
             ),
           ),
@@ -101,7 +103,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               height: 340,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppTheme.brandGold.withValues(alpha: isDark ? 0.12 : 0.07),
+                color: AppTheme.brandGold.withValues(
+                  alpha: isDark ? 0.12 : 0.07,
+                ),
               ),
             ),
           ),
@@ -110,7 +114,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 24,
+                ),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 440),
                   child: Column(
@@ -119,51 +126,67 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     children: [
                       // Gold Logo Branding Header
                       Center(
-                        child: Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isDark ? AppTheme.surfaceDark : Colors.white,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppTheme.brandGold.withValues(alpha: 0.35),
-                                blurRadius: 36,
-                                spreadRadius: 4,
-                              ),
-                              BoxShadow(
-                                color: AppTheme.primaryGreen.withValues(alpha: 0.12),
-                                blurRadius: 18,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                            border: Border.all(
-                              color: AppTheme.brandGold.withValues(alpha: 0.7),
-                              width: 2,
-                            ),
-                          ),
-                          child: Image.asset(
-                            'assets/images/Ayubo_logo.png',
-                            width: 85,
-                            height: 85,
-                            fit: BoxFit.contain,
-                          ),
-                        ).animate().fadeIn(duration: 600.ms).scale(
-                              begin: const Offset(0.8, 0.8),
-                              end: const Offset(1.0, 1.0),
-                              curve: Curves.easeOutBack,
-                            ),
+                        child:
+                            Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isDark
+                                        ? AppTheme.surfaceDark
+                                        : Colors.white,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppTheme.brandGold.withValues(
+                                          alpha: 0.35,
+                                        ),
+                                        blurRadius: 36,
+                                        spreadRadius: 4,
+                                      ),
+                                      BoxShadow(
+                                        color: AppTheme.primaryGreen.withValues(
+                                          alpha: 0.12,
+                                        ),
+                                        blurRadius: 18,
+                                        spreadRadius: 2,
+                                      ),
+                                    ],
+                                    border: Border.all(
+                                      color: AppTheme.brandGold.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: Image.asset(
+                                    'assets/images/Ayubo_logo.png',
+                                    width: 85,
+                                    height: 85,
+                                    fit: BoxFit.contain,
+                                  ),
+                                )
+                                .animate()
+                                .fadeIn(duration: 600.ms)
+                                .scale(
+                                  begin: const Offset(0.8, 0.8),
+                                  end: const Offset(1.0, 1.0),
+                                  curve: Curves.easeOutBack,
+                                ),
                       ),
                       const SizedBox(height: 20),
 
                       Text(
-                        'Update Security',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: scheme.onSurface,
-                              letterSpacing: -0.5,
-                            ),
-                      ).animate().fadeIn(delay: 150.ms).slideY(begin: 0.2, end: 0),
+                            'Update Security',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.headlineMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: scheme.onSurface,
+                                  letterSpacing: -0.5,
+                                ),
+                          )
+                          .animate()
+                          .fadeIn(delay: 150.ms)
+                          .slideY(begin: 0.2, end: 0),
 
                       const SizedBox(height: 6),
 
@@ -184,7 +207,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(24),
                           side: BorderSide(
-                            color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
+                            color: isDark
+                                ? AppTheme.borderDark
+                                : AppTheme.borderLight,
                             width: 1,
                           ),
                         ),
@@ -201,9 +226,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                                   controller: _current,
                                   label: 'Current password',
                                   action: TextInputAction.next,
-                                  serverError: _serverErrors['current_password'],
-                                  validator: (v) =>
-                                      Validators.required(v, 'Current password'),
+                                  serverError:
+                                      _serverErrors['current_password'],
+                                  validator: (v) => Validators.required(
+                                    v,
+                                    'Current password',
+                                  ),
                                 ),
 
                                 const SizedBox(height: 18),
@@ -215,8 +243,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                                   isNew: true,
                                   action: TextInputAction.next,
                                   serverError: _serverErrors['new_password'],
-                                  validator: (v) =>
-                                      Validators.password(v, email: widget.email),
+                                  validator: (v) => Validators.password(
+                                    v,
+                                    email: widget.email,
+                                  ),
                                 ),
 
                                 Padding(
@@ -227,12 +257,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                                   ),
                                   child: Text(
                                     '8+ characters with at least one letter and one number.',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
+                                    style: Theme.of(context).textTheme.bodySmall
                                         ?.copyWith(
-                                          color: scheme.onSurface
-                                              .withValues(alpha: 0.6),
+                                          color: scheme.onSurface.withValues(
+                                            alpha: 0.6,
+                                          ),
                                         ),
                                   ),
                                 ),
@@ -259,10 +288,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                                       vertical: 10,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: scheme.error.withValues(alpha: 0.1),
+                                      color: scheme.error.withValues(
+                                        alpha: 0.1,
+                                      ),
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
-                                        color: scheme.error.withValues(alpha: 0.3),
+                                        color: scheme.error.withValues(
+                                          alpha: 0.3,
+                                        ),
                                       ),
                                     ),
                                     child: Row(

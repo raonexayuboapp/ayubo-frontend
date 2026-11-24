@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'admin_user_details_screen.dart';
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
+import '../utils/localized_content.dart';
+import 'admin_user_details_screen.dart';
 
 typedef UserData = Map<String, dynamic>;
 
@@ -96,7 +98,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         border: Border.all(color: goldColor.withValues(alpha: 0.3)),
       ),
       child: Text(
-        role.toUpperCase(),
+        localizedUserRole(role, context: context).toUpperCase(),
         style: theme.textTheme.labelSmall?.copyWith(
           color: goldColor,
           fontWeight: FontWeight.bold,
@@ -116,7 +118,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        'Disabled',
+        localizedUserStatus(false, context: context),
         style: theme.textTheme.labelSmall?.copyWith(
           color: theme.colorScheme.error,
           fontWeight: FontWeight.w600,
@@ -129,6 +131,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
+    final l10n = AppLocalizations.of(context);
     final hasMore = _users.length < _total;
 
     Widget body;
@@ -159,7 +162,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               TextButton.icon(
                 onPressed: () => _load(reset: true),
                 icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Retry'),
+                label: Text(l10n?.adminRetry ?? 'Retry'),
                 style: TextButton.styleFrom(foregroundColor: goldColor),
               ),
             ],
@@ -169,7 +172,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     } else if (_users.isEmpty) {
       body = Center(
         child: Text(
-          'No users found.',
+          l10n?.adminNoUsersFound ?? 'No users found.',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
           ),
@@ -201,7 +204,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           _load(reset: false);
                         },
                         child: Text(
-                          'Load more',
+                          l10n?.adminLoadMore ?? 'Load more',
                           style: TextStyle(
                             color: goldColor,
                             fontWeight: FontWeight.w600,
@@ -273,7 +276,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (u['role'] == 'admin') ...[
-                  _buildRoleBadge(context, 'Admin'),
+                  _buildRoleBadge(context, 'admin'),
                   const SizedBox(width: 4),
                 ],
                 if (u['is_active'] != true) _buildDisabledBadge(context),
@@ -291,7 +294,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text('Users ($_total)'), elevation: 0),
+      appBar: AppBar(
+        title: Text('${l10n?.adminUsers ?? 'Users'} ($_total)'),
+        elevation: 0,
+      ),
       body: Column(
         children: [
           Padding(
@@ -307,7 +313,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   size: 20,
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
-                hintText: 'Search name, email or mobile...',
+                hintText:
+                    l10n?.adminSearchUsersHint ??
+                    'Search name, email or mobile...',
                 contentPadding: const EdgeInsets.symmetric(
                   vertical: 0,
                   horizontal: 16,

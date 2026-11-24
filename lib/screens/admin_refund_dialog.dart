@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../utils/money.dart';
 import '../utils/request_key.dart';
@@ -103,11 +104,12 @@ class _AdminRefundDialogState extends State<AdminRefundDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return PopScope(
       canPop: !_busy, // do not leave while the refund is being sent
       child: AlertDialog(
-        title: const Text('Refund'),
+        title: Text(l10n?.adminRefundOrder ?? 'Refund'),
         content: SingleChildScrollView(
           child: Form(
             key: _form,
@@ -120,9 +122,15 @@ class _AdminRefundDialogState extends State<AdminRefundDialog> {
                 ),
                 const SizedBox(height: 12),
                 SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(value: true, label: Text('Full refund')),
-                    ButtonSegment(value: false, label: Text('Part of it')),
+                  segments: [
+                    ButtonSegment(
+                      value: true,
+                      label: Text(l10n?.adminFullRefund ?? 'Full refund'),
+                    ),
+                    ButtonSegment(
+                      value: false,
+                      label: Text(l10n?.adminPartialRefund ?? 'Part of it'),
+                    ),
                   ],
                   selected: {_full},
                   onSelectionChanged: _busy
@@ -139,7 +147,10 @@ class _AdminRefundDialogState extends State<AdminRefundDialog> {
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('Put the goods back into stock'),
+                    title: Text(
+                      l10n?.adminRestockItems ??
+                          'Put the goods back into stock',
+                    ),
                     subtitle: Text(
                       const {
                             'shipped',
@@ -162,8 +173,8 @@ class _AdminRefundDialogState extends State<AdminRefundDialog> {
                     ),
                     validator: _vAmount,
                     autovalidateMode: AutovalidateMode.onUserInteraction,
-                    decoration: const InputDecoration(
-                      labelText: 'Amount (€)',
+                    decoration: InputDecoration(
+                      labelText: '${l10n?.adminRefundAmount ?? 'Amount'} (€)',
                       helperText: 'Money goes back first, credit last.',
                     ),
                   ),
@@ -171,8 +182,8 @@ class _AdminRefundDialogState extends State<AdminRefundDialog> {
                   controller: _reason,
                   enabled: !_busy,
                   maxLength: 200,
-                  decoration: const InputDecoration(
-                    labelText: 'Reason (optional)',
+                  decoration: InputDecoration(
+                    labelText: l10n?.adminRefundReason ?? 'Reason (optional)',
                   ),
                 ),
                 if (widget.hasManualPayment)
@@ -202,7 +213,7 @@ class _AdminRefundDialogState extends State<AdminRefundDialog> {
         actions: [
           TextButton(
             onPressed: _busy ? null : () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(l10n?.cancel ?? 'Cancel'),
           ),
           FilledButton(
             onPressed: _busy ? null : _submit,
@@ -216,7 +227,11 @@ class _AdminRefundDialogState extends State<AdminRefundDialog> {
                     width: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(_error == null ? 'Refund' : 'Try again'),
+                : Text(
+                    _error == null
+                        ? (l10n?.adminRefundOrder ?? 'Refund')
+                        : (l10n?.adminRetry ?? 'Try again'),
+                  ),
           ),
         ],
       ),

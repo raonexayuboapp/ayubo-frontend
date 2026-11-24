@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../utils/dates.dart';
 import '../utils/money.dart';
@@ -88,9 +89,9 @@ class _AdminVouchersScreenState extends State<AdminVouchersScreen> {
       });
 
       if (!reset) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -110,9 +111,7 @@ class _AdminVouchersScreenState extends State<AdminVouchersScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => AdminVoucherDetailScreen(
-          voucherId: v['id'] as int,
-        ),
+        builder: (_) => AdminVoucherDetailScreen(voucherId: v['id'] as int),
       ),
     );
 
@@ -122,9 +121,7 @@ class _AdminVouchersScreenState extends State<AdminVouchersScreen> {
   Future<void> _issue() async {
     final issued = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        builder: (_) => const AdminVoucherIssueScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const AdminVoucherIssueScreen()),
     );
 
     if (issued == true && mounted) {
@@ -138,20 +135,18 @@ class _AdminVouchersScreenState extends State<AdminVouchersScreen> {
     String Function(String) label,
     ValueChanged<String> onSelected,
   ) {
+    final l10n = AppLocalizations.of(context);
     return SizedBox(
       height: 48,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 6,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         children: [
           for (final v in values)
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: ChoiceChip(
-                label: Text(v.isEmpty ? 'All' : label(v)),
+                label: Text(v.isEmpty ? (l10n?.adminAll ?? 'All') : label(v)),
                 selected: selected == v,
                 onSelected: (_) => onSelected(v),
               ),
@@ -163,6 +158,7 @@ class _AdminVouchersScreenState extends State<AdminVouchersScreen> {
 
   Widget _card(Map<String, dynamic> v) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final owner = v['owner'] as Map<String, dynamic>?;
     final expires = v['expires_at'] as String?;
     final kind = v['kind'] as String;
@@ -176,20 +172,18 @@ class _AdminVouchersScreenState extends State<AdminVouchersScreen> {
               ? Icons.account_balance_wallet_outlined
               : Icons.card_giftcard_outlined,
         ),
-        title: Text(
-          '•••• ${v['suffix']}  ·  ${voucherKindLabel(kind)}',
-        ),
+        title: Text('•••• ${v['suffix']}  ·  ${voucherKindLabel(kind)}'),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               owner == null
-                  ? 'No owner yet'
+                  ? (l10n?.adminNone ?? 'No owner yet')
                   : '${owner['name']} · ${owner['email']}',
             ),
             Text(
-              'Value ${formatCents(v['original_cents'] as int)} · '
-              '${expires == null ? 'no expiry' : 'until ${formatDate(expires)}'}'
+              '${l10n?.adminOriginalValue ?? 'Value'} ${formatCents(v['original_cents'] as int)} · '
+              '${expires == null ? (l10n?.adminNeverExpires ?? 'no expiry') : '${l10n?.adminExpires ?? 'until'} ${formatDate(expires)}'}'
               '${v['order_number'] == null ? '' : ' · ${v['order_number']}'}',
               style: theme.textTheme.bodySmall,
             ),
@@ -209,10 +203,9 @@ class _AdminVouchersScreenState extends State<AdminVouchersScreen> {
   }
 
   Widget _body() {
+    final l10n = AppLocalizations.of(context);
     if (_loading && _items.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_error != null) {
@@ -223,7 +216,7 @@ class _AdminVouchersScreenState extends State<AdminVouchersScreen> {
             Text(_error!),
             TextButton(
               onPressed: () => _load(reset: true),
-              child: const Text('Retry'),
+              child: Text(l10n?.adminRetry ?? 'Retry'),
             ),
           ],
         ),
@@ -234,9 +227,11 @@ class _AdminVouchersScreenState extends State<AdminVouchersScreen> {
       return RefreshIndicator(
         onRefresh: () => _load(reset: true),
         child: ListView(
-          children: const [
-            SizedBox(height: 140),
-            Center(child: Text('No vouchers found.')),
+          children: [
+            const SizedBox(height: 140),
+            Center(
+              child: Text(l10n?.adminNoProductsFound ?? 'No vouchers found.'),
+            ),
           ],
         ),
       );
@@ -258,7 +253,7 @@ class _AdminVouchersScreenState extends State<AdminVouchersScreen> {
                       _page++;
                       _load(reset: false);
                     },
-              child: const Text('Load more'),
+              child: Text(l10n?.adminLoadMore ?? 'Load more'),
             );
           }
 
@@ -270,9 +265,10 @@ class _AdminVouchersScreenState extends State<AdminVouchersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text('Vouchers ($_total)'),
+        title: Text('${l10n?.adminVouchers ?? 'Vouchers'} ($_total)'),
       ),
       body: Column(
         children: [
@@ -285,7 +281,9 @@ class _AdminVouchersScreenState extends State<AdminVouchersScreen> {
               onSubmitted: (_) => _load(reset: true),
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search),
-                hintText: 'Last 4 of the code, owner email, order number',
+                hintText:
+                    l10n?.adminSearchVouchersHint ??
+                    'Last 4 of the code, owner email, order number',
                 suffixIcon: _search.text.isEmpty
                     ? null
                     : IconButton(
@@ -302,10 +300,7 @@ class _AdminVouchersScreenState extends State<AdminVouchersScreen> {
 
           // Voucher amounts navigation
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 8,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -318,30 +313,20 @@ class _AdminVouchersScreenState extends State<AdminVouchersScreen> {
                   );
                 },
                 icon: const Icon(Icons.sell_outlined),
-                label: const Text('Voucher amounts'),
+                label: Text(l10n?.adminVoucherAmounts ?? 'Voucher amounts'),
               ),
             ),
           ),
 
-          _chips(
-            _states,
-            _state,
-            voucherStateLabel,
-            (v) {
-              setState(() => _state = v);
-              _load(reset: true);
-            },
-          ),
+          _chips(_states, _state, voucherStateLabel, (v) {
+            setState(() => _state = v);
+            _load(reset: true);
+          }),
 
-          _chips(
-            _kinds,
-            _kind,
-            voucherKindLabel,
-            (v) {
-              setState(() => _kind = v);
-              _load(reset: true);
-            },
-          ),
+          _chips(_kinds, _kind, voucherKindLabel, (v) {
+            setState(() => _kind = v);
+            _load(reset: true);
+          }),
 
           Expanded(child: _body()),
         ],
@@ -349,7 +334,7 @@ class _AdminVouchersScreenState extends State<AdminVouchersScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _issue,
         icon: const Icon(Icons.add),
-        label: const Text('Issue vouchers'),
+        label: Text(l10n?.adminIssueVouchers ?? 'Issue vouchers'),
       ),
     );
   }

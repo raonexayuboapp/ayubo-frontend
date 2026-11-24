@@ -46,9 +46,8 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   });
 
   @override
-  Size get preferredSize => Size.fromHeight(
-        60.0 + (bottom?.preferredSize.height ?? 0.0),
-      );
+  Size get preferredSize =>
+      Size.fromHeight(60.0 + (bottom?.preferredSize.height ?? 0.0));
 
   bool get _isGuest => user == null || user!.isEmpty;
 
@@ -178,7 +177,9 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                   ),
                 ),
                 Text(
-                  subtitle ?? (l10n?.familySubtitle ?? 'Pure Organic Ceylon Botanicals'),
+                  subtitle ??
+                      (l10n?.familySubtitle ??
+                          'Pure Organic Ceylon Botanicals'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -274,4 +275,3 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 }
-

@@ -101,10 +101,7 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
           children: [
             Icon(Icons.error_outline_rounded, size: 48, color: scheme.error),
             const SizedBox(height: 12),
-            Text(
-              _error!,
-              style: TextStyle(color: scheme.onSurface),
-            ),
+            Text(_error!, style: TextStyle(color: scheme.onSurface)),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => _load(reset: true),
@@ -139,9 +136,9 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
             Text(
               'No Favourites Saved',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
@@ -295,7 +292,8 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
     return Scaffold(
       appBar: AppHeader(
         title: isDe ? 'Meine Favoriten' : 'My Favourites',
-        subtitle: '$_total ${isDe ? (_total == 1 ? 'Artikel' : 'Artikel') : (_total == 1 ? 'item' : 'items')}',
+        subtitle:
+            '$_total ${isDe ? (_total == 1 ? 'Artikel' : 'Artikel') : (_total == 1 ? 'item' : 'items')}',
         showBackButton: true,
       ),
       body: body,

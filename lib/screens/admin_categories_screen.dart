@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../utils/category_tree.dart';
+import '../utils/localized_content.dart';
+import '../utils/money.dart';
 import 'admin_category_form_screen.dart';
 
 typedef CategoryData = Map<String, dynamic>;
@@ -17,11 +20,26 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
   List<CategoryData> _items = [];
   bool _loading = true;
   String? _error;
+  String? _loadedLanguage;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final language = Localizations.localeOf(context).languageCode;
+    if (_loadedLanguage == null) {
+      _loadedLanguage = language;
+      return;
+    }
+    if (_loadedLanguage != language) {
+      _loadedLanguage = language;
+      _load();
+    }
   }
 
   Future<void> _load() async {
@@ -30,7 +48,9 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
       _error = null;
     });
     try {
-      final items = await ApiService.instance.adminCategories();
+      final items = await ApiService.instance.adminCategories(
+        lang: _loadedLanguage ?? currentAppLocale,
+      );
       if (!mounted) return;
       setState(() {
         _items = items;
@@ -48,13 +68,21 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
   Future<void> _openForm([int? id]) async {
     final saved = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder: (_) => AdminCategoryFormScreen(categoryId: id)),
+      MaterialPageRoute(
+        builder: (_) => AdminCategoryFormScreen(categoryId: id),
+      ),
     );
     if (saved == true) _load();
   }
 
   Future<void> _delete(CategoryData c) async {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
+    final catName = localizedCategoryName(c, context: context);
+    final confirmMessage =
+        l10n?.adminDeleteCategoryConfirm ??
+        'will be removed. This cannot be undone.';
+
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -62,19 +90,23 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
-          'Delete category?',
-          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          l10n?.adminDeleteCategory ?? 'Delete category?',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         content: Text(
-          '"${c['name']}" will be removed. This cannot be undone.',
+          '"$catName" $confirmMessage',
           style: theme.textTheme.bodyMedium,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
-              'Cancel',
-              style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+              l10n?.cancel ?? 'Cancel',
+              style: TextStyle(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
             ),
           ),
           ElevatedButton(
@@ -84,7 +116,7 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
               foregroundColor: Colors.white,
               elevation: 0,
             ),
-            child: const Text('Delete'),
+            child: Text(l10n?.delete ?? 'Delete'),
           ),
         ],
       ),
@@ -96,9 +128,9 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
       _load();
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -107,13 +139,12 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final goldColor = theme.colorScheme.secondary;
+    final l10n = AppLocalizations.of(context);
 
     Widget body;
 
     if (_loading) {
-      body = Center(
-        child: CircularProgressIndicator(color: goldColor),
-      );
+      body = Center(child: CircularProgressIndicator(color: goldColor));
     } else if (_error != null) {
       body = Center(
         child: Padding(
@@ -121,7 +152,11 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+              Icon(
+                Icons.error_outline,
+                size: 48,
+                color: theme.colorScheme.error,
+              ),
               const SizedBox(height: 12),
               Text(
                 _error!,
@@ -132,7 +167,7 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
               OutlinedButton.icon(
                 onPressed: _load,
                 icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Retry'),
+                label: Text(l10n?.adminRetry ?? 'Retry'),
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(color: goldColor),
                   foregroundColor: goldColor,
@@ -145,7 +180,7 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
     } else if (_items.isEmpty) {
       body = Center(
         child: Text(
-          'No categories yet.',
+          l10n?.adminNoCategoriesYet ?? 'No categories yet.',
           style: theme.textTheme.bodyLarge?.copyWith(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
           ),
@@ -167,28 +202,38 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
           ),
           itemBuilder: (_, i) {
             final (c, depth) = rows[i];
-            final inUse = (c['product_count'] as int) > 0 || (c['child_count'] as int) > 0;
+            final inUse =
+                (c['product_count'] as int) > 0 ||
+                (c['child_count'] as int) > 0;
             final isHidden = c['active'] != true;
+            final catName = localizedCategoryName(c, context: context);
+            final productsText = l10n?.adminProductsInCat ?? 'products';
+            final subCatsText = l10n?.adminSubCategories ?? 'sub-categories';
 
             return ListTile(
-              contentPadding: EdgeInsets.only(left: 16.0 + (depth * 20), right: 12),
+              contentPadding: EdgeInsets.only(
+                left: 16.0 + (depth * 20),
+                right: 12,
+              ),
               onTap: () => _openForm(c['id'] as int),
               leading: Icon(
-                depth == 0 ? Icons.folder_outlined : Icons.subdirectory_arrow_right,
+                depth == 0
+                    ? Icons.folder_outlined
+                    : Icons.subdirectory_arrow_right,
                 size: 20,
                 color: depth == 0
                     ? goldColor
                     : theme.colorScheme.onSurface.withValues(alpha: 0.4),
               ),
               title: Text(
-                c['name'] as String,
+                catName,
                 style: theme.textTheme.bodyLarge?.copyWith(
                   fontWeight: depth == 0 ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
               subtitle: Text(
-                '${c['slug']} · ${c['product_count']} product(s)'
-                '${(c['child_count'] as int) > 0 ? ' · ${c['child_count']} sub-categor${c['child_count'] == 1 ? 'y' : 'ies'}' : ''}',
+                '${c['slug']} · ${c['product_count']} $productsText'
+                '${(c['child_count'] as int) > 0 ? ' · ${c['child_count']} $subCatsText' : ''}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
@@ -198,15 +243,22 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
                 children: [
                   if (isHidden) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+                        color: isDark
+                            ? Colors.white10
+                            : Colors.black.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        'Hidden',
+                        l10n?.adminInactive ?? 'Hidden',
                         style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.6,
+                          ),
                         ),
                       ),
                     ),
@@ -220,7 +272,9 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
                           ? theme.colorScheme.onSurface.withValues(alpha: 0.2)
                           : theme.colorScheme.error.withValues(alpha: 0.8),
                     ),
-                    tooltip: inUse ? 'In use: move products and sub-categories first' : 'Delete',
+                    tooltip: inUse
+                        ? 'In use: move products and sub-categories first'
+                        : (l10n?.delete ?? 'Delete'),
                     onPressed: inUse ? null : () => _delete(c),
                   ),
                 ],
@@ -232,18 +286,16 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Categories'),
-      ),
+      appBar: AppBar(title: Text(l10n?.adminCategories ?? 'Categories')),
       body: body,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openForm(),
         backgroundColor: theme.colorScheme.primary,
         foregroundColor: goldColor,
         icon: const Icon(Icons.add),
-        label: const Text(
-          'New category',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        label: Text(
+          l10n?.adminNewCategory ?? 'New category',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
     );

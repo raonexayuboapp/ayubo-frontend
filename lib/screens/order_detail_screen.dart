@@ -17,7 +17,6 @@ class OrderDetailScreen extends StatefulWidget {
   final int orderId;
   final String? number;
   final Map<String, dynamic> user;
-
   const OrderDetailScreen({
     super.key,
     required this.orderId,
@@ -37,7 +36,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   bool get _payable =>
       _order?['status'] == 'received' && _order?['payment_status'] == 'unpaid';
-
   int _cents(dynamic value) {
     if (value is num) return value.toInt();
     return int.tryParse(value?.toString() ?? '') ?? 0;
@@ -49,9 +47,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     _load();
   }
 
-  void _snack(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
-  }
+  void _snack(String text) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
   Future<void> _load() async {
     setState(() {
@@ -159,17 +156,15 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
   }
 
-  Widget _heading(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 24, bottom: 8),
-      child: Text(
-        text,
-        style: Theme.of(
-          context,
-        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-      ),
-    );
-  }
+  Widget _heading(String text) => Padding(
+    padding: const EdgeInsets.only(top: 24, bottom: 8),
+    child: Text(
+      text,
+      style: Theme.of(
+        context,
+      ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+    ),
+  );
 
   Widget _row(
     String label,
@@ -246,6 +241,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      [
+                        '${formatQuantity(i['quantity'] as num)} × ${formatCents(i['unit_price_cents'] as int)}',
+                        if ((i['discount_cents'] as int) > 0)
+                          (isDe
+                              ? 'Rabatt −${formatCents(i['discount_cents'] as int)}'
+                              : 'discount −${formatCents(i['discount_cents'] as int)}'),
+                      ].join(' · '),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.5,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -512,16 +522,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final items = ((o['items'] as List<dynamic>?) ?? const [])
         .whereType<OrderData>()
         .toList();
+
     final addresses = (o['addresses'] as OrderData?) ?? {};
+
     final shipments = ((o['shipments'] as List<dynamic>?) ?? const [])
         .whereType<OrderData>()
         .toList();
+
     final payments = ((o['payments'] as List<dynamic>?) ?? const [])
         .whereType<OrderData>()
         .toList();
+
     final refunds = ((o['refunds'] as List<dynamic>?) ?? const [])
         .whereType<OrderData>()
         .toList();
+
     final history = ((o['history'] as List<dynamic>?) ?? const [])
         .whereType<OrderData>()
         .toList();
@@ -740,12 +755,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         children: [
                           Text(
                             r['provider'] == 'membership_credit'
-                                ? isDe
+                                ? (isDe
                                       ? 'Als Mitgliedschaftsguthaben erstattet'
-                                      : 'Returned as membership credit'
-                                : isDe
-                                ? 'Erstattet'
-                                : 'Refunded',
+                                      : 'Returned as membership credit')
+                                : (isDe ? 'Erstattet' : 'Refunded'),
                             style: theme.textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),

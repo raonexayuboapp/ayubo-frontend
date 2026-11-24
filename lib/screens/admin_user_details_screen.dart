@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
+import '../utils/localized_content.dart';
 
 typedef UserData = Map<String, dynamic>;
 
@@ -456,6 +458,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
 
   // Dedicated status row: does not display "Not available".
   Widget _membershipStatusRow(String status) {
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -463,7 +466,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
           Expanded(
             flex: 4,
             child: Text(
-              'Status',
+              l10n?.adminProductStatus ?? 'Status',
               style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
             ),
           ),
@@ -504,8 +507,9 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
   }
 
   Widget _accountSection() {
+    final l10n = AppLocalizations.of(context);
     return _sectionCard(
-      title: 'Account information',
+      title: l10n?.adminUserDetails ?? 'Account information',
       icon: Icons.person_outline,
       children: [
         _detailRow('User ID', _user['id']),
@@ -514,11 +518,18 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
         _detailRow('Email', _user['email']),
         _detailRow('Phone', _user['phone'] ?? _user['mobile_number']),
         _detailRow(
-          'Email verification',
-          _emailVerified ? 'Verified' : 'Not verified',
+          l10n?.adminEmailVerified ?? 'Email verification',
+          _emailVerified
+              ? (l10n?.adminEmailVerified ?? 'Verified')
+              : (l10n?.adminEmailUnverified ?? 'Not verified'),
         ),
-        _detailRow('Account status', _accountEnabled ? 'Enabled' : 'Disabled'),
-        _detailRow('Role', _role),
+        _detailRow(
+          l10n?.adminAccountStatus ?? 'Account status',
+          _accountEnabled
+              ? (l10n?.adminAccountEnabled ?? 'Enabled')
+              : (l10n?.adminAccountDisabled ?? 'Disabled'),
+        ),
+        _detailRow('Role', localizedUserRole(_role, context: context)),
         const Divider(height: 24),
 
         if (_isSelf)
@@ -540,7 +551,11 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
             icon: Icon(
               _accountEnabled ? Icons.block : Icons.check_circle_outline,
             ),
-            label: Text(_accountEnabled ? 'Disable account' : 'Enable account'),
+            label: Text(
+              _accountEnabled
+                  ? (l10n?.adminDisableAccount ?? 'Disable account')
+                  : (l10n?.adminEnableAccount ?? 'Enable account'),
+            ),
             style: _accountEnabled
                 ? OutlinedButton.styleFrom(foregroundColor: Colors.red.shade700)
                 : null,
@@ -555,7 +570,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
             label: Text(
               _role == 'admin'
                   ? 'Remove administrator role'
-                  : 'Make administrator',
+                  : (l10n?.adminChangeRole ?? 'Make administrator'),
             ),
           ),
         ),
@@ -571,6 +586,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
   Widget _membershipActionButtons(String status) {
     final canManage =
         !_isSelf && !_membershipActionLoading && _membershipId != null;
+    final l10n = AppLocalizations.of(context);
 
     final isActive = status == 'active';
     final isPaused = status == 'paused';
@@ -594,13 +610,13 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
             OutlinedButton.icon(
               onPressed: canManage ? () => _updateMembership('paused') : null,
               icon: const Icon(Icons.pause_circle_outline),
-              label: const Text('Pause membership'),
+              label: Text(l10n?.adminPauseMembership ?? 'Pause membership'),
             )
           else
             FilledButton.icon(
               onPressed: canManage ? () => _updateMembership('active') : null,
               icon: const Icon(Icons.play_circle_outline),
-              label: const Text('Resume membership'),
+              label: Text(l10n?.adminResumeMembership ?? 'Resume membership'),
             ),
 
           const SizedBox(height: 8),
@@ -608,7 +624,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
           OutlinedButton.icon(
             onPressed: canManage ? () => _updateMembership('cancelled') : null,
             icon: const Icon(Icons.cancel_outlined),
-            label: const Text('Cancel membership'),
+            label: Text(l10n?.adminCancelMembership ?? 'Cancel membership'),
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.red.shade700,
             ),
@@ -629,9 +645,10 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
   }
 
   Widget _membershipSection() {
+    final l10n = AppLocalizations.of(context);
     if (_loadingMembership) {
       return _sectionCard(
-        title: 'Membership',
+        title: l10n?.adminMembership ?? 'Membership',
         icon: Icons.card_membership,
         children: const [
           Center(
@@ -646,7 +663,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
 
     if (_membershipError != null) {
       return _sectionCard(
-        title: 'Membership',
+        title: l10n?.adminMembership ?? 'Membership',
         icon: Icons.card_membership,
         children: [
           Text(
@@ -659,7 +676,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
           OutlinedButton.icon(
             onPressed: _loadMembership,
             icon: const Icon(Icons.refresh),
-            label: const Text('Retry'),
+            label: Text(l10n?.adminRetry ?? 'Retry'),
           ),
         ],
       );
@@ -667,7 +684,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
 
     if (_customerId == null) {
       return _sectionCard(
-        title: 'Membership',
+        title: l10n?.adminMembership ?? 'Membership',
         icon: Icons.card_membership,
         children: const [
           Text(
@@ -680,7 +697,7 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
 
     if (_membership == null) {
       return _sectionCard(
-        title: 'Membership',
+        title: l10n?.adminMembership ?? 'Membership',
         icon: Icons.card_membership,
         children: const [
           Text(
@@ -694,18 +711,27 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
     final status = _membershipStatus;
 
     return _sectionCard(
-      title: 'Membership',
+      title: l10n?.adminMembership ?? 'Membership',
       icon: Icons.card_membership,
       children: [
         _detailRow('Membership ID', _membership?['id']),
         _detailRow('Plan', _membership?['plan_name']),
         _detailRow('Plan code', _membership?['plan_code']),
-        _detailRow('Member number', _membership?['member_number']),
-        _membershipStatusRow(status),
-        _detailRow('Joined', _formatDate(_membership?['joined_at'])),
-        _detailRow('Expires', _formatDate(_membership?['expires_at'])),
         _detailRow(
-          'Available shopping credit',
+          l10n?.adminMemberNumber ?? 'Member number',
+          _membership?['member_number'],
+        ),
+        _membershipStatusRow(status),
+        _detailRow(
+          l10n?.adminJoinedOn ?? 'Joined',
+          _formatDate(_membership?['joined_at']),
+        ),
+        _detailRow(
+          l10n?.adminExpiresOn ?? 'Expires',
+          _formatDate(_membership?['expires_at']),
+        ),
+        _detailRow(
+          l10n?.adminAvailableCredit ?? 'Available shopping credit',
           _formatCredit(_membership?['spendable_cents']),
         ),
         _membershipActionButtons(status),
@@ -715,15 +741,16 @@ class _AdminUserDetailsScreenState extends State<AdminUserDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('User details')),
+      appBar: AppBar(title: Text(l10n?.adminUserDetails ?? 'User details')),
       body: RefreshIndicator(
         onRefresh: _loadMembership,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
             _sectionCard(
-              title: 'Customer',
+              title: l10n?.adminCustomerDetails ?? 'Customer',
               icon: Icons.account_circle_outlined,
               children: [
                 Center(

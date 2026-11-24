@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
+import '../utils/localized_content.dart';
 import '../utils/money.dart';
 import '../widgets/image_manager.dart';
 import '../widgets/loading_button.dart';
@@ -195,7 +197,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
       final results = await Future.wait<Object>([
         api.adminTaxRates(),
-        api.adminCategories(),
+        api.adminCategories(lang: currentAppLocale),
         if (_editing) api.adminGetProduct(widget.productId!),
       ]);
 
@@ -501,6 +503,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
   Widget _discountPreview() {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
 
     if (!_discountEnabled) {
       return const SizedBox.shrink();
@@ -532,7 +535,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
       children: [
         const SizedBox(height: 14),
         Text(
-          'Estimated variant prices',
+          l10n?.adminDiscountPreview ?? 'Estimated variant prices',
           style: theme.textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.w700,
           ),
@@ -607,13 +610,14 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
   Widget _discountSection() {
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
+    final l10n = AppLocalizations.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionHeader(
           context,
-          'Product Discount',
+          l10n?.adminDiscount ?? 'Product Discount',
           subtitle:
               'The same discount rule applies to every variant. Original prices are preserved.',
         ),
@@ -621,7 +625,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
           contentPadding: EdgeInsets.zero,
           activeThumbColor: goldColor,
           activeTrackColor: goldColor,
-          title: const Text('Enable product discount'),
+          title: Text(l10n?.adminDiscount ?? 'Enable product discount'),
           subtitle: const Text(
             'Customers will see the discounted price throughout the shop.',
           ),
@@ -641,15 +645,18 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
             initialValue: _discountType,
             isExpanded: true,
             decoration: InputDecoration(
-              labelText: 'Discount Type',
+              labelText: l10n?.adminDiscount ?? 'Discount Type',
               errorText: _serverErrors['discount.discount_type'],
             ),
-            items: const [
+            items: [
               DropdownMenuItem(
                 value: 'percentage',
-                child: Text('Percentage (%)'),
+                child: Text(l10n?.adminDiscountPercentage ?? 'Percentage (%)'),
               ),
-              DropdownMenuItem(value: 'fixed', child: Text('Fixed amount (€)')),
+              DropdownMenuItem(
+                value: 'fixed',
+                child: Text(l10n?.adminDiscountFixed ?? 'Fixed amount (€)'),
+              ),
             ],
             onChanged: (value) {
               if (value == null) return;
@@ -670,9 +677,11 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
             forceErrorText: _serverErrors['discount.discount_value'],
             onChanged: (_) => setState(() {}),
             decoration: InputDecoration(
-              labelText: _discountType == 'percentage'
-                  ? 'Discount Percentage (%)'
-                  : 'Discount Amount (€)',
+              labelText:
+                  l10n?.adminDiscountValue ??
+                  (_discountType == 'percentage'
+                      ? 'Discount Percentage (%)'
+                      : 'Discount Amount (€)'),
               hintText: _discountType == 'percentage' ? '15.00' : '5.00',
               helperText: _discountType == 'percentage'
                   ? 'Enter a value between 0.01% and 100%.'
@@ -742,10 +751,14 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
     }
   }
 
-  String _stockText(ProductFormData stock) {
-    return '${formatQuantity(stock['on_hand'] as num)} on hand · '
-        '${formatQuantity(stock['reserved'] as num)} reserved · '
-        '${formatQuantity(stock['available'] as num)} available';
+  String _stockText(ProductFormData stock, BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final onHand = l10n?.adminStockOnHand ?? 'on hand';
+    final reserved = l10n?.adminStockReserved ?? 'reserved';
+    final available = l10n?.adminStockAvailable ?? 'available';
+    return '${formatQuantity(stock['on_hand'] as num)} $onHand · '
+        '${formatQuantity(stock['reserved'] as num)} $reserved · '
+        '${formatQuantity(stock['available'] as num)} $available';
   }
 
   // ---------------------------------------------------------------------------
@@ -974,6 +987,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
     final variant = _variants[index];
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
+    final l10n = AppLocalizations.of(context);
 
     const money = TextInputType.numberWithOptions(decimal: true);
 
@@ -1026,7 +1040,10 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   validator: _vSku,
                   forceErrorText: server('sku'),
-                  decoration: const InputDecoration(labelText: 'SKU'),
+
+                  decoration: InputDecoration(
+                    labelText: l10n?.adminSku ?? 'SKU',
+                  ),
                   onChanged: (_) {
                     if (_discountEnabled) setState(() {});
                   },
@@ -1044,9 +1061,9 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                   onChanged: (_) {
                     if (_discountEnabled) setState(() {});
                   },
-                  decoration: const InputDecoration(
-                    labelText: 'Price (€)',
-                    helperText: 'incl. VAT',
+                  decoration: InputDecoration(
+                    labelText: l10n?.adminPriceGross ?? 'Price (€)',
+                    helperText: l10n?.taxIncluded ?? 'incl. VAT',
                   ),
                 ),
               ),
@@ -1063,7 +1080,9 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   validator: _vPack,
                   forceErrorText: server('pack_quantity'),
-                  decoration: const InputDecoration(labelText: 'Pack size'),
+                  decoration: InputDecoration(
+                    labelText: l10n?.adminPackQuantity ?? 'Pack size',
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -1073,8 +1092,8 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   validator: (value) => _vMax(value, 20),
                   forceErrorText: server('unit'),
-                  decoration: const InputDecoration(
-                    labelText: 'Unit (g, ml...)',
+                  decoration: InputDecoration(
+                    labelText: l10n?.adminUnit ?? 'Unit (g, ml...)',
                   ),
                 ),
               ),
@@ -1087,7 +1106,10 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
             autovalidateMode: AutovalidateMode.onUserInteraction,
             validator: _vEan,
             forceErrorText: server('ean'),
-            decoration: const InputDecoration(labelText: 'EAN (optional)'),
+            decoration: InputDecoration(
+              labelText:
+                  '${l10n?.adminEan ?? 'EAN'} (${l10n?.adminEnglishTranslation != null ? 'optional' : 'optional'})',
+            ),
           ),
           if (variant.id != null &&
               _type == 'physical' &&
@@ -1105,7 +1127,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      _stockText(variant.stock!),
+                      _stockText(variant.stock!, context),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurface.withValues(
                           alpha: 0.7,
@@ -1121,7 +1143,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                       color: goldColor,
                     ),
                     label: Text(
-                      'Stock',
+                      l10n?.adminStock ?? 'Stock',
                       style: TextStyle(
                         color: goldColor,
                         fontSize: 13,
@@ -1139,7 +1161,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
             activeThumbColor: goldColor,
             activeTrackColor: goldColor,
             title: Text(
-              'Active variant',
+              l10n?.adminActive ?? 'Active variant',
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w500,
               ),
@@ -1164,10 +1186,17 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
+    final l10n = AppLocalizations.of(context);
 
     if (_loadingData) {
       return Scaffold(
-        appBar: AppBar(title: Text(_editing ? 'Edit product' : 'New product')),
+        appBar: AppBar(
+          title: Text(
+            _editing
+                ? (l10n?.adminEditProduct ?? 'Edit product')
+                : (l10n?.adminNewProduct ?? 'New product'),
+          ),
+        ),
         body: Center(
           child: CircularProgressIndicator(color: goldColor, strokeWidth: 2),
         ),
@@ -1176,7 +1205,13 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
     if (_loadError != null) {
       return Scaffold(
-        appBar: AppBar(title: Text(_editing ? 'Edit product' : 'New product')),
+        appBar: AppBar(
+          title: Text(
+            _editing
+                ? (l10n?.adminEditProduct ?? 'Edit product')
+                : (l10n?.adminNewProduct ?? 'New product'),
+          ),
+        ),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -1204,7 +1239,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                     _init();
                   },
                   icon: const Icon(Icons.refresh, size: 18),
-                  label: const Text('Retry'),
+                  label: Text(l10n?.adminRetry ?? 'Retry'),
                   style: TextButton.styleFrom(foregroundColor: goldColor),
                 ),
               ],
@@ -1221,7 +1256,11 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_editing ? 'Edit product' : 'New product'),
+        title: Text(
+          _editing
+              ? (l10n?.adminEditProduct ?? 'Edit product')
+              : (l10n?.adminNewProduct ?? 'New product'),
+        ),
         elevation: 0,
       ),
       body: Form(
@@ -1230,11 +1269,11 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
           padding: const EdgeInsets.all(20),
           children: [
             // Basic settings.
-            _sectionHeader(context, 'Basic Settings'),
+            _sectionHeader(context, l10n?.adminBasicInfo ?? 'Basic Settings'),
 
             _text(
               'slug',
-              'Slug (URL name)',
+              l10n?.adminSlug ?? 'Slug (URL name)',
               _slug,
               _vSlug,
               helper: 'e.g. ceylon-zimt',
@@ -1245,7 +1284,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
               child: DropdownButtonFormField<String>(
                 initialValue: _type,
                 decoration: InputDecoration(
-                  labelText: 'Product Type',
+                  labelText: l10n?.adminProductType ?? 'Product Type',
                   errorText: _serverErrors['product_type'],
                 ),
                 items: [
@@ -1267,7 +1306,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
               child: DropdownButtonFormField<String>(
                 initialValue: _status,
                 decoration: InputDecoration(
-                  labelText: 'Status',
+                  labelText: l10n?.adminProductStatus ?? 'Status',
                   helperText:
                       'Publishing requires a German translation and at least one active variant.',
                   helperMaxLines: 2,
@@ -1275,7 +1314,12 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                 ),
                 items: [
                   for (final status in _statuses)
-                    DropdownMenuItem(value: status, child: Text(status)),
+                    DropdownMenuItem(
+                      value: status,
+                      child: Text(
+                        localizedProductStatus(status, context: context),
+                      ),
+                    ),
                 ],
                 onChanged: (value) {
                   if (value == null) return;
@@ -1290,7 +1334,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                 initialValue: _taxRateId,
                 isExpanded: true,
                 decoration: InputDecoration(
-                  labelText: 'Tax Rate',
+                  labelText: l10n?.adminTaxRate ?? 'Tax Rate',
                   helperText: endedRateSelected
                       ? 'This rate has ended. Select a current rate if updating.'
                       : null,
@@ -1318,20 +1362,20 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
             // German translation.
             _sectionHeader(
               context,
-              'Product Details — German',
+              l10n?.adminGermanTranslation ?? 'Product Details — German',
               subtitle: 'German is currently required for publishing products.',
             ),
 
             _text(
               'translations.de.name',
-              'Product Name (German)',
+              '${l10n?.adminProductName ?? 'Product Name'} (German)',
               _name,
               _vName,
             ),
 
             _text(
               'translations.de.description',
-              'Description (German)',
+              '${l10n?.adminProductDescription ?? 'Description'} (German)',
               _desc,
               (value) => _vMax(value, 20000),
               maxLines: 4,
@@ -1339,7 +1383,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
             _text(
               'translations.de.ingredients',
-              'Ingredients (German)',
+              '${l10n?.adminIngredients ?? 'Ingredients'} (German)',
               _ingredients,
               (value) => _vMax(value, 5000),
               maxLines: 3,
@@ -1347,7 +1391,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
             _text(
               'translations.de.allergens',
-              'Allergens (German)',
+              '${l10n?.adminAllergens ?? 'Allergens'} (German)',
               _allergens,
               (value) => _vMax(value, 5000),
               maxLines: 2,
@@ -1358,14 +1402,14 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
             // English translation.
             _sectionHeader(
               context,
-              'Product Details — English',
+              l10n?.adminEnglishTranslation ?? 'Product Details — English',
               subtitle:
                   'Optional. Add an English name to make this product available in English.',
             ),
 
             _text(
               'translations.en.name',
-              'Product Name (English)',
+              '${l10n?.adminProductName ?? 'Product Name'} (English)',
               _nameEn,
               _vEnglishName,
               helper: 'Required if you enter any other English details.',
@@ -1373,7 +1417,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
             _text(
               'translations.en.description',
-              'Description (English)',
+              '${l10n?.adminProductDescription ?? 'Description'} (English)',
               _descEn,
               (value) => _vMax(value, 20000),
               maxLines: 4,
@@ -1381,7 +1425,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
             _text(
               'translations.en.ingredients',
-              'Ingredients (English)',
+              '${l10n?.adminIngredients ?? 'Ingredients'} (English)',
               _ingredientsEn,
               (value) => _vMax(value, 5000),
               maxLines: 3,
@@ -1389,7 +1433,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
             _text(
               'translations.en.allergens',
-              'Allergens (English)',
+              '${l10n?.adminAllergens ?? 'Allergens'} (English)',
               _allergensEn,
               (value) => _vMax(value, 5000),
               maxLines: 2,
@@ -1400,7 +1444,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
             // Images.
             _sectionHeader(
               context,
-              'Images',
+              l10n?.adminImages ?? 'Images',
               subtitle:
                   'The first image will be set as the primary catalog cover.',
             ),
@@ -1416,7 +1460,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
 
             // Categories.
             if (_categories.isNotEmpty) ...[
-              _sectionHeader(context, 'Categories'),
+              _sectionHeader(context, l10n?.adminCategories ?? 'Categories'),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -1424,7 +1468,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                   for (final category in _categories)
                     FilterChip(
                       label: Text(
-                        '${category['name']}'
+                        '${localizedCategoryName(category, context: context)}'
                         '${category['active'] == true ? '' : ' (hidden)'}',
                       ),
                       selected: _categoryIds.contains(
@@ -1478,7 +1522,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
             // Variants.
             _sectionHeader(
               context,
-              'Variants',
+              l10n?.adminVariants ?? 'Variants',
               subtitle: 'Configure pack sizes, SKUs, and original pricing.',
             ),
 
@@ -1487,7 +1531,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
             OutlinedButton.icon(
               onPressed: _addVariant,
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Add Variant'),
+              label: Text(l10n?.adminAddVariant ?? 'Add Variant'),
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: goldColor),
                 foregroundColor: goldColor,
@@ -1513,7 +1557,9 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
             const SizedBox(height: 24),
 
             LoadingButton(
-              label: _editing ? 'Save Changes' : 'Create Product',
+              label: _editing
+                  ? (l10n?.saveChanges ?? 'Save Changes')
+                  : (l10n?.adminSaveProduct ?? 'Create Product'),
               loading: _saving,
               onPressed: _save,
             ),

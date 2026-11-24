@@ -15,10 +15,7 @@ class HomeFamilyPromoSection extends StatelessWidget {
     required this.onExplore,
   });
 
-  Widget _buildBenefitPill({
-    required IconData icon,
-    required String text,
-  }) {
+  Widget _buildBenefitPill({required IconData icon, required String text}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
@@ -159,17 +156,20 @@ class HomeFamilyPromoSection extends StatelessWidget {
               // Benefits
               _buildBenefitPill(
                 icon: Icons.account_balance_wallet_outlined,
-                text: l10n?.familyBenefitCredit ??
+                text:
+                    l10n?.familyBenefitCredit ??
                     '100% shopping credit back on membership',
               ),
               _buildBenefitPill(
                 icon: Icons.discount_outlined,
-                text: l10n?.familyBenefitDiscount ??
+                text:
+                    l10n?.familyBenefitDiscount ??
                     'Exclusive member discounts on select organics',
               ),
               _buildBenefitPill(
                 icon: Icons.spa_outlined,
-                text: l10n?.familyBenefitHeritage ??
+                text:
+                    l10n?.familyBenefitHeritage ??
                     'Pure Ceylon organic wellness privileges',
               ),
               const SizedBox(height: 14),

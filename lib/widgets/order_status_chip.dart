@@ -52,7 +52,11 @@ String paymentStatusLabel(String status, [String? locale]) {
 class OrderStatusChip extends StatelessWidget {
   final String status;
   final bool payment; // true for the payment status, false for the order status
-  const OrderStatusChip({super.key, required this.status, this.payment = false});
+  const OrderStatusChip({
+    super.key,
+    required this.status,
+    this.payment = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -62,21 +66,19 @@ class OrderStatusChip extends StatelessWidget {
 
     final (background, foreground) = switch (status) {
       'delivered' || 'paid' => (
-          Colors.green.shade600.withValues(alpha: isDark ? 0.2 : 0.12),
-          isDark ? Colors.green.shade400 : Colors.green.shade700,
-        ),
-      'shipped' || 'processing' => (
-          goldColor.withValues(alpha: 0.15),
-          goldColor,
-        ),
+        Colors.green.shade600.withValues(alpha: isDark ? 0.2 : 0.12),
+        isDark ? Colors.green.shade400 : Colors.green.shade700,
+      ),
+      'shipped' ||
+      'processing' => (goldColor.withValues(alpha: 0.15), goldColor),
       'cancelled' || 'refunded' => (
-          theme.colorScheme.error.withValues(alpha: 0.12),
-          theme.colorScheme.error,
-        ),
+        theme.colorScheme.error.withValues(alpha: 0.12),
+        theme.colorScheme.error,
+      ),
       _ => (
-          theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-          theme.colorScheme.onSurface.withValues(alpha: 0.7),
-        ),
+        theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        theme.colorScheme.onSurface.withValues(alpha: 0.7),
+      ),
     };
 
     return Container(

@@ -18,13 +18,19 @@ class HomeCategoriesSection extends StatelessWidget {
 
   String _categoryImage(String name) {
     final lower = name.toLowerCase();
-    if (lower.contains('spice') || lower.contains('gewürz') || lower.contains('curry')) {
+    if (lower.contains('spice') ||
+        lower.contains('gewürz') ||
+        lower.contains('curry')) {
       return 'assets/images/spices 1.jpg';
     }
-    if (lower.contains('tea') || lower.contains('tee') || lower.contains('herbal')) {
+    if (lower.contains('tea') ||
+        lower.contains('tee') ||
+        lower.contains('herbal')) {
       return 'assets/images/tea plantation.jpg';
     }
-    if (lower.contains('coconut') || lower.contains('kokos') || lower.contains('water')) {
+    if (lower.contains('coconut') ||
+        lower.contains('kokos') ||
+        lower.contains('water')) {
       return 'assets/images/coconut water.jpg';
     }
     if (lower.contains('cinnamon') || lower.contains('zimt')) {
@@ -33,10 +39,14 @@ class HomeCategoriesSection extends StatelessWidget {
     if (lower.contains('pepper') || lower.contains('pfeffer')) {
       return 'assets/images/pepper plantation.jpg';
     }
-    if (lower.contains('voucher') || lower.contains('gutschein') || lower.contains('gift')) {
+    if (lower.contains('voucher') ||
+        lower.contains('gutschein') ||
+        lower.contains('gift')) {
       return 'assets/images/harmonie_set_for_her.webp';
     }
-    if (lower.contains('sandal') || lower.contains('wood') || lower.contains('oil')) {
+    if (lower.contains('sandal') ||
+        lower.contains('wood') ||
+        lower.contains('oil')) {
       return 'assets/images/sandal wood.jpg';
     }
     return 'assets/images/shop.webp';
@@ -44,11 +54,16 @@ class HomeCategoriesSection extends StatelessWidget {
 
   IconData _categoryIcon(String name) {
     final lower = name.toLowerCase();
-    if (lower.contains('spice') || lower.contains('gewürz')) return Icons.eco_rounded;
-    if (lower.contains('tea') || lower.contains('tee')) return Icons.local_cafe_rounded;
-    if (lower.contains('oil') || lower.contains('öl')) return Icons.water_drop_rounded;
-    if (lower.contains('wellness') || lower.contains('ayurveda')) return Icons.spa_rounded;
-    if (lower.contains('voucher') || lower.contains('gutschein')) return Icons.card_giftcard_rounded;
+    if (lower.contains('spice') || lower.contains('gewürz'))
+      return Icons.eco_rounded;
+    if (lower.contains('tea') || lower.contains('tee'))
+      return Icons.local_cafe_rounded;
+    if (lower.contains('oil') || lower.contains('öl'))
+      return Icons.water_drop_rounded;
+    if (lower.contains('wellness') || lower.contains('ayurveda'))
+      return Icons.spa_rounded;
+    if (lower.contains('voucher') || lower.contains('gutschein'))
+      return Icons.card_giftcard_rounded;
     return Icons.grass_rounded;
   }
 
@@ -127,16 +142,22 @@ class HomeCategoriesSection extends StatelessWidget {
                           height: 54,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: isDark ? const Color(0xFF1E3325) : const Color(0xFFE8F5E9),
+                            color: isDark
+                                ? const Color(0xFF1E3325)
+                                : const Color(0xFFE8F5E9),
                             border: Border.all(
-                              color: AppTheme.primaryGreen.withValues(alpha: 0.35),
+                              color: AppTheme.primaryGreen.withValues(
+                                alpha: 0.35,
+                              ),
                               width: 1.2,
                             ),
                           ),
                           child: Icon(
                             Icons.grid_view_rounded,
                             size: 24,
-                            color: isDark ? AppTheme.leafGreen : AppTheme.primaryGreen,
+                            color: isDark
+                                ? AppTheme.leafGreen
+                                : AppTheme.primaryGreen,
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -181,7 +202,9 @@ class HomeCategoriesSection extends StatelessWidget {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                              color: Colors.black.withValues(
+                                alpha: isDark ? 0.2 : 0.04,
+                              ),
                               blurRadius: 6,
                               offset: const Offset(0, 2),
                             ),
@@ -203,7 +226,9 @@ class HomeCategoriesSection extends StatelessWidget {
                               ),
                             ),
                             Container(
-                              color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.1),
+                              color: Colors.black.withValues(
+                                alpha: isDark ? 0.25 : 0.1,
+                              ),
                             ),
                           ],
                         ),
@@ -232,4 +257,3 @@ class HomeCategoriesSection extends StatelessWidget {
     );
   }
 }
-

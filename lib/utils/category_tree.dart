@@ -1,5 +1,7 @@
 /// Depth-first order of a flat category list (parents before their children) with each one's depth.
-List<(Map<String, dynamic>, int)> flattenCategories(List<Map<String, dynamic>> flat) {
+List<(Map<String, dynamic>, int)> flattenCategories(
+  List<Map<String, dynamic>> flat,
+) {
   final byParent = <int?, List<Map<String, dynamic>>>{};
   for (final c in flat) {
     byParent.putIfAbsent(c['parent_id'] as int?, () => []).add(c);
@@ -22,7 +24,8 @@ Set<int> categoryAndDescendants(List<Map<String, dynamic>> flat, int id) {
   final children = <int, List<int>>{};
   for (final c in flat) {
     final parent = c['parent_id'] as int?;
-    if (parent != null) children.putIfAbsent(parent, () => []).add(c['id'] as int);
+    if (parent != null)
+      children.putIfAbsent(parent, () => []).add(c['id'] as int);
   }
 
   final found = <int>{id};

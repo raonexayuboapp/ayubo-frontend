@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../utils/money.dart';
 import '../widgets/benefit_line.dart';
@@ -473,13 +474,14 @@ class _AdminMembershipPlanFormScreenState
     final b = _benefits[i];
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
+    final l10n = AppLocalizations.of(context);
 
     String? server(String f) => _serverErrors['benefits.$i.$f'];
 
     final label = switch (b.kind) {
-      'credit' => 'Shopping credit',
-      'discount' => 'Discount',
-      _ => 'Perk (text only)',
+      'credit' => l10n?.adminShoppingCredit ?? 'Shopping credit',
+      'discount' => l10n?.adminStoreDiscount ?? 'Discount',
+      _ => l10n?.adminCustomPerk ?? 'Perk (text only)',
     };
 
     return Card(
@@ -554,8 +556,8 @@ class _AdminMembershipPlanFormScreenState
                 ),
                 decoration: InputDecoration(
                   labelText: b.kind == 'credit'
-                      ? 'Credit amount (€)'
-                      : 'Discount (%)',
+                      ? '${l10n?.adminShoppingCredit ?? 'Credit amount'} (€)'
+                      : '${l10n?.adminStoreDiscount ?? 'Discount'} (%)',
                 ),
               ),
             ],
@@ -570,8 +572,9 @@ class _AdminMembershipPlanFormScreenState
                 validator: _vBenefitDescription,
                 forceErrorText:
                     server('description_en') ?? server('description'),
-                decoration: const InputDecoration(
-                  labelText: 'Perk description (English)',
+                decoration: InputDecoration(
+                  labelText:
+                      '${l10n?.adminCustomPerk ?? 'Perk'} (${l10n?.adminEnglishTranslation ?? 'English'})',
                   helperText: 'Shown to customers using English.',
                   helperMaxLines: 2,
                 ),
@@ -585,8 +588,9 @@ class _AdminMembershipPlanFormScreenState
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 validator: _vBenefitDescription,
                 forceErrorText: server('description_de'),
-                decoration: const InputDecoration(
-                  labelText: 'Perk description (German)',
+                decoration: InputDecoration(
+                  labelText:
+                      '${l10n?.adminCustomPerk ?? 'Perk'} (${l10n?.adminGermanTranslation ?? 'German'})',
                   helperText:
                       'Required. Also used as the fallback description.',
                   helperMaxLines: 2,
@@ -605,17 +609,30 @@ class _AdminMembershipPlanFormScreenState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
+    final l10n = AppLocalizations.of(context);
 
     if (_loadingData) {
       return Scaffold(
-        appBar: AppBar(title: Text(_editing ? 'Edit plan' : 'New plan')),
+        appBar: AppBar(
+          title: Text(
+            _editing
+                ? (l10n?.adminEditPlan ?? 'Edit plan')
+                : (l10n?.adminNewPlan ?? 'New plan'),
+          ),
+        ),
         body: Center(child: CircularProgressIndicator(color: goldColor)),
       );
     }
 
     if (_loadError != null) {
       return Scaffold(
-        appBar: AppBar(title: Text(_editing ? 'Edit plan' : 'New plan')),
+        appBar: AppBar(
+          title: Text(
+            _editing
+                ? (l10n?.adminEditPlan ?? 'Edit plan')
+                : (l10n?.adminNewPlan ?? 'New plan'),
+          ),
+        ),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -644,7 +661,7 @@ class _AdminMembershipPlanFormScreenState
                     _init();
                   },
                   icon: const Icon(Icons.refresh, size: 18),
-                  label: const Text('Retry'),
+                  label: Text(l10n?.adminRetry ?? 'Retry'),
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(color: goldColor),
                     foregroundColor: goldColor,
@@ -664,7 +681,13 @@ class _AdminMembershipPlanFormScreenState
     final full = _benefits.length >= _maxBenefits;
 
     return Scaffold(
-      appBar: AppBar(title: Text(_editing ? 'Edit plan' : 'New plan')),
+      appBar: AppBar(
+        title: Text(
+          _editing
+              ? (l10n?.adminEditPlan ?? 'Edit plan')
+              : (l10n?.adminNewPlan ?? 'New plan'),
+        ),
+      ),
       body: Form(
         key: _form,
         child: ListView(
@@ -672,7 +695,7 @@ class _AdminMembershipPlanFormScreenState
           children: [
             _text(
               'code',
-              'Code',
+              l10n?.adminPlanCode ?? 'Code',
               _code,
               _vCode,
               enabled: !_editing,
@@ -683,7 +706,7 @@ class _AdminMembershipPlanFormScreenState
 
             // English translation.
             Text(
-              'English translation',
+              l10n?.adminEnglishTranslation ?? 'English translation',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -692,7 +715,7 @@ class _AdminMembershipPlanFormScreenState
 
             _text(
               'translations.en.name',
-              'Membership name (English)',
+              '${l10n?.adminMembershipPlans ?? 'Membership name'} (${l10n?.adminEnglishTranslation ?? 'English'})',
               _nameEn,
               _vEnglishName,
               helper: 'e.g. Entry Membership',
@@ -700,7 +723,7 @@ class _AdminMembershipPlanFormScreenState
 
             _text(
               'translations.en.description',
-              'Description (English)',
+              '${l10n?.adminCategoryDescription ?? 'Description'} (${l10n?.adminEnglishTranslation ?? 'English'})',
               _descEn,
               _vDesc,
               maxLines: 2,
@@ -711,7 +734,7 @@ class _AdminMembershipPlanFormScreenState
 
             // German fallback translation.
             Text(
-              'German translation',
+              l10n?.adminGermanTranslation ?? 'German translation',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -720,7 +743,7 @@ class _AdminMembershipPlanFormScreenState
 
             _text(
               'translations.de.name',
-              'Membership name (German)',
+              '${l10n?.adminMembershipPlans ?? 'Membership name'} (${l10n?.adminGermanTranslation ?? 'German'})',
               _nameDe,
               _vName,
               helper: 'Required. Used as the fallback language.',
@@ -728,7 +751,7 @@ class _AdminMembershipPlanFormScreenState
 
             _text(
               'translations.de.description',
-              'Description (German)',
+              '${l10n?.adminCategoryDescription ?? 'Description'} (${l10n?.adminGermanTranslation ?? 'German'})',
               _descDe,
               _vDesc,
               maxLines: 2,
@@ -747,7 +770,7 @@ class _AdminMembershipPlanFormScreenState
 
             _text(
               'price_cents',
-              'Price (€, incl. VAT)',
+              l10n?.adminPlanPrice ?? 'Price (€, incl. VAT)',
               _price,
               _vPrice,
               type: const TextInputType.numberWithOptions(decimal: true),
@@ -759,7 +782,7 @@ class _AdminMembershipPlanFormScreenState
                 initialValue: _taxRateId,
                 isExpanded: true,
                 decoration: InputDecoration(
-                  labelText: 'Tax rate',
+                  labelText: l10n?.adminTaxRate ?? 'Tax rate',
                   helperText: _taxRates.isEmpty
                       ? 'No tax rate exists yet. Create one under Admin, Tax rates.'
                       : endedRateSelected
@@ -794,7 +817,7 @@ class _AdminMembershipPlanFormScreenState
               activeThumbColor: goldColor,
               activeTrackColor: goldColor,
               title: Text(
-                'Available to buy',
+                l10n?.adminActive ?? 'Available to buy',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -817,7 +840,7 @@ class _AdminMembershipPlanFormScreenState
             const Divider(height: 32),
 
             Text(
-              'Benefits',
+              l10n?.adminBenefits ?? 'Benefits',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -851,7 +874,7 @@ class _AdminMembershipPlanFormScreenState
                     Icons.account_balance_wallet_outlined,
                     size: 18,
                   ),
-                  label: const Text('Shopping credit'),
+                  label: Text(l10n?.adminShoppingCredit ?? 'Shopping credit'),
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(color: goldColor),
                   ),
@@ -861,7 +884,7 @@ class _AdminMembershipPlanFormScreenState
                       ? null
                       : () => _addBenefit('discount'),
                   icon: const Icon(Icons.sell_outlined, size: 18),
-                  label: const Text('Discount'),
+                  label: Text(l10n?.adminStoreDiscount ?? 'Discount'),
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(color: goldColor),
                   ),
@@ -869,7 +892,7 @@ class _AdminMembershipPlanFormScreenState
                 OutlinedButton.icon(
                   onPressed: full ? null : () => _addBenefit('perk'),
                   icon: const Icon(Icons.check_circle_outline, size: 18),
-                  label: const Text('Perk'),
+                  label: Text(l10n?.adminCustomPerk ?? 'Perk'),
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(color: goldColor),
                   ),
@@ -889,7 +912,9 @@ class _AdminMembershipPlanFormScreenState
             const SizedBox(height: 24),
 
             LoadingButton(
-              label: _editing ? 'Save changes' : 'Create plan',
+              label: _editing
+                  ? (l10n?.saveChanges ?? 'Save changes')
+                  : (l10n?.adminSavePlan ?? 'Create plan'),
               loading: _saving,
               onPressed: _save,
             ),

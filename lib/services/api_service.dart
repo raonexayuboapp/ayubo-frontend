@@ -572,7 +572,7 @@ class ApiService {
     String search = '',
     String status = '',
     int page = 1,
-    String lang = 'en',
+    String? lang,
   }) async {
     final path = Uri(
       path: '/api/admin/products',
@@ -580,6 +580,7 @@ class ApiService {
         'page': '$page',
         if (search.isNotEmpty) 'search': search,
         if (status.isNotEmpty) 'status': status,
+        'lang': lang ?? currentAppLocale,
       },
     ).toString();
     final res = await _send('GET', path, auth: true);
@@ -611,8 +612,12 @@ class ApiService {
     return list.cast<Map<String, dynamic>>();
   }
 
-  Future<List<Map<String, dynamic>>> adminCategories() async {
-    final res = await _send('GET', '/api/admin/categories', auth: true);
+  Future<List<Map<String, dynamic>>> adminCategories({String? lang}) async {
+    final path = Uri(
+      path: '/api/admin/categories',
+      queryParameters: {'lang': lang ?? currentAppLocale},
+    ).toString();
+    final res = await _send('GET', path, auth: true);
     final list =
         (res['data'] as Map<String, dynamic>)['categories'] as List<dynamic>;
     return list.cast<Map<String, dynamic>>();

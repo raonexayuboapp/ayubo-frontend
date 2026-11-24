@@ -140,6 +140,7 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
           throw Exception('Development payment confirmation path is missing.');
         }
 
+        // Confirm the simulated payment through the backend.
         final updatedOrder = await ApiService.instance.devPayment(confirmPath);
 
         // Step 4: Verify that the backend marked the order as paid.

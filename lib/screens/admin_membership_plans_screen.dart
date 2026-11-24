@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
+import '../utils/localized_content.dart';
 import '../utils/money.dart';
 import 'admin_membership_plan_form_screen.dart';
 
@@ -64,10 +66,13 @@ class _AdminMembershipPlansScreenState
 
   Future<void> _toggle(PlanData plan) async {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final id = plan['id'] as int;
     final active = plan['active'] == true;
     final members = plan['member_count'] as int;
     if (_busy.contains(id)) return;
+
+    final planName = localizedMembershipPlanName(plan, context: context);
 
     final ok = await showDialog<bool>(
       context: context,
@@ -76,23 +81,25 @@ class _AdminMembershipPlansScreenState
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
-          active ? 'Deactivate plan?' : 'Activate plan?',
+          active
+              ? (l10n?.adminDeactivatePlan ?? 'Deactivate plan?')
+              : (l10n?.adminActivatePlan ?? 'Activate plan?'),
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
           ),
         ),
         content: Text(
           active
-              ? '"${plan['name']}" can no longer be bought.'
+              ? '"$planName" ${l10n?.adminDeactivatePlanConfirm ?? 'can no longer be bought.'}'
                     '${members > 0 ? ' Its $members member${members == 1 ? '' : 's'} keep${members == 1 ? 's' : ''} the membership.' : ''}'
-              : '"${plan['name']}" will be available to buy again.',
+              : '"$planName" ${l10n?.adminActivatePlanConfirm ?? 'will be available to buy again.'}',
           style: theme.textTheme.bodyMedium,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
-              'Cancel',
+              l10n?.cancel ?? 'Cancel',
               style: TextStyle(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
               ),
@@ -107,7 +114,7 @@ class _AdminMembershipPlansScreenState
               foregroundColor: Colors.white,
               elevation: 0,
             ),
-            child: const Text('Confirm'),
+            child: Text(l10n?.adminConfirm ?? 'Confirm'),
           ),
         ],
       ),
@@ -129,45 +136,11 @@ class _AdminMembershipPlansScreenState
 
   String _benefitSummary(PlanData plan) {
     final benefits = (plan['benefits'] as List<dynamic>).cast<PlanData>();
-    if (benefits.isEmpty) return 'No benefits';
+    final l10n = AppLocalizations.of(context);
+    if (benefits.isEmpty) return l10n?.adminNoBenefits ?? 'No benefits';
 
     return benefits
-        .map((b) {
-          final kind = b['kind'] as String?;
-
-          if (kind == 'credit') {
-            final cents = b['credit_cents'] as int?;
-            return cents == null
-                ? (b['description'] as String? ?? 'Shopping credit')
-                : '${formatCents(cents)} shopping credit';
-          }
-
-          if (kind == 'discount') {
-            final percent = b['discount_percent'] as num?;
-            return percent == null
-                ? (b['description'] as String? ?? 'Discount on all products')
-                : '${formatPercent(percent)}% discount on all products';
-          }
-
-          if (kind == 'perk') {
-            final en = (b['description_en'] as String?)?.trim() ?? '';
-            final de =
-                (b['description_de'] as String?)?.trim() ??
-                (b['description'] as String? ?? '').trim();
-
-            if (en.isNotEmpty && de.isNotEmpty) {
-              return 'EN: $en · DE: $de';
-            }
-
-            return en.isNotEmpty
-                ? 'EN: $en'
-                : de.isNotEmpty
-                ? 'DE: $de'
-                : 'Perk';
-          }
-
-          return (b['description'] as String?) ?? 'Benefit';
-        })
+        .map((b) => localizedBenefitDescription(b, context: context))
         .join(', ');
   }
 
@@ -175,11 +148,14 @@ class _AdminMembershipPlansScreenState
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
     final isDark = theme.brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context);
     final active = p['active'] == true;
     final hasProduct = p['has_product'] == true;
     final price = p['price_cents'] as int?;
     final members = p['member_count'] as int;
     final id = p['id'] as int;
+    final planName = localizedMembershipPlanName(p, context: context);
+    final memberLabel = l10n?.adminMemberCount ?? 'members';
 
     return ListTile(
       key: ValueKey(id),
@@ -197,7 +173,7 @@ class _AdminMembershipPlansScreenState
         children: [
           Flexible(
             child: Text(
-              p['name'] as String,
+              planName,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -214,7 +190,7 @@ class _AdminMembershipPlansScreenState
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
-                'Inactive',
+                l10n?.adminInactive ?? 'Inactive',
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
@@ -226,7 +202,7 @@ class _AdminMembershipPlansScreenState
       subtitle: Padding(
         padding: const EdgeInsets.only(top: 4.0),
         child: Text(
-          '${p['code']} · ${price == null ? 'no price' : formatCents(price)} · $members member${members == 1 ? '' : 's'}\n'
+          '${p['code']} · ${price == null ? (l10n?.adminNotAvailable ?? 'no price') : formatCents(price)} · $members $memberLabel\n'
           '${_benefitSummary(p)}'
           '${hasProduct ? '' : '\nNot for sale: open it and set a price and tax rate.'}',
           style: hasProduct
@@ -252,6 +228,7 @@ class _AdminMembershipPlansScreenState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
+    final l10n = AppLocalizations.of(context);
 
     Widget body;
 
@@ -279,7 +256,7 @@ class _AdminMembershipPlansScreenState
               OutlinedButton.icon(
                 onPressed: _load,
                 icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Retry'),
+                label: Text(l10n?.adminRetry ?? 'Retry'),
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(color: goldColor),
                   foregroundColor: goldColor,
@@ -292,7 +269,7 @@ class _AdminMembershipPlansScreenState
     } else if (_plans.isEmpty) {
       body = Center(
         child: Text(
-          'No plans yet.',
+          l10n?.adminNoPlansYet ?? 'No plans yet.',
           style: theme.textTheme.bodyLarge?.copyWith(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
           ),
@@ -317,16 +294,18 @@ class _AdminMembershipPlansScreenState
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Membership plans')),
+      appBar: AppBar(
+        title: Text(l10n?.adminMembershipPlans ?? 'Membership plans'),
+      ),
       body: body,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openForm(),
         backgroundColor: theme.colorScheme.primary,
         foregroundColor: goldColor,
         icon: const Icon(Icons.add),
-        label: const Text(
-          'New plan',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        label: Text(
+          l10n?.adminNewPlan ?? 'New plan',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
     );

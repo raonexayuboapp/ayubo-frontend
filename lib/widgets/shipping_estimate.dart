@@ -66,8 +66,8 @@ class _ShippingEstimateState extends State<ShippingEstimate> {
         line = free
             ? 'Free shipping to $to'
             : options.length == 1
-                ? 'Shipping to $to: ${formatCents(price)}'
-                : 'Shipping to $to from ${formatCents(price)}';
+            ? 'Shipping to $to: ${formatCents(price)}'
+            : 'Shipping to $to from ${formatCents(price)}';
 
         final next = first['next_band'] as Map<String, dynamic>?;
         if (next != null) {
@@ -82,7 +82,8 @@ class _ShippingEstimateState extends State<ShippingEstimate> {
         line = 'We do not deliver to $to yet.';
         problem = true;
       case 'no_option':
-        line = 'No delivery price is set for this order. Please contact support.';
+        line =
+            'No delivery price is set for this order. Please contact support.';
         problem = true;
       default:
         return const SizedBox.shrink();
@@ -100,7 +101,9 @@ class _ShippingEstimateState extends State<ShippingEstimate> {
           Row(
             children: [
               Icon(
-                problem ? Icons.error_outline_rounded : Icons.local_shipping_outlined,
+                problem
+                    ? Icons.error_outline_rounded
+                    : Icons.local_shipping_outlined,
                 size: 16,
                 color: problem ? theme.colorScheme.error : goldColor,
               ),

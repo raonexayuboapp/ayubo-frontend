@@ -1453,6 +1453,1374 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Explore In-Store Collection'**
   String get exploreStoreCollection;
+
+  /// No description provided for @adminConsole.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin Console'**
+  String get adminConsole;
+
+  /// No description provided for @adminStoreOps.
+  ///
+  /// In en, this message translates to:
+  /// **'Store Operations & Catalog'**
+  String get adminStoreOps;
+
+  /// No description provided for @adminUsers.
+  ///
+  /// In en, this message translates to:
+  /// **'Users'**
+  String get adminUsers;
+
+  /// No description provided for @adminProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'Products'**
+  String get adminProducts;
+
+  /// No description provided for @adminCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'Categories'**
+  String get adminCategories;
+
+  /// No description provided for @adminTaxRates.
+  ///
+  /// In en, this message translates to:
+  /// **'Tax rates'**
+  String get adminTaxRates;
+
+  /// No description provided for @adminMembershipPlans.
+  ///
+  /// In en, this message translates to:
+  /// **'Membership plans'**
+  String get adminMembershipPlans;
+
+  /// No description provided for @adminShipping.
+  ///
+  /// In en, this message translates to:
+  /// **'Shipping'**
+  String get adminShipping;
+
+  /// No description provided for @adminVouchers.
+  ///
+  /// In en, this message translates to:
+  /// **'Vouchers'**
+  String get adminVouchers;
+
+  /// No description provided for @adminOrders.
+  ///
+  /// In en, this message translates to:
+  /// **'Orders'**
+  String get adminOrders;
+
+  /// No description provided for @adminActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get adminActive;
+
+  /// No description provided for @adminInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Inactive'**
+  String get adminInactive;
+
+  /// No description provided for @adminDraft.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft'**
+  String get adminDraft;
+
+  /// No description provided for @adminPublished.
+  ///
+  /// In en, this message translates to:
+  /// **'Published'**
+  String get adminPublished;
+
+  /// No description provided for @adminArchived.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived'**
+  String get adminArchived;
+
+  /// No description provided for @adminPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get adminPending;
+
+  /// No description provided for @adminProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing'**
+  String get adminProcessing;
+
+  /// No description provided for @adminShipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Shipped'**
+  String get adminShipped;
+
+  /// No description provided for @adminDelivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered'**
+  String get adminDelivered;
+
+  /// No description provided for @adminCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get adminCancelled;
+
+  /// No description provided for @adminExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get adminExpired;
+
+  /// No description provided for @adminUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Used'**
+  String get adminUsed;
+
+  /// No description provided for @adminPartiallyRedeemed.
+  ///
+  /// In en, this message translates to:
+  /// **'Partially redeemed'**
+  String get adminPartiallyRedeemed;
+
+  /// No description provided for @adminOnHold.
+  ///
+  /// In en, this message translates to:
+  /// **'On hold'**
+  String get adminOnHold;
+
+  /// No description provided for @adminUnpaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting payment'**
+  String get adminUnpaid;
+
+  /// No description provided for @adminPaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid'**
+  String get adminPaid;
+
+  /// No description provided for @adminRefunded.
+  ///
+  /// In en, this message translates to:
+  /// **'Refunded'**
+  String get adminRefunded;
+
+  /// No description provided for @adminPartiallyRefunded.
+  ///
+  /// In en, this message translates to:
+  /// **'Partly refunded'**
+  String get adminPartiallyRefunded;
+
+  /// No description provided for @adminCurrent.
+  ///
+  /// In en, this message translates to:
+  /// **'Current'**
+  String get adminCurrent;
+
+  /// No description provided for @adminEnded.
+  ///
+  /// In en, this message translates to:
+  /// **'Ended'**
+  String get adminEnded;
+
+  /// No description provided for @adminUpcoming.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming'**
+  String get adminUpcoming;
+
+  /// No description provided for @adminRoleAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin'**
+  String get adminRoleAdmin;
+
+  /// No description provided for @adminRoleCustomer.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer'**
+  String get adminRoleCustomer;
+
+  /// No description provided for @adminSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get adminSearch;
+
+  /// No description provided for @adminFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter'**
+  String get adminFilter;
+
+  /// No description provided for @adminAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get adminAll;
+
+  /// No description provided for @adminAllStatuses.
+  ///
+  /// In en, this message translates to:
+  /// **'All statuses'**
+  String get adminAllStatuses;
+
+  /// No description provided for @adminAllStates.
+  ///
+  /// In en, this message translates to:
+  /// **'All states'**
+  String get adminAllStates;
+
+  /// No description provided for @adminAllKinds.
+  ///
+  /// In en, this message translates to:
+  /// **'All kinds'**
+  String get adminAllKinds;
+
+  /// No description provided for @adminAllPayments.
+  ///
+  /// In en, this message translates to:
+  /// **'All payments'**
+  String get adminAllPayments;
+
+  /// No description provided for @adminNoActiveVariant.
+  ///
+  /// In en, this message translates to:
+  /// **'No active variant'**
+  String get adminNoActiveVariant;
+
+  /// No description provided for @adminVariants.
+  ///
+  /// In en, this message translates to:
+  /// **'variant(s)'**
+  String get adminVariants;
+
+  /// No description provided for @adminLoadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load more'**
+  String get adminLoadMore;
+
+  /// No description provided for @adminRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get adminRetry;
+
+  /// No description provided for @adminCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get adminCreate;
+
+  /// No description provided for @adminUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get adminUpdate;
+
+  /// No description provided for @adminActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Actions'**
+  String get adminActions;
+
+  /// No description provided for @adminConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get adminConfirm;
+
+  /// No description provided for @adminDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get adminDetails;
+
+  /// No description provided for @adminNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get adminNone;
+
+  /// No description provided for @adminNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available'**
+  String get adminNotAvailable;
+
+  /// No description provided for @adminSearchProductsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by name, SKU or slug...'**
+  String get adminSearchProductsHint;
+
+  /// No description provided for @adminNoProductsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No products found.'**
+  String get adminNoProductsFound;
+
+  /// No description provided for @adminNewProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'New product'**
+  String get adminNewProduct;
+
+  /// No description provided for @adminEditProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit product'**
+  String get adminEditProduct;
+
+  /// No description provided for @adminBasicInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Basic Information'**
+  String get adminBasicInfo;
+
+  /// No description provided for @adminGermanTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'German (required)'**
+  String get adminGermanTranslation;
+
+  /// No description provided for @adminEnglishTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'English (optional)'**
+  String get adminEnglishTranslation;
+
+  /// No description provided for @adminProductName.
+  ///
+  /// In en, this message translates to:
+  /// **'Product name'**
+  String get adminProductName;
+
+  /// No description provided for @adminProductDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get adminProductDescription;
+
+  /// No description provided for @adminIngredients.
+  ///
+  /// In en, this message translates to:
+  /// **'Ingredients'**
+  String get adminIngredients;
+
+  /// No description provided for @adminAllergens.
+  ///
+  /// In en, this message translates to:
+  /// **'Allergens'**
+  String get adminAllergens;
+
+  /// No description provided for @adminSlug.
+  ///
+  /// In en, this message translates to:
+  /// **'Slug'**
+  String get adminSlug;
+
+  /// No description provided for @adminProductType.
+  ///
+  /// In en, this message translates to:
+  /// **'Product type'**
+  String get adminProductType;
+
+  /// No description provided for @adminProductStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Product status'**
+  String get adminProductStatus;
+
+  /// No description provided for @adminTaxRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Tax rate'**
+  String get adminTaxRate;
+
+  /// No description provided for @adminAddVariant.
+  ///
+  /// In en, this message translates to:
+  /// **'Add variant'**
+  String get adminAddVariant;
+
+  /// No description provided for @adminSku.
+  ///
+  /// In en, this message translates to:
+  /// **'SKU'**
+  String get adminSku;
+
+  /// No description provided for @adminPriceGross.
+  ///
+  /// In en, this message translates to:
+  /// **'Price (€ gross)'**
+  String get adminPriceGross;
+
+  /// No description provided for @adminPackQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'Pack quantity'**
+  String get adminPackQuantity;
+
+  /// No description provided for @adminUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'Unit'**
+  String get adminUnit;
+
+  /// No description provided for @adminEan.
+  ///
+  /// In en, this message translates to:
+  /// **'EAN'**
+  String get adminEan;
+
+  /// No description provided for @adminDiscount.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount'**
+  String get adminDiscount;
+
+  /// No description provided for @adminDiscountNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No discount'**
+  String get adminDiscountNone;
+
+  /// No description provided for @adminDiscountPercentage.
+  ///
+  /// In en, this message translates to:
+  /// **'Percentage'**
+  String get adminDiscountPercentage;
+
+  /// No description provided for @adminDiscountFixed.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed amount'**
+  String get adminDiscountFixed;
+
+  /// No description provided for @adminDiscountValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Discount value'**
+  String get adminDiscountValue;
+
+  /// No description provided for @adminDiscountPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Discounted price preview'**
+  String get adminDiscountPreview;
+
+  /// No description provided for @adminImages.
+  ///
+  /// In en, this message translates to:
+  /// **'Images'**
+  String get adminImages;
+
+  /// No description provided for @adminStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock'**
+  String get adminStock;
+
+  /// No description provided for @adminStockOnHand.
+  ///
+  /// In en, this message translates to:
+  /// **'On hand'**
+  String get adminStockOnHand;
+
+  /// No description provided for @adminStockReserved.
+  ///
+  /// In en, this message translates to:
+  /// **'Reserved'**
+  String get adminStockReserved;
+
+  /// No description provided for @adminStockAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Available'**
+  String get adminStockAvailable;
+
+  /// No description provided for @adminManageStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Stock'**
+  String get adminManageStock;
+
+  /// No description provided for @adminSaveProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Product'**
+  String get adminSaveProduct;
+
+  /// No description provided for @adminProductSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Product saved.'**
+  String get adminProductSaved;
+
+  /// No description provided for @adminMembershipsManagedUnder.
+  ///
+  /// In en, this message translates to:
+  /// **'Memberships are managed under Admin > Membership plans.'**
+  String get adminMembershipsManagedUnder;
+
+  /// No description provided for @adminNoCategoriesYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No categories yet.'**
+  String get adminNoCategoriesYet;
+
+  /// No description provided for @adminNewCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'New category'**
+  String get adminNewCategory;
+
+  /// No description provided for @adminEditCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit category'**
+  String get adminEditCategory;
+
+  /// No description provided for @adminCategoryName.
+  ///
+  /// In en, this message translates to:
+  /// **'Category name'**
+  String get adminCategoryName;
+
+  /// No description provided for @adminCategoryDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description'**
+  String get adminCategoryDescription;
+
+  /// No description provided for @adminParentCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Parent category'**
+  String get adminParentCategory;
+
+  /// No description provided for @adminNoParent.
+  ///
+  /// In en, this message translates to:
+  /// **'None (top level)'**
+  String get adminNoParent;
+
+  /// No description provided for @adminSortOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort order'**
+  String get adminSortOrder;
+
+  /// No description provided for @adminDeleteCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete category?'**
+  String get adminDeleteCategory;
+
+  /// No description provided for @adminDeleteCategoryConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'will be removed. This cannot be undone.'**
+  String get adminDeleteCategoryConfirm;
+
+  /// No description provided for @adminCategoryDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Category deleted.'**
+  String get adminCategoryDeleted;
+
+  /// No description provided for @adminSubCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'sub-categories'**
+  String get adminSubCategories;
+
+  /// No description provided for @adminProductsInCat.
+  ///
+  /// In en, this message translates to:
+  /// **'products'**
+  String get adminProductsInCat;
+
+  /// No description provided for @adminSaveCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Category'**
+  String get adminSaveCategory;
+
+  /// No description provided for @adminNoPlansYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No membership plans yet.'**
+  String get adminNoPlansYet;
+
+  /// No description provided for @adminNewPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'New plan'**
+  String get adminNewPlan;
+
+  /// No description provided for @adminEditPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit plan'**
+  String get adminEditPlan;
+
+  /// No description provided for @adminPlanCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan code'**
+  String get adminPlanCode;
+
+  /// No description provided for @adminPlanPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Price (€ gross)'**
+  String get adminPlanPrice;
+
+  /// No description provided for @adminMemberCount.
+  ///
+  /// In en, this message translates to:
+  /// **'members'**
+  String get adminMemberCount;
+
+  /// No description provided for @adminActivatePlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Activate plan?'**
+  String get adminActivatePlan;
+
+  /// No description provided for @adminDeactivatePlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Deactivate plan?'**
+  String get adminDeactivatePlan;
+
+  /// No description provided for @adminActivatePlanConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'will be available to buy again.'**
+  String get adminActivatePlanConfirm;
+
+  /// No description provided for @adminDeactivatePlanConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'can no longer be bought.'**
+  String get adminDeactivatePlanConfirm;
+
+  /// No description provided for @adminBenefits.
+  ///
+  /// In en, this message translates to:
+  /// **'Benefits'**
+  String get adminBenefits;
+
+  /// No description provided for @adminShoppingCredit.
+  ///
+  /// In en, this message translates to:
+  /// **'shopping credit'**
+  String get adminShoppingCredit;
+
+  /// No description provided for @adminStoreDiscount.
+  ///
+  /// In en, this message translates to:
+  /// **'discount on all products'**
+  String get adminStoreDiscount;
+
+  /// No description provided for @adminCustomPerk.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom perk'**
+  String get adminCustomPerk;
+
+  /// No description provided for @adminAddBenefit.
+  ///
+  /// In en, this message translates to:
+  /// **'Add benefit'**
+  String get adminAddBenefit;
+
+  /// No description provided for @adminSavePlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Plan'**
+  String get adminSavePlan;
+
+  /// No description provided for @adminNoBenefits.
+  ///
+  /// In en, this message translates to:
+  /// **'No benefits'**
+  String get adminNoBenefits;
+
+  /// No description provided for @adminSearchVouchersHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by code, order # or email...'**
+  String get adminSearchVouchersHint;
+
+  /// No description provided for @adminIssueVouchers.
+  ///
+  /// In en, this message translates to:
+  /// **'Issue Vouchers'**
+  String get adminIssueVouchers;
+
+  /// No description provided for @adminVoucherAmounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Voucher Amounts'**
+  String get adminVoucherAmounts;
+
+  /// No description provided for @adminVoucherSuffix.
+  ///
+  /// In en, this message translates to:
+  /// **'Suffix'**
+  String get adminVoucherSuffix;
+
+  /// No description provided for @adminBalance.
+  ///
+  /// In en, this message translates to:
+  /// **'Balance'**
+  String get adminBalance;
+
+  /// No description provided for @adminOriginalValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Original value'**
+  String get adminOriginalValue;
+
+  /// No description provided for @adminOwner.
+  ///
+  /// In en, this message translates to:
+  /// **'Owner'**
+  String get adminOwner;
+
+  /// No description provided for @adminOrderNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Order #'**
+  String get adminOrderNumber;
+
+  /// No description provided for @adminExpires.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires'**
+  String get adminExpires;
+
+  /// No description provided for @adminNeverExpires.
+  ///
+  /// In en, this message translates to:
+  /// **'Never expires'**
+  String get adminNeverExpires;
+
+  /// No description provided for @adminChangeExpiry.
+  ///
+  /// In en, this message translates to:
+  /// **'Change expiry...'**
+  String get adminChangeExpiry;
+
+  /// No description provided for @adminRemoveExpiry.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove expiry'**
+  String get adminRemoveExpiry;
+
+  /// No description provided for @adminAssignOwner.
+  ///
+  /// In en, this message translates to:
+  /// **'Assign owner...'**
+  String get adminAssignOwner;
+
+  /// No description provided for @adminCancelVoucher.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel voucher'**
+  String get adminCancelVoucher;
+
+  /// No description provided for @adminCancelVoucherConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel this voucher? The remaining balance will be lost.'**
+  String get adminCancelVoucherConfirm;
+
+  /// No description provided for @adminVoucherHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Voucher History'**
+  String get adminVoucherHistory;
+
+  /// No description provided for @adminIssueQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'Quantity (1-100)'**
+  String get adminIssueQuantity;
+
+  /// No description provided for @adminCustomerEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer email'**
+  String get adminCustomerEmail;
+
+  /// No description provided for @adminStaffNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Internal note (optional)'**
+  String get adminStaffNote;
+
+  /// No description provided for @adminExpiryOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Expiry date'**
+  String get adminExpiryOption;
+
+  /// No description provided for @adminExpiryDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default (3 years)'**
+  String get adminExpiryDefault;
+
+  /// No description provided for @adminExpirySpecific.
+  ///
+  /// In en, this message translates to:
+  /// **'Specific date'**
+  String get adminExpirySpecific;
+
+  /// No description provided for @adminExpiryNever.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get adminExpiryNever;
+
+  /// No description provided for @adminNewAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'New Voucher Amount'**
+  String get adminNewAmount;
+
+  /// No description provided for @adminAmountValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount (€)'**
+  String get adminAmountValue;
+
+  /// No description provided for @adminNameGerman.
+  ///
+  /// In en, this message translates to:
+  /// **'German Name'**
+  String get adminNameGerman;
+
+  /// No description provided for @adminNameEnglish.
+  ///
+  /// In en, this message translates to:
+  /// **'English Name'**
+  String get adminNameEnglish;
+
+  /// No description provided for @adminOnSale.
+  ///
+  /// In en, this message translates to:
+  /// **'On Sale'**
+  String get adminOnSale;
+
+  /// No description provided for @adminSold.
+  ///
+  /// In en, this message translates to:
+  /// **'Sold'**
+  String get adminSold;
+
+  /// No description provided for @adminAddVoucherAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Voucher Amount'**
+  String get adminAddVoucherAmount;
+
+  /// No description provided for @adminSearchOrdersHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by order #, name or email...'**
+  String get adminSearchOrdersHint;
+
+  /// No description provided for @adminNoOrdersFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No orders found.'**
+  String get adminNoOrdersFound;
+
+  /// No description provided for @adminOrderItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Items'**
+  String get adminOrderItems;
+
+  /// No description provided for @adminCustomerDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Customer Details'**
+  String get adminCustomerDetails;
+
+  /// No description provided for @adminOrderSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Order Summary'**
+  String get adminOrderSummary;
+
+  /// No description provided for @adminPayments.
+  ///
+  /// In en, this message translates to:
+  /// **'Payments'**
+  String get adminPayments;
+
+  /// No description provided for @adminShipments.
+  ///
+  /// In en, this message translates to:
+  /// **'Shipments & Parcels'**
+  String get adminShipments;
+
+  /// No description provided for @adminAddShipment.
+  ///
+  /// In en, this message translates to:
+  /// **'Add shipment...'**
+  String get adminAddShipment;
+
+  /// No description provided for @adminCarrier.
+  ///
+  /// In en, this message translates to:
+  /// **'Carrier'**
+  String get adminCarrier;
+
+  /// No description provided for @adminTrackingNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracking number'**
+  String get adminTrackingNumber;
+
+  /// No description provided for @adminOrderNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Order Notes'**
+  String get adminOrderNotes;
+
+  /// No description provided for @adminAddNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Add note...'**
+  String get adminAddNote;
+
+  /// No description provided for @adminMarkPaid.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as paid...'**
+  String get adminMarkPaid;
+
+  /// No description provided for @adminAdvanceToProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'Advance to processing'**
+  String get adminAdvanceToProcessing;
+
+  /// No description provided for @adminAdvanceToDelivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark as delivered'**
+  String get adminAdvanceToDelivered;
+
+  /// No description provided for @adminRefundOrder.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund order...'**
+  String get adminRefundOrder;
+
+  /// No description provided for @adminFullRefund.
+  ///
+  /// In en, this message translates to:
+  /// **'Full refund'**
+  String get adminFullRefund;
+
+  /// No description provided for @adminPartialRefund.
+  ///
+  /// In en, this message translates to:
+  /// **'Partial refund'**
+  String get adminPartialRefund;
+
+  /// No description provided for @adminRefundAmount.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund amount (€)'**
+  String get adminRefundAmount;
+
+  /// No description provided for @adminRefundReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason (optional)'**
+  String get adminRefundReason;
+
+  /// No description provided for @adminRestockItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Restock returned items'**
+  String get adminRestockItems;
+
+  /// No description provided for @adminResendVouchers.
+  ///
+  /// In en, this message translates to:
+  /// **'Resend digital vouchers'**
+  String get adminResendVouchers;
+
+  /// No description provided for @adminNoShipmentsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No shipments added yet.'**
+  String get adminNoShipmentsYet;
+
+  /// No description provided for @adminNoNotesYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No notes added yet.'**
+  String get adminNoNotesYet;
+
+  /// No description provided for @adminNoPaymentsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No payments recorded yet.'**
+  String get adminNoPaymentsYet;
+
+  /// No description provided for @adminSearchUsersHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search by name or email...'**
+  String get adminSearchUsersHint;
+
+  /// No description provided for @adminNoUsersFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No users found.'**
+  String get adminNoUsersFound;
+
+  /// No description provided for @adminUserDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'User Details'**
+  String get adminUserDetails;
+
+  /// No description provided for @adminAccountStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Account status'**
+  String get adminAccountStatus;
+
+  /// No description provided for @adminAccountEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get adminAccountEnabled;
+
+  /// No description provided for @adminAccountDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get adminAccountDisabled;
+
+  /// No description provided for @adminEmailVerified.
+  ///
+  /// In en, this message translates to:
+  /// **'Email verified'**
+  String get adminEmailVerified;
+
+  /// No description provided for @adminEmailUnverified.
+  ///
+  /// In en, this message translates to:
+  /// **'Email unverified'**
+  String get adminEmailUnverified;
+
+  /// No description provided for @adminRegisteredOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Registered on'**
+  String get adminRegisteredOn;
+
+  /// No description provided for @adminChangeRole.
+  ///
+  /// In en, this message translates to:
+  /// **'Change role'**
+  String get adminChangeRole;
+
+  /// No description provided for @adminDisableAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable account'**
+  String get adminDisableAccount;
+
+  /// No description provided for @adminEnableAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable account'**
+  String get adminEnableAccount;
+
+  /// No description provided for @adminMembership.
+  ///
+  /// In en, this message translates to:
+  /// **'Membership'**
+  String get adminMembership;
+
+  /// No description provided for @adminMemberNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Member number'**
+  String get adminMemberNumber;
+
+  /// No description provided for @adminPauseMembership.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause membership'**
+  String get adminPauseMembership;
+
+  /// No description provided for @adminResumeMembership.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume membership'**
+  String get adminResumeMembership;
+
+  /// No description provided for @adminCancelMembership.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel membership'**
+  String get adminCancelMembership;
+
+  /// No description provided for @adminJoinedOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Joined on'**
+  String get adminJoinedOn;
+
+  /// No description provided for @adminExpiresOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Expires on'**
+  String get adminExpiresOn;
+
+  /// No description provided for @adminAvailableCredit.
+  ///
+  /// In en, this message translates to:
+  /// **'Available Credit'**
+  String get adminAvailableCredit;
+
+  /// No description provided for @adminShippingMethods.
+  ///
+  /// In en, this message translates to:
+  /// **'Shipping Methods'**
+  String get adminShippingMethods;
+
+  /// No description provided for @adminNewShippingMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'New shipping method'**
+  String get adminNewShippingMethod;
+
+  /// No description provided for @adminEditShippingMethod.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit shipping method'**
+  String get adminEditShippingMethod;
+
+  /// No description provided for @adminMethodName.
+  ///
+  /// In en, this message translates to:
+  /// **'Method name'**
+  String get adminMethodName;
+
+  /// No description provided for @adminRates.
+  ///
+  /// In en, this message translates to:
+  /// **'Rates'**
+  String get adminRates;
+
+  /// No description provided for @adminAddRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Add rate'**
+  String get adminAddRate;
+
+  /// No description provided for @adminEditRate.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit rate'**
+  String get adminEditRate;
+
+  /// No description provided for @adminCountry.
+  ///
+  /// In en, this message translates to:
+  /// **'Country'**
+  String get adminCountry;
+
+  /// No description provided for @adminOrderValueRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Order value range'**
+  String get adminOrderValueRange;
+
+  /// No description provided for @adminShippingFee.
+  ///
+  /// In en, this message translates to:
+  /// **'Shipping fee (€)'**
+  String get adminShippingFee;
+
+  /// No description provided for @adminAnyOrderValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Any order value'**
+  String get adminAnyOrderValue;
+
+  /// No description provided for @adminNewTaxRate.
+  ///
+  /// In en, this message translates to:
+  /// **'New tax rate'**
+  String get adminNewTaxRate;
+
+  /// No description provided for @adminTaxCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Tax code'**
+  String get adminTaxCode;
+
+  /// No description provided for @adminRatePercent.
+  ///
+  /// In en, this message translates to:
+  /// **'Rate (%)'**
+  String get adminRatePercent;
+
+  /// No description provided for @adminValidFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Valid from'**
+  String get adminValidFrom;
+
+  /// No description provided for @adminValidTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Valid to'**
+  String get adminValidTo;
+
+  /// No description provided for @adminSetEndDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Set end date...'**
+  String get adminSetEndDate;
+
+  /// No description provided for @adminStockMovements.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock Movements'**
+  String get adminStockMovements;
+
+  /// No description provided for @adminStockLocations.
+  ///
+  /// In en, this message translates to:
+  /// **'Locations'**
+  String get adminStockLocations;
+
+  /// No description provided for @adminReceiveGoods.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive goods'**
+  String get adminReceiveGoods;
+
+  /// No description provided for @adminAdjustStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust stock'**
+  String get adminAdjustStock;
+
+  /// No description provided for @adminStocktake.
+  ///
+  /// In en, this message translates to:
+  /// **'Stocktake'**
+  String get adminStocktake;
+
+  /// No description provided for @adminNewLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'New location'**
+  String get adminNewLocation;
+
+  /// No description provided for @adminLocationName.
+  ///
+  /// In en, this message translates to:
+  /// **'Location name'**
+  String get adminLocationName;
+
+  /// No description provided for @adminMovementReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason'**
+  String get adminMovementReason;
+
+  /// No description provided for @adminReasonReceipt.
+  ///
+  /// In en, this message translates to:
+  /// **'Goods received'**
+  String get adminReasonReceipt;
+
+  /// No description provided for @adminReasonAdjustment.
+  ///
+  /// In en, this message translates to:
+  /// **'Adjustment'**
+  String get adminReasonAdjustment;
+
+  /// No description provided for @adminReasonStocktake.
+  ///
+  /// In en, this message translates to:
+  /// **'Stocktake'**
+  String get adminReasonStocktake;
+
+  /// No description provided for @adminReasonSale.
+  ///
+  /// In en, this message translates to:
+  /// **'Sale'**
+  String get adminReasonSale;
+
+  /// No description provided for @adminDescribeImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe the image'**
+  String get adminDescribeImage;
+
+  /// No description provided for @adminAltTextLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Alt text (optional)'**
+  String get adminAltTextLabel;
+
+  /// No description provided for @adminAltTextHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Read aloud by screen readers and shown if the image cannot load.'**
+  String get adminAltTextHelper;
+
+  /// No description provided for @adminUpload.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload'**
+  String get adminUpload;
+
+  /// No description provided for @adminImageTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'This image is larger than 5 MB. Choose a smaller one.'**
+  String get adminImageTooLarge;
+
+  /// No description provided for @adminMakeMain.
+  ///
+  /// In en, this message translates to:
+  /// **'Make main'**
+  String get adminMakeMain;
 }
 
 class _AppLocalizationsDelegate

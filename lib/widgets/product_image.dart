@@ -39,7 +39,8 @@ class ProductImage extends StatelessWidget {
           child: child,
         );
       },
-      loadingBuilder: (_, child, progress) => progress == null ? child : placeholder,
+      loadingBuilder: (_, child, progress) =>
+          progress == null ? child : placeholder,
     );
   }
 }

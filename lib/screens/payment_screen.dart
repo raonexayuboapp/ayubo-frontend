@@ -37,19 +37,25 @@ class _PaymentScreenState extends State<PaymentScreen> {
       _error = null;
     });
     try {
-      final data = await ApiService.instance.payOrder(widget.order['id'] as int);
+      final data = await ApiService.instance.payOrder(
+        widget.order['id'] as int,
+      );
       if (!mounted) return;
 
       // Check if backend processed immediate payment (e.g. DevGateway simulation or 0-cost payment)
       final action = data['action'] as PaymentData?;
       final payment = data['payment'] as PaymentData?;
-      final isPaid = action?['type'] == 'paid' || payment?['status'] == 'succeeded';
+      final isPaid =
+          action?['type'] == 'paid' || payment?['status'] == 'succeeded';
 
       if (isPaid) {
-        Map<String, dynamic>? resolvedOrder = data['order'] as Map<String, dynamic>?;
+        Map<String, dynamic>? resolvedOrder =
+            data['order'] as Map<String, dynamic>?;
         if (resolvedOrder == null) {
           try {
-            resolvedOrder = await ApiService.instance.getOrder(widget.order['id'] as int);
+            resolvedOrder = await ApiService.instance.getOrder(
+              widget.order['id'] as int,
+            );
           } catch (_) {}
         }
         if (!mounted) return;
@@ -69,9 +75,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
       if (!mounted) return;
 
       // If the order is already paid, fetch the latest order state and show success
-      if (e.statusCode == 409 && e.message.toLowerCase().contains('already paid')) {
+      if (e.statusCode == 409 &&
+          e.message.toLowerCase().contains('already paid')) {
         try {
-          final updated = await ApiService.instance.getOrder(widget.order['id'] as int);
+          final updated = await ApiService.instance.getOrder(
+            widget.order['id'] as int,
+          );
           if (!mounted) return;
           setState(() {
             _paidOrder = updated;
@@ -104,7 +113,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
       _error = null;
     });
     try {
-      final order = await ApiService.instance.devPayment(action[pathKey] as String);
+      final order = await ApiService.instance.devPayment(
+        action[pathKey] as String,
+      );
       if (!mounted) return;
 
       if (succeeds) {
@@ -134,8 +145,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final order = _paidOrder ?? widget.order;
     final orderNumber = (order['number'] as String?) ?? '${order['id']}';
     final orderId = (order['id'] as num).toInt();
-    final total = ((order['totals'] as Map<String, dynamic>?)?['total_cents'] as num?)?.toInt() ??
-        ((widget.order['totals'] as Map<String, dynamic>?)?['total_cents'] as num?)?.toInt() ??
+    final total =
+        ((order['totals'] as Map<String, dynamic>?)?['total_cents'] as num?)
+            ?.toInt() ??
+        ((widget.order['totals'] as Map<String, dynamic>?)?['total_cents']
+                as num?)
+            ?.toInt() ??
         0;
 
     return Center(
@@ -150,14 +165,20 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 color: Colors.green.shade600.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.check_circle_outline_rounded, size: 64, color: Colors.green.shade600),
+              child: Icon(
+                Icons.check_circle_outline_rounded,
+                size: 64,
+                color: Colors.green.shade600,
+              ),
             ),
           ),
           const SizedBox(height: 24),
           Text(
             'Payment Successful!',
             textAlign: TextAlign.center,
-            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
@@ -195,10 +216,15 @@ class _PaymentScreenState extends State<PaymentScreen> {
               foregroundColor: goldColor,
               padding: const EdgeInsets.symmetric(vertical: 14),
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             icon: const Icon(Icons.download_outlined, size: 20),
-            label: const Text('Download Receipt (PDF)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            label: const Text(
+              'Download Receipt (PDF)',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
           ),
           const SizedBox(height: 12),
           OutlinedButton(
@@ -207,9 +233,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
               foregroundColor: goldColor,
               side: BorderSide(color: goldColor),
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
-            child: const Text('View Order Details', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'View Order Details',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -221,7 +252,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final goldColor = theme.colorScheme.secondary;
 
     if (_loading) {
-      return Center(child: CircularProgressIndicator(color: goldColor, strokeWidth: 2));
+      return Center(
+        child: CircularProgressIndicator(color: goldColor, strokeWidth: 2),
+      );
     }
 
     if (_error != null && _data == null) {
@@ -231,9 +264,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
+              Icon(
+                Icons.error_outline,
+                size: 40,
+                color: theme.colorScheme.error,
+              ),
               const SizedBox(height: 12),
-              Text(_error!, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium,
+              ),
               const SizedBox(height: 16),
               TextButton.icon(
                 onPressed: _start,
@@ -250,7 +291,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final payment = _data!['payment'] as PaymentData;
     final action = _data!['action'] as PaymentData;
     final amount = (payment['amount_cents'] as num).toInt();
-    final orderTotal = ((widget.order['totals'] as Map<String, dynamic>)['total_cents'] as num).toInt();
+    final orderTotal =
+        ((widget.order['totals'] as Map<String, dynamic>)['total_cents'] as num)
+            .toInt();
 
     return ListView(
       padding: const EdgeInsets.all(24),
@@ -284,7 +327,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.3,
+              ),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: goldColor.withValues(alpha: 0.3)),
             ),
@@ -305,26 +350,47 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: _busy ? null : () => _dev('confirm_path', succeeds: true),
+            onPressed: _busy
+                ? null
+                : () => _dev('confirm_path', succeeds: true),
             style: ElevatedButton.styleFrom(
               backgroundColor: theme.colorScheme.primary,
               foregroundColor: goldColor,
               padding: const EdgeInsets.symmetric(vertical: 14),
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             child: _busy
-                ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: goldColor))
-                : Text('Pay ${formatCents(amount)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ? SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: goldColor,
+                    ),
+                  )
+                : Text(
+                    'Pay ${formatCents(amount)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
           ),
           const SizedBox(height: 10),
           OutlinedButton(
             onPressed: _busy ? null : () => _dev('fail_path', succeeds: false),
             style: OutlinedButton.styleFrom(
               foregroundColor: theme.colorScheme.error,
-              side: BorderSide(color: theme.colorScheme.error.withValues(alpha: 0.5)),
+              side: BorderSide(
+                color: theme.colorScheme.error.withValues(alpha: 0.5),
+              ),
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
             child: const Text('Simulate a failed payment'),
           ),

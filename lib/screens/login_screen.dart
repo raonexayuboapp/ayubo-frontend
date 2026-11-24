@@ -15,10 +15,7 @@ import 'verify_screen.dart';
 class LoginScreen extends StatefulWidget {
   final bool returnUserOnSuccess;
 
-  const LoginScreen({
-    super.key,
-    this.returnUserOnSuccess = false,
-  });
+  const LoginScreen({super.key, this.returnUserOnSuccess = false});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -58,7 +55,8 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } on ApiException catch (e) {
       if (!mounted) return;
-      if (e.statusCode == 403 && e.message == 'Email address is not verified.') {
+      if (e.statusCode == 403 &&
+          e.message == 'Email address is not verified.') {
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -82,9 +80,8 @@ class _LoginScreenState extends State<LoginScreen> {
     final user = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
-        builder: (_) => RegisterScreen(
-          returnUserOnSuccess: widget.returnUserOnSuccess,
-        ),
+        builder: (_) =>
+            RegisterScreen(returnUserOnSuccess: widget.returnUserOnSuccess),
       ),
     );
     if (!mounted || user == null) return;
@@ -108,10 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
               backgroundColor: Colors.transparent,
               elevation: 0,
               leading: IconButton(
-                icon: Icon(
-                  Icons.arrow_back_rounded,
-                  color: scheme.onSurface,
-                ),
+                icon: Icon(Icons.arrow_back_rounded, color: scheme.onSurface),
                 tooltip: 'Back',
                 onPressed: () => Navigator.pop(context),
               ),
@@ -128,7 +122,9 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 320,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppTheme.primaryGreen.withValues(alpha: isDark ? 0.2 : 0.08),
+                color: AppTheme.primaryGreen.withValues(
+                  alpha: isDark ? 0.2 : 0.08,
+                ),
               ),
             ),
           ),
@@ -140,7 +136,9 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 340,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppTheme.brandGold.withValues(alpha: isDark ? 0.12 : 0.07),
+                color: AppTheme.brandGold.withValues(
+                  alpha: isDark ? 0.12 : 0.07,
+                ),
               ),
             ),
           ),
@@ -149,7 +147,10 @@ class _LoginScreenState extends State<LoginScreen> {
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 32,
+                ),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 440),
                   child: Column(
@@ -158,52 +159,68 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       // Gold Logo Branding Container
                       Center(
-                        child: Container(
-                          padding: const EdgeInsets.all(22),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isDark ? AppTheme.surfaceDark : Colors.white,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppTheme.brandGold.withValues(alpha: 0.35),
-                                blurRadius: 36,
-                                spreadRadius: 4,
-                              ),
-                              BoxShadow(
-                                color: AppTheme.primaryGreen.withValues(alpha: 0.12),
-                                blurRadius: 18,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                            border: Border.all(
-                              color: AppTheme.brandGold.withValues(alpha: 0.7),
-                              width: 2,
-                            ),
-                          ),
-                          child: Image.asset(
-                            'assets/images/Ayubo_logo.png',
-                            width: 95,
-                            height: 95,
-                            fit: BoxFit.contain,
-                          ),
-                        ).animate().fadeIn(duration: 600.ms).scale(
-                              begin: const Offset(0.8, 0.8),
-                              end: const Offset(1.0, 1.0),
-                              curve: Curves.easeOutBack,
-                            ),
+                        child:
+                            Container(
+                                  padding: const EdgeInsets.all(22),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isDark
+                                        ? AppTheme.surfaceDark
+                                        : Colors.white,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppTheme.brandGold.withValues(
+                                          alpha: 0.35,
+                                        ),
+                                        blurRadius: 36,
+                                        spreadRadius: 4,
+                                      ),
+                                      BoxShadow(
+                                        color: AppTheme.primaryGreen.withValues(
+                                          alpha: 0.12,
+                                        ),
+                                        blurRadius: 18,
+                                        spreadRadius: 2,
+                                      ),
+                                    ],
+                                    border: Border.all(
+                                      color: AppTheme.brandGold.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: Image.asset(
+                                    'assets/images/Ayubo_logo.png',
+                                    width: 95,
+                                    height: 95,
+                                    fit: BoxFit.contain,
+                                  ),
+                                )
+                                .animate()
+                                .fadeIn(duration: 600.ms)
+                                .scale(
+                                  begin: const Offset(0.8, 0.8),
+                                  end: const Offset(1.0, 1.0),
+                                  curve: Curves.easeOutBack,
+                                ),
                       ),
                       const SizedBox(height: 24),
 
                       // Welcome Text
                       Text(
-                        'Welcome Back',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: scheme.onSurface,
-                              letterSpacing: -0.5,
-                            ),
-                      ).animate().fadeIn(delay: 150.ms).slideY(begin: 0.2, end: 0),
+                            'Welcome Back',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.headlineMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: scheme.onSurface,
+                                  letterSpacing: -0.5,
+                                ),
+                          )
+                          .animate()
+                          .fadeIn(delay: 150.ms)
+                          .slideY(begin: 0.2, end: 0),
 
                       const SizedBox(height: 6),
 
@@ -220,149 +237,184 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       // Input Form Card
                       Card(
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          side: BorderSide(
-                            color: isDark ? AppTheme.borderDark : AppTheme.borderLight,
-                            width: 1,
-                          ),
-                        ),
-                        color: isDark ? AppTheme.surfaceDark : Colors.white,
-                        child: Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: Form(
-                            key: _form,
-                            child: AutofillGroup(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  // Email Field
-                                  TextFormField(
-                                    controller: _email,
-                                    keyboardType: TextInputType.emailAddress,
-                                    textInputAction: TextInputAction.next,
-                                    autocorrect: false,
-                                    autofillHints: const [AutofillHints.email],
-                                    autovalidateMode: AutovalidateMode.onUserInteraction,
-                                    validator: Validators.email,
-                                    style: TextStyle(color: scheme.onSurface),
-                                    decoration: InputDecoration(
-                                      labelText: 'Email Address',
-                                      hintText: 'name@example.com',
-                                      prefixIcon: const Icon(
-                                        Icons.email_outlined,
-                                        color: AppTheme.primaryGreen,
-                                        size: 20,
-                                      ),
-                                      filled: true,
-                                      fillColor: isDark
-                                          ? AppTheme.bgDark.withValues(alpha: 0.5)
-                                          : AppTheme.bgLight,
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                        borderSide: BorderSide.none,
-                                      ),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                        borderSide: BorderSide(
-                                          color: scheme.outline.withValues(alpha: 0.15),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              side: BorderSide(
+                                color: isDark
+                                    ? AppTheme.borderDark
+                                    : AppTheme.borderLight,
+                                width: 1,
+                              ),
+                            ),
+                            color: isDark ? AppTheme.surfaceDark : Colors.white,
+                            child: Padding(
+                              padding: const EdgeInsets.all(24.0),
+                              child: Form(
+                                key: _form,
+                                child: AutofillGroup(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      // Email Field
+                                      TextFormField(
+                                        controller: _email,
+                                        keyboardType:
+                                            TextInputType.emailAddress,
+                                        textInputAction: TextInputAction.next,
+                                        autocorrect: false,
+                                        autofillHints: const [
+                                          AutofillHints.email,
+                                        ],
+                                        autovalidateMode:
+                                            AutovalidateMode.onUserInteraction,
+                                        validator: Validators.email,
+                                        style: TextStyle(
+                                          color: scheme.onSurface,
                                         ),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                        borderSide: const BorderSide(
-                                          color: AppTheme.primaryGreen,
-                                          width: 1.5,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 18),
-
-                                  // Password Field
-                                  PasswordField(
-                                    controller: _password,
-                                    label: 'Password',
-                                    action: TextInputAction.done,
-                                    onSubmitted: (_) => _submit(),
-                                    validator: (v) => Validators.required(v, 'Password'),
-                                  ),
-
-                                  // Forgot Password
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: TextButton(
-                                      onPressed: () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => ForgotPasswordScreen(
-                                            initialEmail: _email.text.trim(),
+                                        decoration: InputDecoration(
+                                          labelText: 'Email Address',
+                                          hintText: 'name@example.com',
+                                          prefixIcon: const Icon(
+                                            Icons.email_outlined,
+                                            color: AppTheme.primaryGreen,
+                                            size: 20,
                                           ),
-                                        ),
-                                      ),
-                                      style: TextButton.styleFrom(
-                                        foregroundColor: AppTheme.brandGoldDark,
-                                        visualDensity: VisualDensity.compact,
-                                      ),
-                                      child: const Text(
-                                        'Forgot password?',
-                                        style: TextStyle(fontWeight: FontWeight.w600),
-                                      ),
-                                    ),
-                                  ),
-
-                                  if (_error != null) ...[
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 14,
-                                        vertical: 10,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: scheme.error.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
-                                          color: scheme.error.withValues(alpha: 0.3),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.error_outline_rounded,
-                                            size: 18,
-                                            color: scheme.error,
+                                          filled: true,
+                                          fillColor: isDark
+                                              ? AppTheme.bgDark.withValues(
+                                                  alpha: 0.5,
+                                                )
+                                              : AppTheme.bgLight,
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                            borderSide: BorderSide.none,
                                           ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              _error!,
-                                              style: TextStyle(
-                                                color: scheme.error,
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w500,
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                            borderSide: BorderSide(
+                                              color: scheme.outline.withValues(
+                                                alpha: 0.15,
                                               ),
                                             ),
                                           ),
-                                        ],
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                            borderSide: const BorderSide(
+                                              color: AppTheme.primaryGreen,
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                  ],
+                                      const SizedBox(height: 18),
 
-                                  const SizedBox(height: 8),
+                                      // Password Field
+                                      PasswordField(
+                                        controller: _password,
+                                        label: 'Password',
+                                        action: TextInputAction.done,
+                                        onSubmitted: (_) => _submit(),
+                                        validator: (v) =>
+                                            Validators.required(v, 'Password'),
+                                      ),
 
-                                  // Login Button
-                                  LoadingButton(
-                                    label: 'Log In',
-                                    loading: _loading,
-                                    onPressed: _submit,
+                                      // Forgot Password
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: TextButton(
+                                          onPressed: () => Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  ForgotPasswordScreen(
+                                                    initialEmail: _email.text
+                                                        .trim(),
+                                                  ),
+                                            ),
+                                          ),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor:
+                                                AppTheme.brandGoldDark,
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                          ),
+                                          child: const Text(
+                                            'Forgot password?',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+
+                                      if (_error != null) ...[
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 10,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: scheme.error.withValues(
+                                              alpha: 0.1,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            border: Border.all(
+                                              color: scheme.error.withValues(
+                                                alpha: 0.3,
+                                              ),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.error_outline_rounded,
+                                                size: 18,
+                                                color: scheme.error,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  _error!,
+                                                  style: TextStyle(
+                                                    color: scheme.error,
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                      ],
+
+                                      const SizedBox(height: 8),
+
+                                      // Login Button
+                                      LoadingButton(
+                                        label: 'Log In',
+                                        loading: _loading,
+                                        onPressed: _submit,
+                                      ),
+                                    ],
                                   ),
-                                ],
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                      ).animate().fadeIn(delay: 350.ms).slideY(begin: 0.1, end: 0),
+                          )
+                          .animate()
+                          .fadeIn(delay: 350.ms)
+                          .slideY(begin: 0.1, end: 0),
 
                       const SizedBox(height: 24),
 
@@ -397,11 +449,17 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 12),
                         Center(
                           child: TextButton.icon(
-                            onPressed: () => goTo(context, const HomeScreen(user: null)),
-                            icon: const Icon(Icons.storefront_outlined, size: 18),
+                            onPressed: () =>
+                                goTo(context, const HomeScreen(user: null)),
+                            icon: const Icon(
+                              Icons.storefront_outlined,
+                              size: 18,
+                            ),
                             label: const Text('Continue browsing as guest'),
                             style: TextButton.styleFrom(
-                              foregroundColor: scheme.onSurface.withValues(alpha: 0.65),
+                              foregroundColor: scheme.onSurface.withValues(
+                                alpha: 0.65,
+                              ),
                             ),
                           ),
                         ),

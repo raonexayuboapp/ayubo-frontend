@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../utils/address_text.dart';
 import '../utils/dates.dart';
@@ -504,6 +505,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
 
   Widget _actions() {
     final hasVouchers = _list(_a, 'vouchers').isNotEmpty && _pay == 'paid';
+    final l10n = AppLocalizations.of(context);
 
     return Wrap(
       spacing: 8,
@@ -519,21 +521,21 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                   admin: true,
                 ),
           icon: const Icon(Icons.download_outlined),
-          label: const Text('Receipt'),
+          label: Text(l10n?.adminDetails ?? 'Receipt'),
         ),
 
         if (_awaitingPayment)
           FilledButton.icon(
             onPressed: _busy ? null : _markPaid,
             icon: const Icon(Icons.payments_outlined),
-            label: const Text('Mark as paid'),
+            label: Text(l10n?.adminMarkPaid ?? 'Mark as paid'),
           ),
 
         if (_canShip)
           FilledButton.icon(
             onPressed: _busy ? null : _addParcel,
             icon: const Icon(Icons.local_shipping_outlined),
-            label: const Text('Add parcel'),
+            label: Text(l10n?.adminAddShipment ?? 'Add parcel'),
           ),
 
         if (_nextStatus != null)
@@ -546,27 +548,27 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
         OutlinedButton.icon(
           onPressed: _busy ? null : _addNote,
           icon: const Icon(Icons.edit_note),
-          label: const Text('Add note'),
+          label: Text(l10n?.adminAddNote ?? 'Add note'),
         ),
 
         if (hasVouchers)
           OutlinedButton.icon(
             onPressed: _busy ? null : _resendVouchers,
             icon: const Icon(Icons.forward_to_inbox_outlined),
-            label: const Text('Resend codes'),
+            label: Text(l10n?.adminResendVouchers ?? 'Resend codes'),
           ),
 
         if (_canRefund)
           OutlinedButton.icon(
             onPressed: _busy || _refundable <= 0 ? null : _refund,
             icon: const Icon(Icons.undo),
-            label: const Text('Refund'),
+            label: Text(l10n?.adminRefundOrder ?? 'Refund'),
           ),
 
         if (_awaitingPayment)
           TextButton(
             onPressed: _busy ? null : _cancel,
-            child: const Text('Cancel order'),
+            child: Text(l10n?.adminCancelled ?? 'Cancel order'),
           ),
       ],
     );
@@ -613,18 +615,33 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
     final t = _o['totals'] as Map<String, dynamic>;
     final discount = t['discount_cents'] as int;
     final shipping = t['shipping_cents'] as int;
+    final l10n = AppLocalizations.of(context);
 
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _row('Items', formatCents(t['subtotal_cents'] as int)),
-            if (discount > 0) _row('Discount', '−${formatCents(discount)}'),
+            _row(
+              l10n?.adminOrderItems ?? 'Items',
+              formatCents(t['subtotal_cents'] as int),
+            ),
+            if (discount > 0)
+              _row(
+                l10n?.adminDiscount ?? 'Discount',
+                '−${formatCents(discount)}',
+              ),
             if ((_o['addresses'] as Map<String, dynamic>)['shipping'] != null)
-              _row('Shipping', shipping == 0 ? 'Free' : formatCents(shipping)),
+              _row(
+                l10n?.adminShipping ?? 'Shipping',
+                shipping == 0 ? 'Free' : formatCents(shipping),
+              ),
             const Divider(height: 20),
-            _row('Total', formatCents(t['total_cents'] as int), bold: true),
+            _row(
+              l10n?.adminOrderSummary ?? 'Total',
+              formatCents(t['total_cents'] as int),
+              bold: true,
+            ),
             const SizedBox(height: 4),
             for (final x in _list(t, 'tax'))
               _row(
@@ -654,11 +671,12 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
 
   List<Widget> _parcels() {
     final parcels = _list(_a, 'shipments');
+    final l10n = AppLocalizations.of(context);
 
     if (parcels.isEmpty) return const [];
 
     return [
-      _heading('Parcels'),
+      _heading(l10n?.adminShipments ?? 'Parcels'),
       for (final s in parcels)
         Card(
           key: ValueKey('s${s['id']}'),
@@ -668,7 +686,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
             subtitle: SelectableText(
               [
                 if (s['tracking_number'] != null)
-                  'Tracking ${s['tracking_number']}',
+                  '${l10n?.adminTrackingNumber ?? 'Tracking'} ${s['tracking_number']}',
                 orderStatusLabel(s['status'] as String),
                 if (s['shipped_at'] != null)
                   'shipped ${formatDate(s['shipped_at'] as String?)}',
@@ -700,10 +718,11 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
   List<Widget> _payments() {
     final payments = _list(_a, 'payments');
     final refunds = _list(_o, 'refunds');
+    final l10n = AppLocalizations.of(context);
 
     return [
       if (payments.isNotEmpty) ...[
-        _heading('Payments'),
+        _heading(l10n?.adminPayments ?? 'Payments'),
         for (final p in payments)
           ListTile(
             key: ValueKey('p${p['id']}'),
@@ -722,7 +741,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
           ),
       ],
       if (refunds.isNotEmpty) ...[
-        _heading('Refunds'),
+        _heading(l10n?.adminRefunded ?? 'Refunds'),
         for (final r in refunds)
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -738,11 +757,14 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
 
   List<Widget> _vouchers() {
     final vouchers = _list(_a, 'vouchers');
+    final l10n = AppLocalizations.of(context);
 
     if (vouchers.isEmpty) return const [];
 
     return [
-      _heading('Vouchers and credit bought with this order'),
+      _heading(
+        l10n?.adminVouchers ?? 'Vouchers and credit bought with this order',
+      ),
       for (final v in vouchers)
         ListTile(
           key: ValueKey('v${v['id']}'),
@@ -760,9 +782,10 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
 
   List<Widget> _history() {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return [
-      _heading('History'),
+      _heading(l10n?.adminVoucherHistory ?? 'History'),
       for (final h in _list(_a, 'history').reversed)
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
@@ -803,6 +826,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
   }
 
   Widget _body() {
+    final l10n = AppLocalizations.of(context);
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -813,7 +837,10 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(_error!),
-            TextButton(onPressed: _load, child: const Text('Retry')),
+            TextButton(
+              onPressed: _load,
+              child: Text(l10n?.adminRetry ?? 'Retry'),
+            ),
           ],
         ),
       );
@@ -854,19 +881,20 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
               child: LinearProgressIndicator(),
             ),
           _actions(),
-          _heading('Items'),
+          _heading(l10n?.adminOrderItems ?? 'Items'),
           ..._items(),
-          _heading('Total'),
+          _heading(l10n?.adminOrderSummary ?? 'Total'),
           _totals(),
-          if (addresses.isNotEmpty) _heading('Addresses'),
+          if (addresses.isNotEmpty)
+            _heading(l10n?.adminCustomerDetails ?? 'Addresses'),
           if (addresses['shipping'] != null)
             _addressCard(
-              'Delivery address',
+              l10n?.adminShipping ?? 'Delivery address',
               addresses['shipping'] as Map<String, dynamic>,
             ),
           if (addresses['billing'] != null)
             _addressCard(
-              'Billing address',
+              l10n?.adminCustomerDetails ?? 'Billing address',
               addresses['billing'] as Map<String, dynamic>,
             ),
           ..._parcels(),
@@ -880,8 +908,11 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(widget.number ?? 'Order')),
+      appBar: AppBar(
+        title: Text(widget.number ?? (l10n?.adminOrders ?? 'Order')),
+      ),
       body: _body(),
     );
   }

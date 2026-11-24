@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
+import '../utils/localized_content.dart';
 import '../utils/money.dart';
 import 'admin_product_form_screen.dart';
 
@@ -23,11 +25,26 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
   int _total = 0;
   bool _loading = true;
   String? _error;
+  String? _loadedLanguage;
 
   @override
   void initState() {
     super.initState();
     _load(reset: true);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final language = Localizations.localeOf(context).languageCode;
+    if (_loadedLanguage == null) {
+      _loadedLanguage = language;
+      return;
+    }
+    if (_loadedLanguage != language) {
+      _loadedLanguage = language;
+      _load(reset: true);
+    }
   }
 
   @override
@@ -47,7 +64,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
         search: _search.text.trim(),
         status: _status,
         page: _page,
-        lang: currentAppLocale,
+        lang: _loadedLanguage ?? currentAppLocale,
       );
       final list = (data['products'] as List<dynamic>)
           .cast<ProductListData>()
@@ -103,6 +120,11 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
         bgColor = theme.colorScheme.onSurface.withValues(alpha: 0.08);
     }
 
+    final label = localizedProductStatus(
+      status.isEmpty ? 'draft' : status,
+      context: context,
+    );
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -110,7 +132,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        status.isEmpty ? 'draft' : status,
+        label,
         style: theme.textTheme.labelSmall?.copyWith(
           color: textColor,
           fontWeight: FontWeight.w600,
@@ -124,6 +146,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
+    final l10n = AppLocalizations.of(context);
 
     Widget body;
     if (_loading && _products.isEmpty) {
@@ -152,7 +175,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
               TextButton.icon(
                 onPressed: () => _load(reset: true),
                 icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Retry'),
+                label: Text(l10n?.adminRetry ?? 'Retry'),
                 style: TextButton.styleFrom(foregroundColor: goldColor),
               ),
             ],
@@ -162,7 +185,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
     } else if (_products.isEmpty) {
       body = Center(
         child: Text(
-          'No products found.',
+          l10n?.adminNoProductsFound ?? 'No products found.',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
           ),
@@ -195,7 +218,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                           _load(reset: false);
                         },
                         child: Text(
-                          'Load more',
+                          l10n?.adminLoadMore ?? 'Load more',
                           style: TextStyle(
                             color: goldColor,
                             fontWeight: FontWeight.w600,
@@ -208,6 +231,10 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
           final p = _products[i];
           final price = p['price_cents'] as int?;
           final status = p['status'] as String? ?? 'draft';
+          final name = localizedProductName(p, context: context);
+          final noActiveVariantText =
+              l10n?.adminNoActiveVariant ?? 'No active variant';
+          final variantsText = l10n?.adminVariants ?? 'variant(s)';
 
           return ListTile(
             contentPadding: const EdgeInsets.symmetric(
@@ -217,9 +244,10 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
             onTap: () {
               if (p['product_type'] == 'membership') {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
+                  SnackBar(
                     content: Text(
-                      'Memberships are managed under Admin, Membership plans.',
+                      l10n?.adminMembershipsManagedUnder ??
+                          'Memberships are managed under Admin > Membership plans.',
                     ),
                   ),
                 );
@@ -243,7 +271,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
               ),
             ),
             title: Text(
-              p['name'] as String,
+              name,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -251,7 +279,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
             subtitle: Padding(
               padding: const EdgeInsets.only(top: 2.0),
               child: Text(
-                '${price == null ? 'No active variant' : formatCents(price)} · ${p['variant_count']} variant(s)',
+                '${price == null ? noActiveVariantText : formatCents(price)} · ${p['variant_count']} $variantsText',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
@@ -264,7 +292,10 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text('Products ($_total)'), elevation: 0),
+      appBar: AppBar(
+        title: Text('${l10n?.adminProducts ?? 'Products'} ($_total)'),
+        elevation: 0,
+      ),
       body: Column(
         children: [
           Padding(
@@ -280,7 +311,9 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                   size: 20,
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
-                hintText: 'Search products, SKU...',
+                hintText:
+                    l10n?.adminSearchProductsHint ??
+                    'Search by name, SKU or slug...',
                 contentPadding: const EdgeInsets.symmetric(
                   vertical: 0,
                   horizontal: 16,
@@ -307,7 +340,11 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
-                      label: Text(s.isEmpty ? 'All' : s),
+                      label: Text(
+                        s.isEmpty
+                            ? (l10n?.adminAll ?? 'All')
+                            : localizedProductStatus(s, context: context),
+                      ),
                       selected: _status == s,
                       showCheckmark: false,
                       side: BorderSide(
@@ -348,9 +385,9 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
         foregroundColor: goldColor,
         elevation: 2,
         icon: const Icon(Icons.add, size: 20),
-        label: const Text(
-          'New product',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        label: Text(
+          l10n?.adminNewProduct ?? 'New product',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
     );

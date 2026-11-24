@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../utils/category_tree.dart';
+import '../utils/localized_content.dart';
 import '../widgets/loading_button.dart';
 
 typedef CategoryData = Map<String, dynamic>;
@@ -309,6 +311,7 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
     required bool requiredLanguage,
   }) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -360,7 +363,7 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
           const SizedBox(height: 20),
           _text(
             'translations.$languageCode.name',
-            'Name',
+            l10n?.adminCategoryName ?? 'Name',
             nameController,
             nameValidator,
             helper: requiredLanguage
@@ -369,7 +372,7 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
           ),
           _text(
             'translations.$languageCode.description',
-            'Description',
+            l10n?.adminCategoryDescription ?? 'Description',
             descriptionController,
             _vDesc,
             maxLines: 3,
@@ -386,11 +389,16 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
+    final l10n = AppLocalizations.of(context);
 
     if (_loadingData) {
       return Scaffold(
         appBar: AppBar(
-          title: Text(_editing ? 'Edit category' : 'New category'),
+          title: Text(
+            _editing
+                ? (l10n?.adminEditCategory ?? 'Edit category')
+                : (l10n?.adminNewCategory ?? 'New category'),
+          ),
         ),
         body: Center(child: CircularProgressIndicator(color: goldColor)),
       );
@@ -399,7 +407,11 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
     if (_loadError != null) {
       return Scaffold(
         appBar: AppBar(
-          title: Text(_editing ? 'Edit category' : 'New category'),
+          title: Text(
+            _editing
+                ? (l10n?.adminEditCategory ?? 'Edit category')
+                : (l10n?.adminNewCategory ?? 'New category'),
+          ),
         ),
         body: Center(
           child: Padding(
@@ -428,7 +440,7 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
                     _init();
                   },
                   icon: const Icon(Icons.refresh, size: 18),
-                  label: const Text('Retry'),
+                  label: Text(l10n?.adminRetry ?? 'Retry'),
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(color: goldColor),
                     foregroundColor: goldColor,
@@ -442,7 +454,13 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(_editing ? 'Edit category' : 'New category')),
+      appBar: AppBar(
+        title: Text(
+          _editing
+              ? (l10n?.adminEditCategory ?? 'Edit category')
+              : (l10n?.adminNewCategory ?? 'New category'),
+        ),
+      ),
       body: Form(
         key: _form,
         child: ListView(
@@ -450,14 +468,14 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
           children: [
             // Basic information
             _sectionTitle(
-              'Basic information',
+              l10n?.adminBasicInfo ?? 'Basic information',
               subtitle: 'Category identifier and organisation.',
               icon: Icons.category_outlined,
             ),
 
             _text(
               'slug',
-              'Slug (URL name)',
+              l10n?.adminSlug ?? 'Slug (URL name)',
               _slug,
               _vSlug,
               helper: 'e.g. organic-skincare',
@@ -466,7 +484,7 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
             // English translation
             _translationSection(
               title: 'English',
-              subtitle: 'Default language',
+              subtitle: l10n?.adminEnglishTranslation ?? 'Default language',
               languageCode: 'en',
               nameController: _nameEn,
               descriptionController: _descEn,
@@ -477,7 +495,7 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
             // German translation
             _translationSection(
               title: 'German',
-              subtitle: 'German translation',
+              subtitle: l10n?.adminGermanTranslation ?? 'German translation',
               languageCode: 'de',
               nameController: _nameDe,
               descriptionController: _descDe,
@@ -487,7 +505,7 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
 
             // Category hierarchy
             _sectionTitle(
-              'Category organisation',
+              l10n?.adminCategories ?? 'Category organisation',
               subtitle: 'Set the parent and display order.',
               icon: Icons.account_tree_outlined,
             ),
@@ -497,19 +515,21 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
               child: DropdownButtonFormField<int?>(
                 initialValue: _parentId,
                 decoration: InputDecoration(
-                  labelText: 'Parent category',
+                  labelText: l10n?.adminParentCategory ?? 'Parent category',
                   errorText: _serverErrors['parent_id'],
                 ),
                 items: [
-                  const DropdownMenuItem<int?>(
+                  DropdownMenuItem<int?>(
                     value: null,
-                    child: Text('None (top level)'),
+                    child: Text(l10n?.adminNoParent ?? 'None (top level)'),
                   ),
                   for (final (c, depth) in flattenCategories(_all))
                     if (!_blocked.contains(c['id']))
                       DropdownMenuItem<int?>(
                         value: c['id'] as int,
-                        child: Text('${'– ' * depth}${c['name']}'),
+                        child: Text(
+                          '${'– ' * depth}${localizedCategoryName(c, context: context)}',
+                        ),
                       ),
                 ],
                 onChanged: (v) => setState(() => _parentId = v),
@@ -518,7 +538,7 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
 
             _text(
               'sort_order',
-              'Sort order',
+              l10n?.adminSortOrder ?? 'Sort order',
               _sort,
               _vSort,
               type: TextInputType.number,
@@ -530,7 +550,7 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
               activeThumbColor: goldColor,
               activeTrackColor: goldColor,
               title: Text(
-                'Visible to customers',
+                l10n?.adminActive ?? 'Visible to customers',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -551,7 +571,9 @@ class _AdminCategoryFormScreenState extends State<AdminCategoryFormScreen> {
             const SizedBox(height: 24),
 
             LoadingButton(
-              label: _editing ? 'Save changes' : 'Create category',
+              label: _editing
+                  ? (l10n?.saveChanges ?? 'Save changes')
+                  : (l10n?.adminSaveCategory ?? 'Create category'),
               loading: _saving,
               onPressed: _save,
             ),

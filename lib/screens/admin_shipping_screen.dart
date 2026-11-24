@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../utils/countries.dart';
 import '../utils/money.dart';
@@ -9,11 +10,15 @@ typedef ShippingData = Map<String, dynamic>;
 const _maxOrderCents = 100000000; // 1,000,000.00
 const _maxPriceCents = 100000; // 1,000.00
 
-String _euros(int cents) => '${cents ~/ 100}.${(cents % 100).toString().padLeft(2, '0')}';
+String _euros(int cents) =>
+    '${cents ~/ 100}.${(cents % 100).toString().padLeft(2, '0')}';
 
 String _rangeText(int min, int? max) {
-  if (max == null) return min == 0 ? 'Any order value' : '${formatCents(min)} and above';
-  return min == 0 ? 'Under ${formatCents(max)}' : '${formatCents(min)} to under ${formatCents(max)}';
+  if (max == null)
+    return min == 0 ? 'Any order value' : '${formatCents(min)} and above';
+  return min == 0
+      ? 'Under ${formatCents(max)}'
+      : '${formatCents(min)} to under ${formatCents(max)}';
 }
 
 class AdminShippingScreen extends StatefulWidget {
@@ -36,7 +41,8 @@ class _AdminShippingScreenState extends State<AdminShippingScreen> {
     _load();
   }
 
-  void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  void _snack(String text) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
   Future<void> _load() async {
     setState(() {
@@ -73,7 +79,11 @@ class _AdminShippingScreenState extends State<AdminShippingScreen> {
     if (saved == true) _load();
   }
 
-  Future<void> _rateDialog(ShippingData method, {ShippingData? rate, String? country}) async {
+  Future<void> _rateDialog(
+    ShippingData method, {
+    ShippingData? rate,
+    String? country,
+  }) async {
     final saved = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -94,7 +104,9 @@ class _AdminShippingScreenState extends State<AdminShippingScreen> {
 
     setState(() => _busy.add(key));
     try {
-      await ApiService.instance.adminUpdateShippingMethod(m['id'] as int, {'active': m['active'] != true});
+      await ApiService.instance.adminUpdateShippingMethod(m['id'] as int, {
+        'active': m['active'] != true,
+      });
       await _load();
     } on ApiException catch (e) {
       if (mounted) _snack(e.message);
@@ -107,6 +119,7 @@ class _AdminShippingScreenState extends State<AdminShippingScreen> {
     final key = 'r${r['id']}';
     if (_busy.contains(key)) return;
 
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final ok = await showDialog<bool>(
       context: context,
@@ -115,19 +128,23 @@ class _AdminShippingScreenState extends State<AdminShippingScreen> {
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
-          'Delete price range?',
-          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          l10n?.delete ?? 'Delete price range?',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
         content: Text(
-          '${_rangeText(r['min_cents'] as int, r['max_cents'] as int?)} will be removed.',
+          '${_rangeText(r['min_cents'] as int, r['max_cents'] as int?)} ${l10n?.adminDeleteCategoryConfirm ?? "will be removed."}',
           style: theme.textTheme.bodyMedium,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
-              'Cancel',
-              style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+              l10n?.cancel ?? 'Cancel',
+              style: TextStyle(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
             ),
           ),
           ElevatedButton(
@@ -137,7 +154,7 @@ class _AdminShippingScreenState extends State<AdminShippingScreen> {
               foregroundColor: Colors.white,
               elevation: 0,
             ),
-            child: const Text('Delete'),
+            child: Text(l10n?.delete ?? 'Delete'),
           ),
         ],
       ),
@@ -159,10 +176,13 @@ class _AdminShippingScreenState extends State<AdminShippingScreen> {
     final from = g['from_cents'] as int;
     final to = g['to_cents'] as int?;
     if (to == null) return 'Orders of ${formatCents(from)} and above have';
-    return from == 0 ? 'Orders under ${formatCents(to)} have' : 'Orders from ${formatCents(from)} to under ${formatCents(to)} have';
+    return from == 0
+        ? 'Orders under ${formatCents(to)} have'
+        : 'Orders from ${formatCents(from)} to under ${formatCents(to)} have';
   }
 
   Widget _rateTile(ShippingData m, ShippingData r) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
     final price = r['price_cents'] as int;
@@ -175,7 +195,9 @@ class _AdminShippingScreenState extends State<AdminShippingScreen> {
       onTap: () => _rateDialog(m, rate: r),
       title: Text(
         _rangeText(r['min_cents'] as int, r['max_cents'] as int?),
-        style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+        style: theme.textTheme.bodyMedium?.copyWith(
+          fontWeight: FontWeight.w500,
+        ),
       ),
       subtitle: Text(
         'VAT ${r['tax_rate_code']} (${formatPercent(r['tax_rate_percent'] as num)}%)',
@@ -187,15 +209,19 @@ class _AdminShippingScreenState extends State<AdminShippingScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            price == 0 ? 'Free' : formatCents(price),
+            price == 0 ? (l10n?.shippingFree ?? 'Free') : formatCents(price),
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.bold,
               color: price == 0 ? goldColor : theme.colorScheme.onSurface,
             ),
           ),
           IconButton(
-            tooltip: 'Delete range',
-            icon: Icon(Icons.delete_outline, size: 18, color: theme.colorScheme.error.withValues(alpha: 0.8)),
+            tooltip: l10n?.delete ?? 'Delete range',
+            icon: Icon(
+              Icons.delete_outline,
+              size: 18,
+              color: theme.colorScheme.error.withValues(alpha: 0.8),
+            ),
             onPressed: busy ? null : () => _deleteRate(r),
           ),
         ],
@@ -204,6 +230,7 @@ class _AdminShippingScreenState extends State<AdminShippingScreen> {
   }
 
   List<Widget> _country(ShippingData m, ShippingData c) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
     final code = c['country_code'] as String;
@@ -217,15 +244,21 @@ class _AdminShippingScreenState extends State<AdminShippingScreen> {
           Expanded(
             child: Text(
               '${countryName(code)} ($code)',
-              style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           TextButton.icon(
             onPressed: () => _rateDialog(m, country: code),
             icon: Icon(Icons.add, size: 16, color: goldColor),
             label: Text(
-              'Add range',
-              style: TextStyle(color: goldColor, fontSize: 13, fontWeight: FontWeight.bold),
+              l10n?.adminAddRate ?? 'Add range',
+              style: TextStyle(
+                color: goldColor,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -243,6 +276,7 @@ class _AdminShippingScreenState extends State<AdminShippingScreen> {
   }
 
   Widget _method(ShippingData m) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
     final active = m['active'] == true;
@@ -255,9 +289,7 @@ class _AdminShippingScreenState extends State<AdminShippingScreen> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.dividerColor.withValues(alpha: 0.15),
-        ),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,27 +302,37 @@ class _AdminShippingScreenState extends State<AdminShippingScreen> {
                   children: [
                     Text(
                       m['name'] as String,
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Text(
                       m['code'] as String,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.5,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
               IconButton(
-                tooltip: 'Rename',
-                icon: Icon(Icons.edit_outlined, size: 20, color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+                tooltip: l10n?.edit ?? 'Rename',
+                icon: Icon(
+                  Icons.edit_outlined,
+                  size: 20,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
                 onPressed: () => _methodDialog(m),
               ),
               Switch(
                 value: active,
                 activeThumbColor: goldColor,
                 activeTrackColor: goldColor,
-                onChanged: _busy.contains('m${m['id']}') ? null : (_) => _toggle(m),
+                onChanged: _busy.contains('m${m['id']}')
+                    ? null
+                    : (_) => _toggle(m),
               ),
             ],
           ),
@@ -317,7 +359,7 @@ class _AdminShippingScreenState extends State<AdminShippingScreen> {
           OutlinedButton.icon(
             onPressed: () => _rateDialog(m),
             icon: const Icon(Icons.add, size: 18),
-            label: const Text('Add price range'),
+            label: Text(l10n?.adminAddRate ?? 'Add price range'),
             style: OutlinedButton.styleFrom(
               side: BorderSide(color: goldColor),
               foregroundColor: goldColor,
@@ -330,13 +372,16 @@ class _AdminShippingScreenState extends State<AdminShippingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
 
     Widget body;
 
     if (_loading && _methods.isEmpty) {
-      body = Center(child: CircularProgressIndicator(color: goldColor, strokeWidth: 2));
+      body = Center(
+        child: CircularProgressIndicator(color: goldColor, strokeWidth: 2),
+      );
     } else if (_error != null) {
       body = Center(
         child: Padding(
@@ -344,14 +389,22 @@ class _AdminShippingScreenState extends State<AdminShippingScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
+              Icon(
+                Icons.error_outline,
+                size: 40,
+                color: theme.colorScheme.error,
+              ),
               const SizedBox(height: 12),
-              Text(_error!, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium,
+              ),
               const SizedBox(height: 16),
               TextButton.icon(
                 onPressed: _load,
                 icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Retry'),
+                label: Text(l10n?.adminRetry ?? 'Retry'),
                 style: TextButton.styleFrom(foregroundColor: goldColor),
               ),
             ],
@@ -396,7 +449,7 @@ class _AdminShippingScreenState extends State<AdminShippingScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Shipping Methods'),
+        title: Text(l10n?.adminShippingMethods ?? 'Shipping Methods'),
         elevation: 0,
       ),
       body: body,
@@ -406,9 +459,9 @@ class _AdminShippingScreenState extends State<AdminShippingScreen> {
         foregroundColor: goldColor,
         elevation: 2,
         icon: const Icon(Icons.add, size: 20),
-        label: const Text(
-          'New method',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        label: Text(
+          l10n?.adminNewShippingMethod ?? 'New method',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -427,8 +480,12 @@ class _MethodDialog extends StatefulWidget {
 
 class _MethodDialogState extends State<_MethodDialog> {
   final _form = GlobalKey<FormState>();
-  late final _code = TextEditingController(text: (widget.method?['code'] as String?) ?? '');
-  late final _name = TextEditingController(text: (widget.method?['name'] as String?) ?? '');
+  late final _code = TextEditingController(
+    text: (widget.method?['code'] as String?) ?? '',
+  );
+  late final _name = TextEditingController(
+    text: (widget.method?['name'] as String?) ?? '',
+  );
   bool _saving = false;
   String? _error;
   Map<String, String> _serverErrors = {};
@@ -453,9 +510,15 @@ class _MethodDialogState extends State<_MethodDialog> {
 
     try {
       if (_editing) {
-        await ApiService.instance.adminUpdateShippingMethod(widget.method!['id'] as int, {'name': _name.text.trim()});
+        await ApiService.instance.adminUpdateShippingMethod(
+          widget.method!['id'] as int,
+          {'name': _name.text.trim()},
+        );
       } else {
-        await ApiService.instance.adminCreateShippingMethod({'code': _code.text.trim(), 'name': _name.text.trim()});
+        await ApiService.instance.adminCreateShippingMethod({
+          'code': _code.text.trim(),
+          'name': _name.text.trim(),
+        });
       }
       if (!mounted) return;
       Navigator.pop(context, true);
@@ -471,6 +534,7 @@ class _MethodDialogState extends State<_MethodDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
 
@@ -479,8 +543,12 @@ class _MethodDialogState extends State<_MethodDialog> {
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
-        _editing ? 'Rename method' : 'New shipping method',
-        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        _editing
+            ? (l10n?.adminEditShippingMethod ?? 'Rename method')
+            : (l10n?.adminNewShippingMethod ?? 'New shipping method'),
+        style: theme.textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.bold,
+        ),
       ),
       content: Form(
         key: _form,
@@ -491,13 +559,19 @@ class _MethodDialogState extends State<_MethodDialog> {
               controller: _code,
               enabled: !_editing,
               autovalidateMode: AutovalidateMode.onUserInteraction,
-              validator: (v) => RegExp(r'^[a-z0-9]+(?:-[a-z0-9]+)*$').hasMatch((v ?? '').trim()) && (v ?? '').trim().length <= 40
+              validator: (v) =>
+                  RegExp(
+                        r'^[a-z0-9]+(?:-[a-z0-9]+)*$',
+                      ).hasMatch((v ?? '').trim()) &&
+                      (v ?? '').trim().length <= 40
                   ? null
                   : 'Lowercase letters and numbers separated by single hyphens.',
               forceErrorText: _serverErrors['code'],
               decoration: InputDecoration(
                 labelText: 'Code',
-                helperText: _editing ? 'The code cannot be changed.' : 'e.g. standard or express',
+                helperText: _editing
+                    ? 'The code cannot be changed.'
+                    : 'e.g. standard or express',
               ),
             ),
             const SizedBox(height: 12),
@@ -506,18 +580,26 @@ class _MethodDialogState extends State<_MethodDialog> {
               autovalidateMode: AutovalidateMode.onUserInteraction,
               validator: (v) {
                 final s = (v ?? '').trim();
-                return s.isEmpty || s.length > 100 ? 'Name must be 1 to 100 characters.' : null;
+                return s.isEmpty || s.length > 100
+                    ? 'Name must be 1 to 100 characters.'
+                    : null;
               },
               forceErrorText: _serverErrors['name'],
-              decoration: const InputDecoration(
-                labelText: 'Name shown to customers',
+              decoration: InputDecoration(
+                labelText: l10n?.adminMethodName ?? 'Name shown to customers',
                 helperText: 'e.g. Standard shipping (DHL)',
               ),
             ),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
-                child: Text(_error!, style: TextStyle(color: theme.colorScheme.error, fontSize: 13)),
+                child: Text(
+                  _error!,
+                  style: TextStyle(
+                    color: theme.colorScheme.error,
+                    fontSize: 13,
+                  ),
+                ),
               ),
           ],
         ),
@@ -526,8 +608,10 @@ class _MethodDialogState extends State<_MethodDialog> {
         TextButton(
           onPressed: _saving ? null : () => Navigator.pop(context, false),
           child: Text(
-            'Cancel',
-            style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+            l10n?.cancel ?? 'Cancel',
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+            ),
           ),
         ),
         ElevatedButton(
@@ -538,8 +622,18 @@ class _MethodDialogState extends State<_MethodDialog> {
             elevation: 0,
           ),
           child: _saving
-              ? SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: goldColor))
-              : const Text('Save', style: TextStyle(fontWeight: FontWeight.bold)),
+              ? SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: goldColor,
+                  ),
+                )
+              : Text(
+                  l10n?.save ?? 'Save',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
         ),
       ],
     );
@@ -567,13 +661,25 @@ class _RateDialog extends StatefulWidget {
 
 class _RateDialogState extends State<_RateDialog> {
   final _form = GlobalKey<FormState>();
-  late final _from = TextEditingController(text: widget.rate == null ? '0' : _euros(widget.rate!['min_cents'] as int));
+  late final _from = TextEditingController(
+    text: widget.rate == null ? '0' : _euros(widget.rate!['min_cents'] as int),
+  );
   late final _until = TextEditingController(
-      text: widget.rate?['max_cents'] == null ? '' : _euros(widget.rate!['max_cents'] as int));
-  late final _price = TextEditingController(text: widget.rate == null ? '' : _euros(widget.rate!['price_cents'] as int));
+    text: widget.rate?['max_cents'] == null
+        ? ''
+        : _euros(widget.rate!['max_cents'] as int),
+  );
+  late final _price = TextEditingController(
+    text: widget.rate == null ? '' : _euros(widget.rate!['price_cents'] as int),
+  );
 
-  late String _country = (widget.rate?['country_code'] as String?) ?? widget.initialCountry ?? 'DE';
-  late int? _taxRateId = (widget.rate?['tax_rate_id'] as int?) ?? (widget.taxRates.isEmpty ? null : widget.taxRates.first['id'] as int);
+  late String _country =
+      (widget.rate?['country_code'] as String?) ??
+      widget.initialCountry ??
+      'DE';
+  late int? _taxRateId =
+      (widget.rate?['tax_rate_id'] as int?) ??
+      (widget.taxRates.isEmpty ? null : widget.taxRates.first['id'] as int);
   late final List<ShippingData> _taxRates = _withOwnRate();
 
   bool _saving = false;
@@ -586,7 +692,12 @@ class _RateDialogState extends State<_RateDialog> {
     final list = [...widget.taxRates];
     final r = widget.rate;
     if (r != null && !list.any((t) => t['id'] == r['tax_rate_id'])) {
-      list.add({'id': r['tax_rate_id'], 'code': r['tax_rate_code'], 'rate_percent': r['tax_rate_percent'], 'ended': true});
+      list.add({
+        'id': r['tax_rate_id'],
+        'code': r['tax_rate_code'],
+        'rate_percent': r['tax_rate_percent'],
+        'ended': true,
+      });
     }
     return list;
   }
@@ -661,9 +772,15 @@ class _RateDialogState extends State<_RateDialog> {
 
     try {
       if (_editing) {
-        await ApiService.instance.adminUpdateShippingRate(widget.rate!['id'] as int, body);
+        await ApiService.instance.adminUpdateShippingRate(
+          widget.rate!['id'] as int,
+          body,
+        );
       } else {
-        await ApiService.instance.adminCreateShippingRate(widget.methodId, body);
+        await ApiService.instance.adminCreateShippingRate(
+          widget.methodId,
+          body,
+        );
       }
       if (!mounted) return;
       Navigator.pop(context, true);
@@ -679,22 +796,34 @@ class _RateDialogState extends State<_RateDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
 
     final countryItems = [
-      for (final c in countries) DropdownMenuItem<String>(value: c.code, child: Text('${c.name} (${c.code})')),
-      if (countryByCode(_country) == null) DropdownMenuItem<String>(value: _country, child: Text(_country)),
+      for (final c in countries)
+        DropdownMenuItem<String>(
+          value: c.code,
+          child: Text('${c.name} (${c.code})'),
+        ),
+      if (countryByCode(_country) == null)
+        DropdownMenuItem<String>(value: _country, child: Text(_country)),
     ];
-    final ended = _taxRates.any((t) => t['id'] == _taxRateId && t['ended'] == true);
+    final ended = _taxRates.any(
+      (t) => t['id'] == _taxRateId && t['ended'] == true,
+    );
 
     return AlertDialog(
       backgroundColor: theme.colorScheme.surface,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
-        _editing ? 'Edit price range' : 'New price range',
-        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        _editing
+            ? (l10n?.adminEditRate ?? 'Edit price range')
+            : (l10n?.adminAddRate ?? 'New price range'),
+        style: theme.textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.bold,
+        ),
       ),
       content: SingleChildScrollView(
         child: Form(
@@ -713,20 +842,28 @@ class _RateDialogState extends State<_RateDialog> {
               DropdownButtonFormField<String>(
                 initialValue: _country,
                 isExpanded: true,
-                decoration: InputDecoration(labelText: 'Country', errorText: _serverErrors['country_code']),
+                decoration: InputDecoration(
+                  labelText: l10n?.adminCountry ?? 'Country',
+                  errorText: _serverErrors['country_code'],
+                ),
                 items: countryItems,
-                onChanged: _saving ? null : (v) => setState(() => _country = v!),
+                onChanged: _saving
+                    ? null
+                    : (v) => setState(() => _country = v!),
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _from,
                 enabled: !_saving,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 validator: _vFrom,
                 forceErrorText: _serverErrors['min_gross_cents'],
-                decoration: const InputDecoration(
-                  labelText: 'Order value from (€)',
+                decoration: InputDecoration(
+                  labelText:
+                      '${l10n?.adminOrderValueRange ?? 'Order value from'} (€)',
                   helperText: 'Included. Use 0 for the first range.',
                 ),
               ),
@@ -734,7 +871,9 @@ class _RateDialogState extends State<_RateDialog> {
               TextFormField(
                 controller: _until,
                 enabled: !_saving,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 validator: _vUntil,
                 forceErrorText: _serverErrors['max_gross_cents'],
@@ -747,12 +886,15 @@ class _RateDialogState extends State<_RateDialog> {
               TextFormField(
                 controller: _price,
                 enabled: !_saving,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 validator: _vPrice,
                 forceErrorText: _serverErrors['price_cents'],
-                decoration: const InputDecoration(
-                  labelText: 'Shipping price (€, incl. VAT)',
+                decoration: InputDecoration(
+                  labelText:
+                      l10n?.adminShippingFee ?? 'Shipping price (€, incl. VAT)',
                   helperText: '0 means free shipping.',
                 ),
               ),
@@ -761,8 +903,10 @@ class _RateDialogState extends State<_RateDialog> {
                 initialValue: _taxRateId,
                 isExpanded: true,
                 decoration: InputDecoration(
-                  labelText: 'Tax rate',
-                  helperText: ended ? 'This rate has ended. Select a current rate if updating.' : null,
+                  labelText: l10n?.adminTaxRate ?? 'Tax rate',
+                  helperText: ended
+                      ? 'This rate has ended. Select a current rate if updating.'
+                      : null,
                   helperMaxLines: 2,
                   errorText: _serverErrors['tax_rate_id'],
                 ),
@@ -771,15 +915,25 @@ class _RateDialogState extends State<_RateDialog> {
                   for (final t in _taxRates)
                     DropdownMenuItem<int>(
                       value: t['id'] as int,
-                      child: Text('${t['code']} (${t['rate_percent']}%)${t['ended'] == true ? ' · ended' : ''}'),
+                      child: Text(
+                        '${t['code']} (${t['rate_percent']}%)${t['ended'] == true ? ' · ended' : ''}',
+                      ),
                     ),
                 ],
-                onChanged: _saving ? null : (v) => setState(() => _taxRateId = v),
+                onChanged: _saving
+                    ? null
+                    : (v) => setState(() => _taxRateId = v),
               ),
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
-                  child: Text(_error!, style: TextStyle(color: theme.colorScheme.error, fontSize: 13)),
+                  child: Text(
+                    _error!,
+                    style: TextStyle(
+                      color: theme.colorScheme.error,
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -789,8 +943,10 @@ class _RateDialogState extends State<_RateDialog> {
         TextButton(
           onPressed: _saving ? null : () => Navigator.pop(context, false),
           child: Text(
-            'Cancel',
-            style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+            l10n?.cancel ?? 'Cancel',
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+            ),
           ),
         ),
         ElevatedButton(
@@ -801,8 +957,18 @@ class _RateDialogState extends State<_RateDialog> {
             elevation: 0,
           ),
           child: _saving
-              ? SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: goldColor))
-              : const Text('Save', style: TextStyle(fontWeight: FontWeight.bold)),
+              ? SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: goldColor,
+                  ),
+                )
+              : Text(
+                  l10n?.save ?? 'Save',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
         ),
       ],
     );

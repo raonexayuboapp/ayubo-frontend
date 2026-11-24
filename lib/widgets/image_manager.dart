@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import 'product_image.dart';
 
@@ -16,7 +17,11 @@ class ImageManager extends StatefulWidget {
   final List<ProductImageData> images; // each: id, url, alt_text
   final ValueChanged<List<ProductImageData>> onChanged;
 
-  const ImageManager({super.key, required this.images, required this.onChanged});
+  const ImageManager({
+    super.key,
+    required this.images,
+    required this.onChanged,
+  });
 
   @override
   State<ImageManager> createState() => _ImageManagerState();
@@ -26,22 +31,34 @@ class _ImageManagerState extends State<ImageManager> {
   final _picker = ImagePicker();
   bool _busy = false;
 
-  void _snack(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  void _snack(String text) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
   Future<void> _add() async {
     if (_busy) return;
 
-    final picked = await _picker.pickImage(source: ImageSource.gallery, maxWidth: 2000, imageQuality: 85);
+    final picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 2000,
+      imageQuality: 85,
+    );
     if (picked == null || !mounted) return;
 
     final bytes = await picked.readAsBytes();
     if (!mounted) return;
     if (bytes.length > ImageManager.maxBytes) {
-      _snack('This image is larger than 5 MB. Choose a smaller one.');
+      final l10n = AppLocalizations.of(context);
+      _snack(
+        l10n?.adminImageTooLarge ??
+            'This image is larger than 5 MB. Choose a smaller one.',
+      );
       return;
     }
 
-    final alt = await showDialog<String>(context: context, builder: (_) => const _AltTextDialog());
+    final alt = await showDialog<String>(
+      context: context,
+      builder: (_) => const _AltTextDialog(),
+    );
     if (alt == null || !mounted) return;
 
     setState(() => _busy = true);
@@ -72,6 +89,7 @@ class _ImageManagerState extends State<ImageManager> {
   }
 
   Widget _tile(int i) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
     final img = widget.images[i];
@@ -88,7 +106,9 @@ class _ImageManagerState extends State<ImageManager> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: i == 0 ? goldColor : theme.dividerColor.withValues(alpha: 0.15),
+                    color: i == 0
+                        ? goldColor
+                        : theme.dividerColor.withValues(alpha: 0.15),
                     width: i == 0 ? 1.5 : 1,
                   ),
                 ),
@@ -103,13 +123,18 @@ class _ImageManagerState extends State<ImageManager> {
                 left: 6,
                 bottom: 6,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: goldColor,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    'Main',
+                    l10n != null && l10n.localeName == 'de'
+                        ? 'Hauptbild'
+                        : 'Main',
                     style: theme.textTheme.labelSmall?.copyWith(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
@@ -129,7 +154,7 @@ class _ImageManagerState extends State<ImageManager> {
                 child: PopupMenuButton<String>(
                   padding: EdgeInsets.zero,
                   iconSize: 18,
-                  tooltip: 'Image options',
+                  tooltip: l10n?.adminDetails ?? 'Image options',
                   icon: Icon(
                     Icons.more_vert,
                     size: 16,
@@ -137,8 +162,15 @@ class _ImageManagerState extends State<ImageManager> {
                   ),
                   onSelected: (v) => v == 'main' ? _makeMain(i) : _remove(i),
                   itemBuilder: (_) => [
-                    if (i > 0) const PopupMenuItem(value: 'main', child: Text('Make main image')),
-                    const PopupMenuItem(value: 'remove', child: Text('Remove from product')),
+                    if (i > 0)
+                      PopupMenuItem(
+                        value: 'main',
+                        child: Text(l10n?.adminMakeMain ?? 'Make main image'),
+                      ),
+                    PopupMenuItem(
+                      value: 'remove',
+                      child: Text(l10n?.removeItem ?? 'Remove from product'),
+                    ),
                   ],
                 ),
               ),
@@ -150,6 +182,7 @@ class _ImageManagerState extends State<ImageManager> {
   }
 
   Widget _addTile() {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
 
@@ -162,7 +195,9 @@ class _ImageManagerState extends State<ImageManager> {
           borderRadius: BorderRadius.circular(10),
           child: Container(
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.2,
+              ),
               border: Border.all(
                 color: theme.dividerColor.withValues(alpha: 0.2),
               ),
@@ -181,10 +216,12 @@ class _ImageManagerState extends State<ImageManager> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Add image',
+                        l10n?.adminImages ?? 'Add image',
                         style: theme.textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.7,
+                          ),
                         ),
                       ),
                     ],
@@ -228,6 +265,7 @@ class _AltTextDialogState extends State<_AltTextDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
 
@@ -236,16 +274,20 @@ class _AltTextDialogState extends State<_AltTextDialog> {
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
-        'Describe the image',
-        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        l10n?.adminDescribeImage ?? 'Describe the image',
+        style: theme.textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.bold,
+        ),
       ),
       content: TextField(
         controller: _alt,
         autofocus: true,
         maxLength: 255,
-        decoration: const InputDecoration(
-          labelText: 'Alt text (optional)',
-          helperText: 'Read aloud by screen readers and shown if the image cannot load.',
+        decoration: InputDecoration(
+          labelText: l10n?.adminAltTextLabel ?? 'Alt text (optional)',
+          helperText:
+              l10n?.adminAltTextHelper ??
+              'Read aloud by screen readers and shown if the image cannot load.',
           helperMaxLines: 2,
         ),
       ),
@@ -253,8 +295,10 @@ class _AltTextDialogState extends State<_AltTextDialog> {
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text(
-            'Cancel',
-            style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+            l10n?.cancel ?? 'Cancel',
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+            ),
           ),
         ),
         ElevatedButton(
@@ -264,7 +308,10 @@ class _AltTextDialogState extends State<_AltTextDialog> {
             foregroundColor: goldColor,
             elevation: 0,
           ),
-          child: const Text('Upload', style: TextStyle(fontWeight: FontWeight.bold)),
+          child: Text(
+            l10n?.adminUpload ?? 'Upload',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
         ),
       ],
     );

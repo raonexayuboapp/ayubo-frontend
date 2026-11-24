@@ -108,7 +108,10 @@ class HomeBestSellersSection extends StatelessWidget {
               onPressed: onRetry,
               style: TextButton.styleFrom(
                 foregroundColor: AppTheme.primaryAction(context),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
               ),
               child: Text(l10n?.retry ?? 'Retry'),
             ),

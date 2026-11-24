@@ -18,10 +18,7 @@ Future<Map<String, dynamic>?> showAuthPrompt(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (ctx) => AuthPromptSheet(
-      title: title,
-      message: message,
-    ),
+    builder: (ctx) => AuthPromptSheet(title: title, message: message),
   );
 }
 
@@ -83,33 +80,34 @@ class AuthPromptSheet extends StatelessWidget {
 
           // Glowing Brand Halo Icon
           Center(
-            child: Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isDark ? AppTheme.bgDark : AppTheme.bgLight,
-                border: Border.all(
-                  color: AppTheme.brandGold.withValues(alpha: 0.7),
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.brandGold.withValues(alpha: 0.3),
-                    blurRadius: 24,
-                    spreadRadius: 2,
+            child:
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isDark ? AppTheme.bgDark : AppTheme.bgLight,
+                    border: Border.all(
+                      color: AppTheme.brandGold.withValues(alpha: 0.7),
+                      width: 2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.brandGold.withValues(alpha: 0.3),
+                        blurRadius: 24,
+                        spreadRadius: 2,
+                      ),
+                      BoxShadow(
+                        color: AppTheme.primaryGreen.withValues(alpha: 0.12),
+                        blurRadius: 16,
+                      ),
+                    ],
                   ),
-                  BoxShadow(
-                    color: AppTheme.primaryGreen.withValues(alpha: 0.12),
-                    blurRadius: 16,
+                  child: const Icon(
+                    Icons.lock_person_outlined,
+                    size: 38,
+                    color: AppTheme.brandGoldDark,
                   ),
-                ],
-              ),
-              child: const Icon(
-                Icons.lock_person_outlined,
-                size: 38,
-                color: AppTheme.brandGoldDark,
-              ),
-            ).animate().scale(
+                ).animate().scale(
                   begin: const Offset(0.85, 0.85),
                   end: const Offset(1.0, 1.0),
                   duration: 400.ms,
@@ -188,7 +186,8 @@ class AuthPromptSheet extends StatelessWidget {
               final user = await Navigator.push<Map<String, dynamic>>(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const RegisterScreen(returnUserOnSuccess: true),
+                  builder: (_) =>
+                      const RegisterScreen(returnUserOnSuccess: true),
                 ),
               );
               if (user != null && context.mounted) {
@@ -227,10 +226,7 @@ class AuthPromptSheet extends StatelessWidget {
             ),
             child: Text(
               l10n?.cancelAndContinueBrowsing ?? 'Cancel and continue browsing',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -238,4 +234,3 @@ class AuthPromptSheet extends StatelessWidget {
     );
   }
 }
-

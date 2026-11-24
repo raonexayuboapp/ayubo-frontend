@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
@@ -45,8 +44,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
     try {
       final data = await ApiService.instance.listOrders(page: _page);
-      final list =
-      (data['orders'] as List<dynamic>).cast<UserOrderData>();
+      final list = (data['orders'] as List<dynamic>).cast<UserOrderData>();
 
       if (!mounted) return;
 
@@ -69,9 +67,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
       });
 
       if (!reset) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -95,8 +93,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
     final l10n = AppLocalizations.of(context);
-    final isDe =
-    (l10n?.localeName ?? currentAppLocale).startsWith('de');
+    final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
 
     final preview = (o['preview'] as List<dynamic>).cast<String>();
     final count = o['item_count'] as int;
@@ -113,9 +110,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: theme.dividerColor.withValues(alpha: 0.15),
-        ),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.15)),
       ),
       child: Material(
         color: Colors.transparent,
@@ -134,9 +129,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   height: 72,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: ProductImage(
-                      url: o['image_url'] as String?,
-                    ),
+                    child: ProductImage(url: o['image_url'] as String?),
                   ),
                 ),
 
@@ -165,8 +158,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         orderNumber,
                         style: theme.textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.65),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.65,
+                          ),
                         ),
                       ),
 
@@ -176,8 +170,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       Text(
                         formatDate(o['created_at'] as String?),
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.5),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
                         ),
                       ),
 
@@ -190,8 +185,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface
-                                .withValues(alpha: 0.7),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.7,
+                            ),
                           ),
                         ),
                       ],
@@ -203,9 +199,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         spacing: 6,
                         runSpacing: 4,
                         children: [
-                          OrderStatusChip(
-                            status: o['status'] as String,
-                          ),
+                          OrderStatusChip(status: o['status'] as String),
                           OrderStatusChip(
                             status: o['payment_status'] as String,
                             payment: true,
@@ -235,8 +229,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           ? '$count Artikel'
                           : '$count item${count == 1 ? '' : 's'}',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface
-                            .withValues(alpha: 0.5),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.5,
+                        ),
                       ),
                     ),
                   ],
@@ -259,10 +254,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
     if (_loading && _orders.isEmpty) {
       body = Center(
-        child: CircularProgressIndicator(
-          color: goldColor,
-          strokeWidth: 2,
-        ),
+        child: CircularProgressIndicator(color: goldColor, strokeWidth: 2),
       );
     } else if (_error != null) {
       body = Center(
@@ -287,9 +279,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 onPressed: () => _load(reset: true),
                 icon: const Icon(Icons.refresh, size: 18),
                 label: Text(l10n?.retry ?? 'Retry'),
-                style: TextButton.styleFrom(
-                  foregroundColor: goldColor,
-                ),
+                style: TextButton.styleFrom(foregroundColor: goldColor),
               ),
             ],
           ),
@@ -321,16 +311,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    l10n?.noOrdersYet ??
-                        'You have not placed an order yet.',
+                    l10n?.noOrdersYet ?? 'You have not placed an order yet.',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: () =>
-                        AppBottomBar.open(context, 1, widget.user),
+                    onPressed: () => AppBottomBar.open(context, 1, widget.user),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: theme.colorScheme.primary,
                       foregroundColor: goldColor,
@@ -342,9 +330,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     ),
                     child: Text(
                       l10n?.exploreCollection ?? 'Browse products',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -369,22 +355,22 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 child: Center(
                   child: _loading
                       ? CircularProgressIndicator(
-                    color: goldColor,
-                    strokeWidth: 2,
-                  )
+                          color: goldColor,
+                          strokeWidth: 2,
+                        )
                       : TextButton(
-                    onPressed: () {
-                      _page++;
-                      _load(reset: false);
-                    },
-                    child: Text(
-                      l10n?.loadMore ?? 'Load more',
-                      style: TextStyle(
-                        color: goldColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
+                          onPressed: () {
+                            _page++;
+                            _load(reset: false);
+                          },
+                          child: Text(
+                            l10n?.loadMore ?? 'Load more',
+                            style: TextStyle(
+                              color: goldColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                 ),
               );
             }
@@ -401,7 +387,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       appBar: AppHeader(
         title: l10n?.myOrders ?? 'My Orders',
         subtitle:
-        '$_total ${isDe ? (_total == 1 ? 'Bestellung' : 'Bestellungen') : (_total == 1 ? 'order' : 'orders')}',
+            '$_total ${isDe ? (_total == 1 ? 'Bestellung' : 'Bestellungen') : (_total == 1 ? 'order' : 'orders')}',
         user: widget.user,
         showBackButton: true,
       ),

@@ -605,7 +605,7 @@ class _CartScreenState extends State<CartScreen> {
                         : 'incl. ${formatPercent(t['rate_percent'] as num)}% VAT',
                     formatCents(_intValue(t['tax_cents'])),
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurface.withValues(alpha: 0.5),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                     ),
                   ),
                 ),

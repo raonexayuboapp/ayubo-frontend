@@ -44,7 +44,10 @@ class _VoucherDetailScreenState extends State<VoucherDetailScreen> {
         _loading = false;
         if (_voucher == null) _error = e.message;
       });
-      if (_voucher != null) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (_voucher != null)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -67,7 +70,10 @@ class _VoucherDetailScreenState extends State<VoucherDetailScreen> {
 
   Widget _info(String label, String value) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 3),
-    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(label), Text(value)]),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [Text(label), Text(value)],
+    ),
   );
 
   /// The QR code and the code, for the shop. Only the owner ever receives them from the server.
@@ -81,44 +87,74 @@ class _VoucherDetailScreenState extends State<VoucherDetailScreen> {
         padding: const EdgeInsets.only(top: 12),
         child: Text(
           'The QR code of this voucher cannot be shown here: it was issued before codes were kept in the app. '
-              'The code is in the email you received.',
+          'The code is in the email you received.',
           style: theme.textTheme.bodySmall,
         ),
       );
     }
 
     // As large as the screen allows, so a scanner reads it easily.
-    final size = (MediaQuery.sizeOf(context).width - 120).clamp(180.0, 280.0).toDouble();
+    final size = (MediaQuery.sizeOf(context).width - 120)
+        .clamp(180.0, 280.0)
+        .toDouble();
 
     return Card(
       margin: const EdgeInsets.only(top: 12),
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(children: [
-          Text('Show this in the shop', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18), border: Border.all(color: Colors.black12)),
-            child: QrImageView(data: qr, size: size, backgroundColor: Colors.white),
-          ),
-          const SizedBox(height: 14),
-          SelectableText(code, textAlign: TextAlign.center, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800, letterSpacing: 1.4)),
-          TextButton.icon(
-            onPressed: () async {
-              await Clipboard.setData(ClipboardData(text: code));
-              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code copied.')));
-            },
-            icon: const Icon(Icons.copy, size: 18),
-            label: const Text('Copy code'),
-          ),
-          const SizedBox(height: 6),
-          Text('The staff scan the QR code and take the amount of your purchase from this voucher. Pull down to refresh the balance afterwards.',
-              textAlign: TextAlign.center, style: theme.textTheme.bodySmall),
-          const SizedBox(height: 6),
-          Text('Keep it private: anyone who sees this code can spend the voucher.',
-              textAlign: TextAlign.center, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
-        ]),
+        child: Column(
+          children: [
+            Text('Show this in the shop', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: Colors.black12),
+              ),
+              child: QrImageView(
+                data: qr,
+                size: size,
+                backgroundColor: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 14),
+            SelectableText(
+              code,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.4,
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: code));
+                if (mounted)
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('Code copied.')));
+              },
+              icon: const Icon(Icons.copy, size: 18),
+              label: const Text('Copy code'),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'The staff scan the QR code and take the amount of your purchase from this voucher. Pull down to refresh the balance afterwards.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Keep it private: anyone who sees this code can spend the voucher.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -128,10 +164,13 @@ class _VoucherDetailScreenState extends State<VoucherDetailScreen> {
 
     if (_error != null) {
       return Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(_error!),
-          TextButton(onPressed: _load, child: const Text('Retry')),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_error!),
+            TextButton(onPressed: _load, child: const Text('Retry')),
+          ],
+        ),
       );
     }
 
@@ -139,7 +178,8 @@ class _VoucherDetailScreenState extends State<VoucherDetailScreen> {
     final theme = Theme.of(context);
     final isCredit = v['kind'] == 'membership_credit';
     final expires = v['expires_at'] as String?;
-    final transactions = (v['transactions'] as List<dynamic>).cast<Map<String, dynamic>>();
+    final transactions = (v['transactions'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -149,19 +189,36 @@ class _VoucherDetailScreenState extends State<VoucherDetailScreen> {
           Card(
             child: Padding(
               padding: const EdgeInsets.all(20),
-              child: Column(children: [
-                Text(isCredit ? 'Membership credit' : 'Gift voucher •••• ${v['suffix']}', style: theme.textTheme.titleMedium),
-                const SizedBox(height: 8),
-                Text(formatCents(v['balance_cents'] as int),
-                    style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold)),
-                Text('remaining balance', style: theme.textTheme.bodySmall),
-                const SizedBox(height: 8),
-                VoucherStateChip(state: v['state'] as String),
-                const Divider(height: 28),
-                _info('Original value', formatCents(v['original_cents'] as int)),
-                _info('Valid until', expires == null ? 'No expiry' : formatDate(expires)),
-                _info('Added', formatDate(v['created_at'] as String?)),
-              ]),
+              child: Column(
+                children: [
+                  Text(
+                    isCredit
+                        ? 'Membership credit'
+                        : 'Gift voucher •••• ${v['suffix']}',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    formatCents(v['balance_cents'] as int),
+                    style: theme.textTheme.displaySmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text('remaining balance', style: theme.textTheme.bodySmall),
+                  const SizedBox(height: 8),
+                  VoucherStateChip(state: v['state'] as String),
+                  const Divider(height: 28),
+                  _info(
+                    'Original value',
+                    formatCents(v['original_cents'] as int),
+                  ),
+                  _info(
+                    'Valid until',
+                    expires == null ? 'No expiry' : formatDate(expires),
+                  ),
+                  _info('Added', formatDate(v['created_at'] as String?)),
+                ],
+              ),
             ),
           ),
           if (!isCredit && v['state'] == 'active') _qrCard(v),
@@ -176,7 +233,8 @@ class _VoucherDetailScreenState extends State<VoucherDetailScreen> {
             padding: const EdgeInsets.only(top: 24, bottom: 8),
             child: Text('History', style: theme.textTheme.titleMedium),
           ),
-          if (transactions.isEmpty) const Text('Nothing has happened with this voucher yet.'),
+          if (transactions.isEmpty)
+            const Text('Nothing has happened with this voucher yet.'),
           for (final t in transactions) _transaction(t),
         ],
       ),
@@ -205,6 +263,9 @@ class _VoucherDetailScreenState extends State<VoucherDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(appBar: AppBar(title: const Text('Voucher')), body: _body());
+    return Scaffold(
+      appBar: AppBar(title: const Text('Voucher')),
+      body: _body(),
+    );
   }
 }
