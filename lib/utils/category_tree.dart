@@ -24,8 +24,9 @@ Set<int> categoryAndDescendants(List<Map<String, dynamic>> flat, int id) {
   final children = <int, List<int>>{};
   for (final c in flat) {
     final parent = c['parent_id'] as int?;
-    if (parent != null)
+    if (parent != null) {
       children.putIfAbsent(parent, () => []).add(c['id'] as int);
+    }
   }
 
   final found = <int>{id};

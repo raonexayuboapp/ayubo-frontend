@@ -54,16 +54,21 @@ class HomeCategoriesSection extends StatelessWidget {
 
   IconData _categoryIcon(String name) {
     final lower = name.toLowerCase();
-    if (lower.contains('spice') || lower.contains('gewürz'))
+    if (lower.contains('spice') || lower.contains('gewürz')) {
       return Icons.eco_rounded;
-    if (lower.contains('tea') || lower.contains('tee'))
+    }
+    if (lower.contains('tea') || lower.contains('tee')) {
       return Icons.local_cafe_rounded;
-    if (lower.contains('oil') || lower.contains('öl'))
+    }
+    if (lower.contains('oil') || lower.contains('öl')) {
       return Icons.water_drop_rounded;
-    if (lower.contains('wellness') || lower.contains('ayurveda'))
+    }
+    if (lower.contains('wellness') || lower.contains('ayurveda')) {
       return Icons.spa_rounded;
-    if (lower.contains('voucher') || lower.contains('gutschein'))
+    }
+    if (lower.contains('voucher') || lower.contains('gutschein')) {
       return Icons.card_giftcard_rounded;
+    }
     return Icons.grass_rounded;
   }
 

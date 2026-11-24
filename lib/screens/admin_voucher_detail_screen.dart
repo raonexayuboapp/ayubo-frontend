@@ -67,12 +67,13 @@ class _AdminVoucherDetailScreenState extends State<AdminVoucherDetailScreen> {
       final message = await action();
       if (mounted) _snack(message);
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         _snack(
           e.fieldErrors.isNotEmpty
               ? e.fieldErrors.values.join('\n')
               : e.message,
         );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -190,8 +191,9 @@ class _AdminVoucherDetailScreenState extends State<AdminVoucherDetailScreen> {
                 validator: (val) {
                   final v = val?.trim() ?? '';
                   if (v.isEmpty) return 'Enter a customer email address.';
-                  if (!v.contains('@') || !v.contains('.'))
+                  if (!v.contains('@') || !v.contains('.')) {
                     return 'Enter a valid email address.';
+                  }
                   return null;
                 },
               ),

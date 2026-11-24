@@ -470,10 +470,12 @@ class _StockDialogState extends State<_StockDialog> {
     }
 
     final n = double.parse(s);
-    if (widget.kind == 'receive' && n <= 0)
+    if (widget.kind == 'receive' && n <= 0) {
       return 'A receipt must be more than zero.';
-    if (widget.kind == 'adjust' && n == 0)
+    }
+    if (widget.kind == 'adjust' && n == 0) {
       return 'An adjustment cannot be zero.';
+    }
 
     return null;
   }
