@@ -14,7 +14,15 @@ class OrderPlacedScreen extends StatefulWidget {
   final Map<String, dynamic> order;
   final Map<String, dynamic> user;
 
-  const OrderPlacedScreen({super.key, required this.order, required this.user});
+  /// Customer-facing messages returned by the checkout backend.
+  final List<String> notifications;
+
+  const OrderPlacedScreen({
+    super.key,
+    required this.order,
+    required this.user,
+    this.notifications = const [],
+  });
 
   @override
   State<OrderPlacedScreen> createState() => _OrderPlacedScreenState();
@@ -26,6 +34,62 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
   bool _isPaying = false;
 
   bool get _paid => _order['payment_status'] == 'paid';
+
+  List<Map<String, dynamic>> get _items {
+    final raw = _order['items'];
+
+    if (raw is! List) return const [];
+
+    return raw.whereType<Map<String, dynamic>>().toList();
+  }
+
+  Map<String, dynamic> get _totals {
+    final raw = _order['totals'];
+
+    return raw is Map<String, dynamic> ? raw : const {};
+  }
+
+  int _cents(dynamic value) {
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  int get _total => _cents(_totals['total_cents']);
+
+  int get _subtotal => _cents(_totals['subtotal_cents']);
+
+  int get _discount => _cents(_totals['discount_cents']);
+
+  int get _shipping => _cents(_totals['shipping_cents']);
+
+  int get _totalSavings {
+    var savings = 0;
+
+    for (final item in _items) {
+      savings += _cents(item['discount_cents']);
+    }
+
+    return savings;
+  }
+
+  List<String> get _notifications {
+    final messages = <String>[...widget.notifications];
+
+    // Also support notifications included directly in the order response.
+    final raw = _order['notifications'];
+
+    if (raw is List) {
+      for (final value in raw) {
+        final message = value.toString().trim();
+
+        if (message.isNotEmpty && !messages.contains(message)) {
+          messages.add(message);
+        }
+      }
+    }
+
+    return messages;
+  }
 
   Future<void> _pay() async {
     if (_isPaying || _paid) return;
@@ -69,7 +133,6 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
       }
 
       // Step 3: Handle the development payment sandbox.
-      // No real online payment gateway is required.
       if (action?['type'] == 'dev_confirm') {
         final confirmPath = action?['confirm_path'] as String?;
 
@@ -87,7 +150,6 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
 
         if (!mounted) return;
 
-        // Step 5: Update the screen with the paid order.
         setState(() {
           _order = updatedOrder;
         });
@@ -164,6 +226,231 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
     );
   }
 
+  Widget _discountNotice(bool isDe) {
+    final theme = Theme.of(context);
+    final messages = _notifications;
+
+    if (messages.isEmpty) return const SizedBox.shrink();
+
+    return Card(
+      color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.45),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: theme.colorScheme.onSecondaryContainer,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    isDe ? 'Hinweis zu Ihrer Bestellung' : 'Order information',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            for (final message in messages)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(message),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _priceSummary(bool isDe) {
+    final theme = Theme.of(context);
+
+    Widget row(String label, String value, {bool bold = false, Color? color}) {
+      final style = bold
+          ? theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: color,
+            )
+          : theme.textTheme.bodyMedium?.copyWith(color: color);
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(child: Text(label, style: style)),
+            const SizedBox(width: 12),
+            Text(value, style: style),
+          ],
+        ),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isDe ? 'Preisübersicht' : 'Price summary',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            if (_subtotal > 0)
+              row(isDe ? 'Artikel' : 'Items', formatCents(_subtotal)),
+
+            if (_discount > 0)
+              row(
+                isDe ? 'Rabatte' : 'Discounts',
+                '−${formatCents(_discount)}',
+                color: Colors.green.shade700,
+              ),
+
+            if (_shipping > 0)
+              row(isDe ? 'Versand' : 'Shipping', formatCents(_shipping)),
+
+            const Divider(height: 20),
+
+            row(
+              isDe ? 'Gesamtbetrag' : 'Total',
+              formatCents(_total),
+              bold: true,
+            ),
+
+            if (_totalSavings > 0) ...[
+              const SizedBox(height: 8),
+              Text(
+                isDe
+                    ? 'Sie haben ${formatCents(_totalSavings)} durch Rabatte gespart.'
+                    : 'You saved ${formatCents(_totalSavings)} through discounts.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.green.shade700,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 8),
+
+            Text(
+              isDe
+                  ? 'Alle Preise inklusive MwSt. Die vollständige Steueraufschlüsselung finden Sie in Ihrer Bestellung.'
+                  : 'All prices include VAT. The full tax breakdown is available in your order.',
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _orderedItems(bool isDe) {
+    final theme = Theme.of(context);
+
+    if (_items.isEmpty) return const SizedBox.shrink();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isDe ? 'Bestellte Artikel' : 'Ordered items',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            for (final item in _items) ...[
+              Builder(
+                builder: (context) {
+                  final name =
+                      item['name']?.toString() ?? (isDe ? 'Artikel' : 'Item');
+
+                  final quantity = _cents(item['quantity']);
+                  final unitPrice = _cents(item['unit_price_cents']);
+                  final lineTotal = _cents(item['line_total_cents']);
+                  final lineDiscount = _cents(item['discount_cents']);
+                  final originalTotal = _cents(
+                    item['line_original_total_cents'],
+                  );
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '$quantity × ${formatCents(unitPrice)}',
+                                style: theme.textTheme.bodySmall,
+                              ),
+                            ),
+                            if (lineDiscount > 0 &&
+                                originalTotal > lineTotal) ...[
+                              Text(
+                                formatCents(originalTotal),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  decoration: TextDecoration.lineThrough,
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.55,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                            Text(
+                              formatCents(lineTotal),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (lineDiscount > 0)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 3),
+                            child: Text(
+                              '${isDe ? 'Rabatt' : 'Discount'}: −${formatCents(lineDiscount)}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.green.shade700,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const Divider(height: 1),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -171,10 +458,6 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
     final l10n = AppLocalizations.of(context);
 
     final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
-
-    final total =
-        ((_order['totals'] as Map<String, dynamic>)['total_cents'] as num)
-            .toInt();
 
     return PopScope(
       canPop: false,
@@ -234,9 +517,7 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
               const SizedBox(height: 6),
 
               Text(
-                isDe
-                    ? 'Bestellung ${_order['number']}'
-                    : 'Order ${_order['number']}',
+                '${isDe ? 'Bestellung' : 'Order'} ${_order['number']}',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.titleMedium?.copyWith(
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
@@ -246,7 +527,7 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
               const SizedBox(height: 4),
 
               Text(
-                formatCents(total),
+                formatCents(_total),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
@@ -271,7 +552,15 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
                 ),
               ),
 
-              const SizedBox(height: 36),
+              const SizedBox(height: 24),
+
+              _discountNotice(isDe),
+
+              _orderedItems(isDe),
+
+              _priceSummary(isDe),
+
+              const SizedBox(height: 24),
 
               if (!_paid) ...[
                 ElevatedButton.icon(
@@ -339,10 +628,7 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
                   ),
                   child: Text(
                     l10n?.viewOrder ?? 'View order',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
 

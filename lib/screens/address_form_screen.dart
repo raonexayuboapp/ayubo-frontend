@@ -368,7 +368,7 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: DropdownButtonFormField<String>(
-                value: _country,
+                initialValue: _country,
                 isExpanded: true,
                 style: TextStyle(color: scheme.onSurface, fontSize: 14),
                 dropdownColor: isDark ? AppTheme.surfaceDark : Colors.white,

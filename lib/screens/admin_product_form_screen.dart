@@ -80,7 +80,6 @@ class AdminProductFormScreen extends StatefulWidget {
 
 class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
   static const _types = ['physical', 'gift_voucher', 'course', 'service'];
-
   static const _statuses = ['draft', 'published', 'archived'];
 
   final _form = GlobalKey<FormState>();
@@ -99,13 +98,10 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
   final _ingredientsEn = TextEditingController();
   final _allergensEn = TextEditingController();
 
-  // Product discount UI and preview state.
+  // Product discount.
   final _discountValue = TextEditingController();
   bool _discountEnabled = false;
   String _discountType = 'percentage';
-
-  // Retained for displaying the existing-discount removal notice.
-  // Existing discount loading/saving requires the backend contract.
   Map<String, String>? _originalDiscount;
 
   String _type = 'physical';
@@ -239,9 +235,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
         _hadEnglishTranslation = en.isNotEmpty;
 
         _slug.text = (p['slug'] as String?) ?? '';
-
         _type = (p['product_type'] as String?) ?? 'physical';
-
         _status = (p['status'] as String?) ?? 'draft';
 
         _taxRateId = (p['tax_rate_id'] as num?)?.toInt();
@@ -287,7 +281,31 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
           ),
         );
 
-        if (_taxRateId != null && !taxRates.any((t) => t['id'] == _taxRateId)) {
+        // Load the existing product-wide discount.
+        final rawDiscount = p['discount'];
+
+        if (rawDiscount is Map) {
+          final discount = Map<String, dynamic>.from(rawDiscount);
+
+          final type = discount['discount_type']?.toString();
+          final value = discount['discount_value']?.toString();
+
+          if ((type == 'percentage' || type == 'fixed') && value != null) {
+            _discountEnabled = true;
+            _discountType = type!;
+            _discountValue.text = value;
+
+            _originalDiscount = {
+              'discount_type': type,
+              'discount_value': _normaliseDiscountValue(value) ?? value,
+            };
+          }
+        }
+
+        if (_taxRateId != null &&
+            !taxRates.any((t) {
+              return (t['id'] as num?)?.toInt() == _taxRateId;
+            })) {
           taxRates.add({
             'id': _taxRateId,
             'code': p['tax_rate_code'],
@@ -468,8 +486,11 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
     int discountCents;
 
     if (_discountType == 'percentage') {
+      // value is percentage in hundredths:
+      // 15.50% = 1550 basis points.
       discountCents = (originalCents * value + 5000) ~/ 10000;
     } else {
+      // Fixed discount applies to each variant's unit price.
       discountCents = value;
     }
 
@@ -750,10 +771,32 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
           'product_type',
           'status',
           'tax_rate_id',
+          'discount',
         }.contains(key) ||
+        key.startsWith('discount.') ||
         key.startsWith('translations.de.') ||
         key.startsWith('translations.en.') ||
         RegExp(r'^variants\.\d+\.').hasMatch(key);
+  }
+
+  Map<String, String> _currentDiscount() => {
+    'discount_type': _discountType,
+    'discount_value': _normaliseDiscountValue(_discountValue.text) ?? '',
+  };
+
+  bool get _discountChanged {
+    if (!_editing) return _discountEnabled;
+
+    if (!_discountEnabled) {
+      return _originalDiscount != null;
+    }
+
+    final current = _currentDiscount();
+
+    if (_originalDiscount == null) return true;
+
+    return current['discount_type'] != _originalDiscount!['discount_type'] ||
+        current['discount_value'] != _originalDiscount!['discount_value'];
   }
 
   Future<void> _save() async {
@@ -833,6 +876,12 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
       ],
       if (_imagesChanged) 'media_ids': _imageIds,
     };
+
+    // Only send the discount field when creating, changing,
+    // or explicitly removing a discount.
+    if (_discountChanged) {
+      body['discount'] = _discountEnabled ? _currentDiscount() : null;
+    }
 
     try {
       if (_editing) {
@@ -991,9 +1040,13 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   validator: _vSku,
                   forceErrorText: server('sku'),
+
                   decoration: InputDecoration(
                     labelText: l10n?.adminSku ?? 'SKU',
                   ),
+                  onChanged: (_) {
+                    if (_discountEnabled) setState(() {});
+                  },
                 ),
               ),
               const SizedBox(width: 12),
@@ -1197,7 +1250,8 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
     }
 
     final endedRateSelected = _taxRates.any(
-      (rate) => rate['id'] == _taxRateId && rate['ended'] == true,
+      (rate) =>
+          (rate['id'] as num?)?.toInt() == _taxRateId && rate['ended'] == true,
     );
 
     return Scaffold(
@@ -1469,7 +1523,7 @@ class _AdminProductFormScreenState extends State<AdminProductFormScreen> {
             _sectionHeader(
               context,
               l10n?.adminVariants ?? 'Variants',
-              subtitle: 'Configure pack sizes, SKUs, and pricing.',
+              subtitle: 'Configure pack sizes, SKUs, and original pricing.',
             ),
 
             for (var i = 0; i < _variants.length; i++) _variantCard(i),

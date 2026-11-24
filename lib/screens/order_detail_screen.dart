@@ -36,6 +36,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   bool get _payable =>
       _order?['status'] == 'received' && _order?['payment_status'] == 'unpaid';
+  int _cents(dynamic value) {
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
 
   @override
   void initState() {
@@ -51,19 +55,24 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       _loading = _order == null;
       _error = null;
     });
+
     try {
       final order = await ApiService.instance.getOrder(widget.orderId);
+
       if (!mounted) return;
+
       setState(() {
         _order = order;
         _loading = false;
       });
     } on ApiException catch (e) {
       if (!mounted) return;
+
       setState(() {
         _loading = false;
         if (_order == null) _error = e.message;
       });
+
       if (_order != null) _snack(e.message);
     }
   }
@@ -75,7 +84,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         builder: (_) => PaymentScreen(order: _order!, user: widget.user),
       ),
     );
+
     if (!mounted) return;
+
     if (updated != null) {
       setState(() => _order = updated);
     } else {
@@ -126,12 +137,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         ],
       ),
     );
+
     if (ok != true) return;
 
     setState(() => _busy = true);
+
     try {
       final order = await ApiService.instance.cancelOrder(widget.orderId);
+
       if (!mounted) return;
+
       setState(() => _order = order);
     } on ApiException catch (e) {
       if (mounted) _snack(e.message);
@@ -156,15 +171,22 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     String value, {
     bool bold = false,
     bool small = false,
+    Color? color,
   }) {
     final theme = Theme.of(context);
+
     final style = bold
-        ? theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)
+        ? theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: color,
+          )
         : (small
               ? theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  color:
+                      color ??
+                      theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 )
-              : theme.textTheme.bodyMedium);
+              : theme.textTheme.bodyMedium?.copyWith(color: color));
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -172,6 +194,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Expanded(child: Text(label, style: style)),
+          const SizedBox(width: 12),
           Text(value, style: style),
         ],
       ),
@@ -213,7 +236,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      i['name'] as String,
+                      i['name'] as String? ?? (isDe ? 'Artikel' : 'Item'),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleSmall?.copyWith(
@@ -235,15 +258,54 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${formatQuantity(i['quantity'] as num)} × '
+                      '${formatCents(_cents(i['unit_price_cents']))}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.6,
+                        ),
+                      ),
+                    ),
+                    if (_cents(i['discount_cents']) > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: Text(
+                          '${isDe ? 'Rabatt' : 'Discount'}: '
+                          '−${formatCents(_cents(i['discount_cents']))}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.green.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
-              Text(
-                formatCents(i['line_total_cents'] as int),
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: goldColor,
-                ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (_cents(i['line_original_total_cents']) >
+                      _cents(i['line_total_cents']))
+                    Text(
+                      formatCents(_cents(i['line_original_total_cents'])),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        decoration: TextDecoration.lineThrough,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.5,
+                        ),
+                      ),
+                    ),
+                  Text(
+                    formatCents(_cents(i['line_total_cents'])),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: goldColor,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -255,9 +317,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
     final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
-    final discount = totals['discount_cents'] as int;
-    final shipping = totals['shipping_cents'] as int;
-    final tax = (totals['tax'] as List<dynamic>).cast<OrderData>();
+
+    final discount = _cents(totals['discount_cents']);
+    final shipping = _cents(totals['shipping_cents']);
+    final tax = ((totals['tax'] as List<dynamic>?) ?? const [])
+        .whereType<OrderData>()
+        .toList();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -270,10 +335,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         children: [
           _row(
             isDe ? 'Artikel' : 'Items',
-            formatCents(totals['subtotal_cents'] as int),
+            formatCents(_cents(totals['subtotal_cents'])),
           ),
           if (discount > 0)
-            _row(isDe ? 'Rabatt' : 'Discount', '−${formatCents(discount)}'),
+            _row(
+              isDe ? 'Gesamtrabatte' : 'Total discounts',
+              '−${formatCents(discount)}',
+              color: Colors.green.shade700,
+            ),
           if (hasShipping)
             _row(
               l10n?.shipping ?? 'Shipping',
@@ -287,16 +356,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           ),
           _row(
             l10n?.total ?? 'Total',
-            formatCents(totals['total_cents'] as int),
+            formatCents(_cents(totals['total_cents'])),
             bold: true,
           ),
           const SizedBox(height: 4),
           for (final t in tax)
             _row(
               isDe
-                  ? 'inkl. ${formatPercent(t['rate_percent'] as num)}% MwSt. (netto ${formatCents(t['net_cents'] as int)})'
-                  : 'incl. ${formatPercent(t['rate_percent'] as num)}% VAT (net ${formatCents(t['net_cents'] as int)})',
-              formatCents(t['tax_cents'] as int),
+                  ? 'inkl. ${formatPercent(t['rate_percent'] as num)}% MwSt. (netto ${formatCents(_cents(t['net_cents']))})'
+                  : 'incl. ${formatPercent(t['rate_percent'] as num)}% VAT (net ${formatCents(_cents(t['net_cents']))})',
+              formatCents(_cents(t['tax_cents'])),
               small: true,
             ),
         ],
@@ -340,6 +409,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   String _providerLabel(String provider) {
     final l10n = AppLocalizations.of(context);
     final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
+
     return switch (provider) {
       'membership_credit' =>
         isDe ? 'Mitgliedschaftsguthaben' : 'Membership credit',
@@ -349,6 +419,60 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       'dev' => isDe ? 'Testzahlung' : 'Test payment',
       _ => provider.replaceAll('_', ' '),
     };
+  }
+
+  Widget _history(List<OrderData> history, bool isDe) {
+    final theme = Theme.of(context);
+    final goldColor = theme.colorScheme.secondary;
+
+    return Column(
+      children: [
+        for (final h in history.reversed)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: Icon(Icons.circle, size: 8, color: goldColor),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        orderStatusLabel(h['status'] as String),
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      if ((h['note'] as String?)?.trim().isNotEmpty == true)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 3),
+                          child: Text(
+                            h['note'] as String,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  formatDateTime(h['created_at'] as String?),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
   }
 
   Widget _body() {
@@ -366,7 +490,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     if (_error != null) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -395,13 +519,27 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
 
     final o = _order!;
-    final items = (o['items'] as List<dynamic>).cast<OrderData>();
-    final addresses = o['addresses'] as OrderData;
-    final shipments = (o['shipments'] as List<dynamic>).cast<OrderData>();
-    final payments = (o['payments'] as List<dynamic>).cast<OrderData>();
+    final items = ((o['items'] as List<dynamic>?) ?? const [])
+        .whereType<OrderData>()
+        .toList();
+
+    final addresses = (o['addresses'] as OrderData?) ?? {};
+
+    final shipments = ((o['shipments'] as List<dynamic>?) ?? const [])
+        .whereType<OrderData>()
+        .toList();
+
+    final payments = ((o['payments'] as List<dynamic>?) ?? const [])
+        .whereType<OrderData>()
+        .toList();
+
     final refunds = ((o['refunds'] as List<dynamic>?) ?? const [])
-        .cast<OrderData>();
-    final history = (o['history'] as List<dynamic>).cast<OrderData>();
+        .whereType<OrderData>()
+        .toList();
+
+    final history = ((o['history'] as List<dynamic>?) ?? const [])
+        .whereType<OrderData>()
+        .toList();
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -536,18 +674,18 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   subtitle: SelectableText(
                     [
                       if (s['tracking_number'] != null)
-                        (isDe
+                        isDe
                             ? 'Sendungsnummer ${s['tracking_number']}'
-                            : 'Tracking number ${s['tracking_number']}'),
+                            : 'Tracking number ${s['tracking_number']}',
                       orderStatusLabel(s['status'] as String),
                       if (s['shipped_at'] != null)
-                        (isDe
+                        isDe
                             ? 'versandt ${formatDate(s['shipped_at'] as String?)}'
-                            : 'shipped ${formatDate(s['shipped_at'] as String?)}'),
+                            : 'shipped ${formatDate(s['shipped_at'] as String?)}',
                       if (s['delivered_at'] != null)
-                        (isDe
+                        isDe
                             ? 'zugestellt ${formatDate(s['delivered_at'] as String?)}'
-                            : 'delivered ${formatDate(s['delivered_at'] as String?)}'),
+                            : 'delivered ${formatDate(s['delivered_at'] as String?)}',
                     ].join(' · '),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
@@ -589,7 +727,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       ),
                     ),
                     Text(
-                      formatCents(p['amount_cents'] as int),
+                      formatCents(_cents(p['amount_cents'])),
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -637,7 +775,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       ),
                     ),
                     Text(
-                      '−${formatCents(r['amount_cents'] as int)}',
+                      '−${formatCents(_cents(r['amount_cents']))}',
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: theme.colorScheme.error,
@@ -648,28 +786,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               ),
           ],
           _heading(l10n?.orderStatus ?? 'Status'),
-          for (final h in history.reversed)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Row(
-                children: [
-                  Icon(Icons.circle, size: 8, color: goldColor),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      orderStatusLabel(h['status'] as String),
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ),
-                  Text(
-                    formatDateTime(h['created_at'] as String?),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          _history(history, isDe),
         ],
       ),
     );

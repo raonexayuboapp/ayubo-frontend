@@ -56,6 +56,20 @@ class _CartScreenState extends State<CartScreen> {
     super.dispose();
   }
 
+  int _intValue(dynamic value) {
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  bool _hasDiscount(CartData item) {
+    if (item['has_product_discount'] == true) return true;
+
+    final original = _intValue(item['unit_original_price_cents']);
+    final current = _intValue(item['unit_price_cents']);
+
+    return original > current;
+  }
+
   void _snack(String text) {
     // Prevent the Undo timer from dismissing a different notification.
     _cancelUndoDismissTimer();
@@ -222,8 +236,10 @@ class _CartScreenState extends State<CartScreen> {
 
   Widget _line(CartData item) {
     final theme = Theme.of(context);
-    final goldColor = theme.colorScheme.secondary;
+    final scheme = theme.colorScheme;
+    final goldColor = scheme.secondary;
     final l10n = AppLocalizations.of(context);
+    final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
     final eachStr = l10n?.each ?? 'each';
 
     final id = item['id'] as int;
@@ -234,14 +250,31 @@ class _CartScreenState extends State<CartScreen> {
     final removeOnly = _removeOnly.contains(issue);
     final canStep = type != 'membership' && !removeOnly;
 
+    final quantity = _intValue(item['quantity']);
+    final unitPrice = _intValue(item['unit_price_cents']);
+    final originalUnitPrice = _intValue(
+      item['unit_original_price_cents'] ?? item['unit_price_cents'],
+    );
+    final unitDiscount = _intValue(item['unit_discount_cents']);
+    final lineTotal = _intValue(item['line_total_cents']);
+    final lineDiscount = _intValue(
+      item['line_discount_cents'] ?? unitDiscount * quantity,
+    );
+    final originalLineTotal = _intValue(
+      item['line_original_total_cents'] ?? lineTotal + lineDiscount,
+    );
+
+    final hasDiscount = _hasDiscount(item) && originalUnitPrice > unitPrice;
+    final hasLineSavings = hasDiscount && lineDiscount > 0;
+
     return Container(
       key: ValueKey(id),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: issue != null
-              ? theme.colorScheme.error.withValues(alpha: 0.5)
+              ? scheme.error.withValues(alpha: 0.5)
               : theme.dividerColor.withValues(alpha: 0.15),
         ),
       ),
@@ -273,37 +306,110 @@ class _CartScreenState extends State<CartScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      [
-                        if (pack != null && pack.isNotEmpty) pack,
-                        '${formatCents(item['unit_price_cents'] as int)} $eachStr',
-                      ].join(' · '),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.6,
+
+                    const SizedBox(height: 5),
+
+                    // Pack size and unit pricing.
+                    if (pack != null && pack.isNotEmpty)
+                      Text(
+                        pack,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
+
+                    const SizedBox(height: 3),
+
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 7,
+                      children: [
+                        Text(
+                          formatCents(unitPrice),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: hasDiscount
+                                ? Colors.red.shade700
+                                : scheme.onSurface,
+                          ),
+                        ),
+                        if (hasDiscount)
+                          Text(
+                            formatCents(originalUnitPrice),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              decoration: TextDecoration.lineThrough,
+                              color: scheme.onSurface.withValues(alpha: 0.5),
+                            ),
+                          ),
+                        Text(
+                          eachStr,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
                     ),
+
+                    if (hasDiscount) ...[
+                      const SizedBox(height: 5),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryGreen.withValues(
+                                alpha: 0.12,
+                              ),
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: Text(
+                              isDe ? 'PRODUKTRABATT' : 'PRODUCT DISCOUNT',
+                              style: const TextStyle(
+                                color: AppTheme.primaryGreen,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          if (unitDiscount > 0) ...[
+                            const SizedBox(width: 6),
+                            Text(
+                              isDe
+                                  ? 'Sie sparen ${formatCents(unitDiscount)}'
+                                  : 'Save ${formatCents(unitDiscount)}',
+                              style: const TextStyle(
+                                color: AppTheme.primaryGreen,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+
                     if (issue != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           (item['issue_message'] as String?) ??
                               'This item has a problem.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: theme.colorScheme.error,
-                          ),
+                          style: TextStyle(fontSize: 12, color: scheme.error),
                         ),
                       ),
+
                     const SizedBox(height: 8),
+
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         if (canStep)
                           QuantityStepper(
-                            value: item['quantity'] as int,
-                            max: item['max_quantity'] as int,
+                            value: quantity,
+                            max: _intValue(item['max_quantity']),
                             enabled: !busy,
                             onChanged: (q) => _change(item, q),
                           )
@@ -325,17 +431,51 @@ class _CartScreenState extends State<CartScreen> {
                               ),
                             ),
                           ),
+
                         const Spacer(),
+
                         if (issue == null)
-                          Text(
-                            formatCents(item['line_total_cents'] as int),
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: goldColor,
-                            ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                formatCents(lineTotal),
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: goldColor,
+                                ),
+                              ),
+                              if (hasLineSavings)
+                                Text(
+                                  formatCents(originalLineTotal),
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    decoration: TextDecoration.lineThrough,
+                                    color: scheme.onSurface.withValues(
+                                      alpha: 0.5,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                       ],
                     ),
+
+                    if (hasLineSavings) ...[
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          isDe
+                              ? 'Ersparnis: ${formatCents(lineDiscount)}'
+                              : 'You save ${formatCents(lineDiscount)}',
+                          style: const TextStyle(
+                            color: AppTheme.primaryGreen,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -344,7 +484,7 @@ class _CartScreenState extends State<CartScreen> {
                 icon: Icon(
                   Icons.delete_outline,
                   size: 20,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  color: scheme.onSurface.withValues(alpha: 0.5),
                 ),
                 onPressed: busy ? null : () => _remove(item),
               ),
@@ -358,24 +498,47 @@ class _CartScreenState extends State<CartScreen> {
   Widget _footer(CartData cart) {
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
+    final scheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
     final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
+
     final totals = cart['totals'] as Map<String, dynamic>;
     final tax = (totals['tax'] as List<dynamic>).cast<CartData>();
     final blocking = (cart['blocking_issues'] as num).toInt();
     final canCheckout = cart['can_checkout'] == true;
 
-    Widget row(String label, String value, {TextStyle? style}) => Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: style),
-        Text(value, style: style),
-      ],
+    final subtotal = _intValue(totals['subtotal_cents']);
+    final originalSubtotal = _intValue(
+      totals['subtotal_before_discounts_cents'] ?? subtotal,
     );
+    final productDiscount = _intValue(totals['product_discount_cents']);
+    final hasProductDiscount =
+        productDiscount > 0 && originalSubtotal > subtotal;
+
+    Widget row(
+      String label,
+      String value, {
+      TextStyle? style,
+      Color? valueColor,
+    }) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(child: Text(label, style: style)),
+          const SizedBox(width: 12),
+          Text(
+            value,
+            style:
+                style?.copyWith(color: valueColor) ??
+                (valueColor != null ? TextStyle(color: valueColor) : null),
+          ),
+        ],
+      );
+    }
 
     return Container(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: scheme.surface,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -395,13 +558,44 @@ class _CartScreenState extends State<CartScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Original subtotal, shown only when product discounts exist.
+              if (hasProductDiscount)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 5),
+                  child: row(
+                    isDe
+                        ? 'Zwischensumme vor Rabatten'
+                        : 'Subtotal before discounts',
+                    formatCents(originalSubtotal),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurface.withValues(alpha: 0.65),
+                    ),
+                  ),
+                ),
+
+              // Product discount savings.
+              if (hasProductDiscount)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 5),
+                  child: row(
+                    isDe ? 'Produktrabatte' : 'Product discounts',
+                    '-${formatCents(productDiscount)}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    valueColor: AppTheme.primaryGreen,
+                  ),
+                ),
+
+              // Current payable goods subtotal.
               row(
                 l10n?.subtotal ?? 'Subtotal',
-                formatCents(totals['subtotal_cents'] as int),
+                formatCents(subtotal),
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
+
               for (final t in tax)
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
@@ -409,17 +603,20 @@ class _CartScreenState extends State<CartScreen> {
                     isDe
                         ? 'inkl. ${formatPercent(t['rate_percent'] as num)}% MwSt.'
                         : 'incl. ${formatPercent(t['rate_percent'] as num)}% VAT',
-                    formatCents(t['tax_cents'] as int),
+                    formatCents(_intValue(t['tax_cents'])),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                     ),
                   ),
                 ),
+
               const SizedBox(height: 8),
+
               ShippingEstimate(
                 cartKey:
                     '${totals['subtotal_cents']}|${totals['item_count']}|$blocking',
               ),
+
               if (blocking > 0)
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
@@ -428,11 +625,13 @@ class _CartScreenState extends State<CartScreen> {
                         ? 'Rot markierte Artikel sind nicht enthalten. Bitte korrigieren oder entfernen.'
                         : 'Items marked in red are not included. Fix or remove them to continue.',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.error,
+                      color: scheme.error,
                     ),
                   ),
                 ),
+
               const SizedBox(height: 14),
+
               ElevatedButton(
                 onPressed: canCheckout ? _checkout : null,
                 style: ElevatedButton.styleFrom(
