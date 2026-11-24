@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../utils/money.dart';
 import '../utils/request_key.dart';
@@ -11,7 +12,11 @@ typedef StockData = Map<String, dynamic>;
 class AdminStockScreen extends StatefulWidget {
   final int variantId;
   final String title; // the SKU, shown while the screen loads
-  const AdminStockScreen({super.key, required this.variantId, required this.title});
+  const AdminStockScreen({
+    super.key,
+    required this.variantId,
+    required this.title,
+  });
 
   @override
   State<AdminStockScreen> createState() => _AdminStockScreenState();
@@ -52,7 +57,9 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
       if (_data == null) {
         setState(() => _error = e.message);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -72,20 +79,27 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
     );
     if (message == null || !mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
     _load();
   }
 
   Future<void> _addLocation() async {
-    final created = await showDialog<bool>(context: context, builder: (_) => const _NewLocationDialog());
+    final created = await showDialog<bool>(
+      context: context,
+      builder: (_) => const _NewLocationDialog(),
+    );
     if (created == true) _load();
   }
 
   Widget _totalsCard(StockData totals) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
 
-    Widget cell(String label, num value, {bool isHighlight = false}) => Expanded(
+    Widget cell(String label, num value, {bool isHighlight = false}) =>
+        Expanded(
           child: Column(
             children: [
               Text(
@@ -111,21 +125,27 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: theme.dividerColor.withValues(alpha: 0.15),
-        ),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.15)),
       ),
       child: Row(
         children: [
-          cell('On hand', totals['on_hand'] as num),
-          cell('Reserved', totals['reserved'] as num),
-          cell('Available', totals['available'] as num, isHighlight: true),
+          cell(l10n?.adminStockOnHand ?? 'On hand', totals['on_hand'] as num),
+          cell(
+            l10n?.adminStockReserved ?? 'Reserved',
+            totals['reserved'] as num,
+          ),
+          cell(
+            l10n?.adminStockAvailable ?? 'Available',
+            totals['available'] as num,
+            isHighlight: true,
+          ),
         ],
       ),
     );
   }
 
   Widget _balanceTile(StockData b) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
 
@@ -134,10 +154,12 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       title: Text(
         '${b['code']} · ${b['name']}',
-        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+        style: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
       ),
       subtitle: Text(
-        'On hand ${formatQuantity(b['on_hand'] as num)} · Reserved ${formatQuantity(b['reserved'] as num)}',
+        '${l10n?.adminStockOnHand ?? "On hand"} ${formatQuantity(b['on_hand'] as num)} · ${l10n?.adminStockReserved ?? "Reserved"} ${formatQuantity(b['reserved'] as num)}',
         style: theme.textTheme.bodySmall?.copyWith(
           color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
         ),
@@ -153,11 +175,14 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
   }
 
   Widget _body() {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
 
     if (_loading && _data == null) {
-      return Center(child: CircularProgressIndicator(color: goldColor, strokeWidth: 2));
+      return Center(
+        child: CircularProgressIndicator(color: goldColor, strokeWidth: 2),
+      );
     }
 
     if (_error != null) {
@@ -167,14 +192,22 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
+              Icon(
+                Icons.error_outline,
+                size: 40,
+                color: theme.colorScheme.error,
+              ),
               const SizedBox(height: 12),
-              Text(_error!, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium,
+              ),
               const SizedBox(height: 16),
               TextButton.icon(
                 onPressed: _load,
                 icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Retry'),
+                label: Text(l10n?.adminRetry ?? 'Retry'),
                 style: TextButton.styleFrom(foregroundColor: goldColor),
               ),
             ],
@@ -197,7 +230,9 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
         children: [
           Text(
             (variant['product_name'] as String?) ?? variant['sku'] as String,
-            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 2),
           Text(
@@ -213,7 +248,9 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: theme.dividerColor.withValues(alpha: 0.15)),
+                border: Border.all(
+                  color: theme.dividerColor.withValues(alpha: 0.15),
+                ),
               ),
               child: Text(
                 'This product type (service, voucher or course) does not track stock.',
@@ -231,7 +268,9 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: theme.dividerColor.withValues(alpha: 0.15)),
+                  border: Border.all(
+                    color: theme.dividerColor.withValues(alpha: 0.15),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -249,7 +288,10 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
                         elevation: 0,
                       ),
                       icon: const Icon(Icons.add_business_outlined, size: 18),
-                      label: const Text('Add location', style: TextStyle(fontWeight: FontWeight.bold)),
+                      label: Text(
+                        l10n?.adminNewLocation ?? 'Add location',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ],
                 ),
@@ -266,7 +308,10 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
                         elevation: 0,
                       ),
                       icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Receive', style: TextStyle(fontWeight: FontWeight.bold)),
+                      label: Text(
+                        l10n?.adminReceiveGoods ?? 'Receive',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -278,7 +323,7 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
                         foregroundColor: goldColor,
                       ),
                       icon: const Icon(Icons.tune, size: 18),
-                      label: const Text('Adjust'),
+                      label: Text(l10n?.adminAdjustStock ?? 'Adjust'),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -290,7 +335,7 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
                         foregroundColor: goldColor,
                       ),
                       icon: const Icon(Icons.fact_check_outlined, size: 18),
-                      label: const Text('Count'),
+                      label: Text(l10n?.adminStocktake ?? 'Count'),
                     ),
                   ),
                 ],
@@ -313,26 +358,34 @@ class _AdminStockScreenState extends State<AdminStockScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final variant = _data?['variant'] as StockData?;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(variant == null ? widget.title : '${variant['sku']} · Stock'),
+        title: Text(
+          variant == null
+              ? widget.title
+              : '${variant['sku']} · ${l10n?.adminStock ?? "Stock"}',
+        ),
         elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.history, size: 20),
-            tooltip: 'History',
+            tooltip: l10n?.adminStockMovements ?? 'History',
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => AdminStockHistoryScreen(variantId: widget.variantId, title: widget.title),
+                builder: (_) => AdminStockHistoryScreen(
+                  variantId: widget.variantId,
+                  title: widget.title,
+                ),
               ),
             ),
           ),
           IconButton(
             icon: const Icon(Icons.add_business_outlined, size: 20),
-            tooltip: 'Add location',
+            tooltip: l10n?.adminNewLocation ?? 'Add location',
             onPressed: _data == null ? null : _addLocation,
           ),
         ],
@@ -378,31 +431,26 @@ class _StockDialogState extends State<_StockDialog> {
     super.dispose();
   }
 
-  String get _title => switch (widget.kind) {
-        'receive' => 'Receive stock',
-        'adjust' => 'Adjust stock',
-        _ => 'Count stock',
-      };
-
   String get _label => switch (widget.kind) {
-        'receive' => 'Quantity received',
-        'adjust' => 'Change (+ or -)',
-        _ => 'Counted on the shelf',
-      };
+    'receive' => 'Quantity received',
+    'adjust' => 'Change (+ or -)',
+    _ => 'Counted on the shelf',
+  };
 
   String get _helper => switch (widget.kind) {
-        'receive' => 'Goods that arrived at this location.',
-        'adjust' => 'Use a minus sign to remove, for example -2 for damaged goods.',
-        _ => 'The system works out the difference to what is recorded.',
-      };
+    'receive' => 'Goods that arrived at this location.',
+    'adjust' => 'Use a minus sign to remove, for example -2 for damaged goods.',
+    _ => 'The system works out the difference to what is recorded.',
+  };
 
   String get _field => switch (widget.kind) {
-        'receive' => 'quantity',
-        'adjust' => 'delta',
-        _ => 'on_hand',
-      };
+    'receive' => 'quantity',
+    'adjust' => 'delta',
+    _ => 'on_hand',
+  };
 
-  String _normalized(String? v) => (v ?? '').trim().replaceAll(',', '.').replaceFirst(RegExp(r'^\+'), '');
+  String _normalized(String? v) =>
+      (v ?? '').trim().replaceAll(',', '.').replaceFirst(RegExp(r'^\+'), '');
 
   num _recorded() {
     final match = widget.balances.where((b) => b['location_id'] == _locationId);
@@ -413,15 +461,19 @@ class _StockDialogState extends State<_StockDialog> {
     final s = _normalized(v);
     final negativeAllowed = widget.kind == 'adjust';
 
-    if (!RegExp(negativeAllowed ? r'^-?\d{1,7}(\.\d{1,3})?$' : r'^\d{1,7}(\.\d{1,3})?$').hasMatch(s)) {
+    if (!RegExp(
+      negativeAllowed ? r'^-?\d{1,7}(\.\d{1,3})?$' : r'^\d{1,7}(\.\d{1,3})?$',
+    ).hasMatch(s)) {
       return negativeAllowed
           ? 'Enter a number such as 5 or -2 (up to 3 decimals).'
           : 'Enter a number such as 5 or 2.5 (up to 3 decimals).';
     }
 
     final n = double.parse(s);
-    if (widget.kind == 'receive' && n <= 0) return 'A receipt must be more than zero.';
-    if (widget.kind == 'adjust' && n == 0) return 'An adjustment cannot be zero.';
+    if (widget.kind == 'receive' && n <= 0)
+      return 'A receipt must be more than zero.';
+    if (widget.kind == 'adjust' && n == 0)
+      return 'An adjustment cannot be zero.';
 
     return null;
   }
@@ -443,11 +495,11 @@ class _StockDialogState extends State<_StockDialog> {
     setState(() => _saving = true);
 
     try {
-      final result = await ApiService.instance.adminStockOperation(widget.variantId, widget.kind, {
-        'location_id': _locationId,
-        _field: qty,
-        'request_key': _key,
-      });
+      final result = await ApiService.instance.adminStockOperation(
+        widget.variantId,
+        widget.kind,
+        {'location_id': _locationId, _field: qty, 'request_key': _key},
+      );
       if (!mounted) return;
 
       Navigator.pop(
@@ -455,8 +507,8 @@ class _StockDialogState extends State<_StockDialog> {
         result['already_applied'] == true
             ? 'This was already recorded.'
             : result['changed'] == false
-                ? 'No change: the count already matched.'
-                : 'Stock updated.',
+            ? 'No change: the count already matched.'
+            : 'Stock updated.',
       );
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -468,7 +520,9 @@ class _StockDialogState extends State<_StockDialog> {
           if (qtyError != null) 'qty': qtyError,
           if (errs['location_id'] != null) 'location': errs['location_id']!,
         };
-        _error = errs.isEmpty ? e.message : (errs['variant'] ?? errs['request_key']);
+        _error = errs.isEmpty
+            ? e.message
+            : (errs['variant'] ?? errs['request_key']);
         _saving = false;
       });
     }
@@ -476,16 +530,25 @@ class _StockDialogState extends State<_StockDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
+
+    final dialogTitle = switch (widget.kind) {
+      'receive' => l10n?.adminReceiveGoods ?? 'Receive stock',
+      'adjust' => l10n?.adminAdjustStock ?? 'Adjust stock',
+      _ => l10n?.adminStocktake ?? 'Count stock',
+    };
 
     return AlertDialog(
       backgroundColor: theme.colorScheme.surface,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
-        _title,
-        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        dialogTitle,
+        style: theme.textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.bold,
+        ),
       ),
       content: SingleChildScrollView(
         child: Form(
@@ -496,24 +559,39 @@ class _StockDialogState extends State<_StockDialog> {
               DropdownButtonFormField<int>(
                 initialValue: _locationId,
                 isExpanded: true,
-                decoration: InputDecoration(labelText: 'Location', errorText: _serverErrors['location']),
+                decoration: InputDecoration(
+                  labelText: l10n?.adminStockLocations ?? 'Location',
+                  errorText: _serverErrors['location'],
+                ),
                 items: [
                   for (final l in widget.locations)
-                    DropdownMenuItem(value: l['id'] as int, child: Text('${l['code']} · ${l['name']}')),
+                    DropdownMenuItem(
+                      value: l['id'] as int,
+                      child: Text('${l['code']} · ${l['name']}'),
+                    ),
                 ],
-                onChanged: _saving ? null : (v) => setState(() => _locationId = v!),
+                onChanged: _saving
+                    ? null
+                    : (v) => setState(() => _locationId = v!),
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _qty,
                 enabled: !_saving,
                 autofocus: true,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 validator: _validate,
                 forceErrorText: _serverErrors['qty'],
                 onFieldSubmitted: (_) => _submit(),
-                decoration: InputDecoration(labelText: _label, helperText: _helper, helperMaxLines: 2),
+                decoration: InputDecoration(
+                  labelText: _label,
+                  helperText: _helper,
+                  helperMaxLines: 2,
+                ),
               ),
               if (widget.kind == 'count')
                 Padding(
@@ -523,7 +601,9 @@ class _StockDialogState extends State<_StockDialog> {
                     child: Text(
                       'Currently recorded here: ${formatQuantity(_recorded())}',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.6,
+                        ),
                       ),
                     ),
                   ),
@@ -531,7 +611,13 @@ class _StockDialogState extends State<_StockDialog> {
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
-                  child: Text(_error!, style: TextStyle(color: theme.colorScheme.error, fontSize: 13)),
+                  child: Text(
+                    _error!,
+                    style: TextStyle(
+                      color: theme.colorScheme.error,
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -541,8 +627,10 @@ class _StockDialogState extends State<_StockDialog> {
         TextButton(
           onPressed: _saving ? null : () => Navigator.pop(context),
           child: Text(
-            'Cancel',
-            style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+            l10n?.cancel ?? 'Cancel',
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+            ),
           ),
         ),
         ElevatedButton(
@@ -553,8 +641,18 @@ class _StockDialogState extends State<_StockDialog> {
             elevation: 0,
           ),
           child: _saving
-              ? SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: goldColor))
-              : const Text('Save', style: TextStyle(fontWeight: FontWeight.bold)),
+              ? SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: goldColor,
+                  ),
+                )
+              : Text(
+                  l10n?.save ?? 'Save',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
         ),
       ],
     );
@@ -593,7 +691,10 @@ class _NewLocationDialogState extends State<_NewLocationDialog> {
     setState(() => _saving = true);
 
     try {
-      await ApiService.instance.adminCreateStockLocation(_code.text.trim().toUpperCase(), _name.text.trim());
+      await ApiService.instance.adminCreateStockLocation(
+        _code.text.trim().toUpperCase(),
+        _name.text.trim(),
+      );
       if (!mounted) return;
       Navigator.pop(context, true);
     } on ApiException catch (e) {
@@ -608,6 +709,7 @@ class _NewLocationDialogState extends State<_NewLocationDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
 
@@ -616,8 +718,10 @@ class _NewLocationDialogState extends State<_NewLocationDialog> {
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
-        'New stock location',
-        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        l10n?.adminNewLocation ?? 'New stock location',
+        style: theme.textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.bold,
+        ),
       ),
       content: Form(
         key: _form,
@@ -628,11 +732,17 @@ class _NewLocationDialogState extends State<_NewLocationDialog> {
               controller: _code,
               textCapitalization: TextCapitalization.characters,
               autovalidateMode: AutovalidateMode.onUserInteraction,
-              validator: (v) => RegExp(r'^[A-Z][A-Z0-9_-]{1,39}$').hasMatch((v ?? '').trim().toUpperCase())
+              validator: (v) =>
+                  RegExp(
+                    r'^[A-Z][A-Z0-9_-]{1,39}$',
+                  ).hasMatch((v ?? '').trim().toUpperCase())
                   ? null
                   : '2 to 40 characters: letters, numbers, - and _',
               forceErrorText: _serverErrors['code'],
-              decoration: const InputDecoration(labelText: 'Code', helperText: 'e.g. MAIN'),
+              decoration: const InputDecoration(
+                labelText: 'Code',
+                helperText: 'e.g. MAIN',
+              ),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -640,15 +750,26 @@ class _NewLocationDialogState extends State<_NewLocationDialog> {
               autovalidateMode: AutovalidateMode.onUserInteraction,
               validator: (v) {
                 final s = (v ?? '').trim();
-                return s.isEmpty || s.length > 100 ? 'Name must be 1 to 100 characters.' : null;
+                return s.isEmpty || s.length > 100
+                    ? 'Name must be 1 to 100 characters.'
+                    : null;
               },
               forceErrorText: _serverErrors['name'],
-              decoration: const InputDecoration(labelText: 'Name', helperText: 'e.g. Main warehouse'),
+              decoration: InputDecoration(
+                labelText: l10n?.adminLocationName ?? 'Name',
+                helperText: 'e.g. Main warehouse',
+              ),
             ),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
-                child: Text(_error!, style: TextStyle(color: theme.colorScheme.error, fontSize: 13)),
+                child: Text(
+                  _error!,
+                  style: TextStyle(
+                    color: theme.colorScheme.error,
+                    fontSize: 13,
+                  ),
+                ),
               ),
           ],
         ),
@@ -657,8 +778,10 @@ class _NewLocationDialogState extends State<_NewLocationDialog> {
         TextButton(
           onPressed: _saving ? null : () => Navigator.pop(context, false),
           child: Text(
-            'Cancel',
-            style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+            l10n?.cancel ?? 'Cancel',
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+            ),
           ),
         ),
         ElevatedButton(
@@ -669,8 +792,18 @@ class _NewLocationDialogState extends State<_NewLocationDialog> {
             elevation: 0,
           ),
           child: _saving
-              ? SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: goldColor))
-              : const Text('Create', style: TextStyle(fontWeight: FontWeight.bold)),
+              ? SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: goldColor,
+                  ),
+                )
+              : Text(
+                  l10n?.adminCreate ?? 'Create',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
         ),
       ],
     );

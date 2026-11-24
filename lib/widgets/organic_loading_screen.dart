@@ -6,11 +6,7 @@ class OrganicLoadingScreen extends StatelessWidget {
   final String? message;
   final double logoSize;
 
-  const OrganicLoadingScreen({
-    super.key,
-    this.message,
-    this.logoSize = 110.0,
-  });
+  const OrganicLoadingScreen({super.key, this.message, this.logoSize = 110.0});
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +25,9 @@ class OrganicLoadingScreen extends StatelessWidget {
               height: 260,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppTheme.primaryGreen.withValues(alpha: isDark ? 0.2 : 0.08),
+                color: AppTheme.primaryGreen.withValues(
+                  alpha: isDark ? 0.2 : 0.08,
+                ),
               ),
             ),
           ),
@@ -41,7 +39,9 @@ class OrganicLoadingScreen extends StatelessWidget {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppTheme.brandGold.withValues(alpha: isDark ? 0.12 : 0.06),
+                color: AppTheme.brandGold.withValues(
+                  alpha: isDark ? 0.12 : 0.06,
+                ),
               ),
             ),
           ),
@@ -55,40 +55,45 @@ class OrganicLoadingScreen extends StatelessWidget {
                 children: [
                   // Gold Logo Card with Halo Effect
                   Container(
-                    padding: EdgeInsets.all(logoSize * 0.2),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isDark ? AppTheme.surfaceDark : Colors.white,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.brandGold.withValues(alpha: 0.35),
-                          blurRadius: 36,
-                          spreadRadius: 6,
+                        padding: EdgeInsets.all(logoSize * 0.2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isDark ? AppTheme.surfaceDark : Colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.brandGold.withValues(alpha: 0.35),
+                              blurRadius: 36,
+                              spreadRadius: 6,
+                            ),
+                            BoxShadow(
+                              color: AppTheme.primaryGreen.withValues(
+                                alpha: 0.15,
+                              ),
+                              blurRadius: 18,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                          border: Border.all(
+                            color: AppTheme.brandGold.withValues(alpha: 0.6),
+                            width: 1.8,
+                          ),
                         ),
-                        BoxShadow(
-                          color: AppTheme.primaryGreen.withValues(alpha: 0.15),
-                          blurRadius: 18,
-                          spreadRadius: 2,
+                        child: Image.asset(
+                          'assets/images/Ayubo_logo.png',
+                          width: logoSize,
+                          height: logoSize,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) => Icon(
+                            Icons.eco_rounded,
+                            size: logoSize,
+                            color: AppTheme.brandGold,
+                          ),
                         ),
-                      ],
-                      border: Border.all(
-                        color: AppTheme.brandGold.withValues(alpha: 0.6),
-                        width: 1.8,
-                      ),
-                    ),
-                    child: Image.asset(
-                      'assets/images/Ayubo_logo.png',
-                      width: logoSize,
-                      height: logoSize,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => Icon(
-                        Icons.eco_rounded,
-                        size: logoSize,
-                        color: AppTheme.brandGold,
-                      ),
-                    ),
-                  )
-                      .animate(onPlay: (controller) => controller.repeat(reverse: true))
+                      )
+                      .animate(
+                        onPlay: (controller) =>
+                            controller.repeat(reverse: true),
+                      )
                       .scaleXY(
                         begin: 0.96,
                         end: 1.04,
@@ -104,8 +109,12 @@ class OrganicLoadingScreen extends StatelessWidget {
                     height: 42,
                     child: CircularProgressIndicator(
                       strokeWidth: 3.2,
-                      valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.brandGold),
-                      backgroundColor: AppTheme.primaryGreen.withValues(alpha: 0.2),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        AppTheme.brandGold,
+                      ),
+                      backgroundColor: AppTheme.primaryGreen.withValues(
+                        alpha: 0.2,
+                      ),
                     ),
                   ),
 
@@ -113,18 +122,23 @@ class OrganicLoadingScreen extends StatelessWidget {
 
                   // Loading Text / Brand Subtitle
                   Text(
-                    message ?? 'Ayubo Organics',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: scheme.onSurface,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.8,
-                    ),
-                  )
+                        message ?? 'Ayubo Organics',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: scheme.onSurface,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.8,
+                        ),
+                      )
                       .animate()
                       .fadeIn(duration: 600.ms, delay: 200.ms)
-                      .slideY(begin: 0.2, end: 0, duration: 600.ms, curve: Curves.easeOut),
+                      .slideY(
+                        begin: 0.2,
+                        end: 0,
+                        duration: 600.ms,
+                        curve: Curves.easeOut,
+                      ),
 
                   const SizedBox(height: 8),
 
@@ -136,9 +150,7 @@ class OrganicLoadingScreen extends StatelessWidget {
                       letterSpacing: 1.2,
                       fontWeight: FontWeight.w500,
                     ),
-                  )
-                      .animate()
-                      .fadeIn(duration: 600.ms, delay: 400.ms),
+                  ).animate().fadeIn(duration: 600.ms, delay: 400.ms),
                 ],
               ),
             ),

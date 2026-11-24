@@ -27,8 +27,8 @@ class HomeHeader extends StatelessWidget {
     final greeting = hour < 12
         ? (l10n?.greetingMorning ?? 'Good morning')
         : (hour < 17
-            ? (l10n?.greetingAfternoon ?? 'Good afternoon')
-            : (l10n?.greetingEvening ?? 'Good evening'));
+              ? (l10n?.greetingAfternoon ?? 'Good afternoon')
+              : (l10n?.greetingEvening ?? 'Good evening'));
 
     final firstName = user?['first_name'] as String?;
     if (firstName != null && firstName.trim().isNotEmpty) {
@@ -179,9 +179,13 @@ class HomeHeader extends StatelessWidget {
                       ),
                     ),
                     child: Icon(
-                      _isGuest ? Icons.person_outline_rounded : Icons.person_rounded,
+                      _isGuest
+                          ? Icons.person_outline_rounded
+                          : Icons.person_rounded,
                       size: 18,
-                      color: _isGuest ? scheme.onSurface.withValues(alpha: 0.6) : AppTheme.primaryGreen,
+                      color: _isGuest
+                          ? scheme.onSurface.withValues(alpha: 0.6)
+                          : AppTheme.primaryGreen,
                     ),
                   ),
                   onPressed: () => _handleProfileTap(context),
@@ -194,4 +198,3 @@ class HomeHeader extends StatelessWidget {
     );
   }
 }
-

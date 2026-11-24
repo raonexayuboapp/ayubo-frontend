@@ -37,7 +37,8 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
     });
     try {
       final data = await ApiService.instance.loyalty(page: _page);
-      final list = (data['transactions'] as List<dynamic>).cast<LoyaltyTransactionData>();
+      final list = (data['transactions'] as List<dynamic>)
+          .cast<LoyaltyTransactionData>();
       if (!mounted) return;
       setState(() {
         _balance = (data['balance'] as num).toInt();
@@ -55,7 +56,10 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
           _page--;
         }
       });
-      if (!reset) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (!reset)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -64,9 +68,13 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
     final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
     switch (type) {
       case 'earn':
-        return l10n?.pointsEarned ?? (isDe ? 'Punkte gesammelt' : 'Points earned');
+        return l10n?.pointsEarned ??
+            (isDe ? 'Punkte gesammelt' : 'Points earned');
       case 'reverse':
-        return l10n?.pointsRefunded ?? (isDe ? 'Punkte zurückgebucht (Erstattung)' : 'Points taken back (refund)');
+        return l10n?.pointsRefunded ??
+            (isDe
+                ? 'Punkte zurückgebucht (Erstattung)'
+                : 'Points taken back (refund)');
       default:
         return type.replaceAll('_', ' ');
     }
@@ -82,9 +90,7 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: goldColor.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: goldColor.withValues(alpha: 0.3)),
         boxShadow: [
           BoxShadow(
             color: goldColor.withValues(alpha: 0.05),
@@ -101,11 +107,7 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
               color: goldColor.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              Icons.stars_rounded,
-              size: 40,
-              color: goldColor,
-            ),
+            child: Icon(Icons.stars_rounded, size: 40, color: goldColor),
           ),
           const SizedBox(height: 12),
           Text(
@@ -153,9 +155,7 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: theme.dividerColor.withValues(alpha: 0.12),
-        ),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.12)),
       ),
       child: Row(
         children: [
@@ -165,12 +165,15 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
               children: [
                 Text(
                   _label(t['type'] as String),
-                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   [
-                    if (order != null) (isDe ? 'Bestellung $order' : 'Order $order'),
+                    if (order != null)
+                      (isDe ? 'Bestellung $order' : 'Order $order'),
                     formatDate(t['created_at'] as String?),
                   ].join(' · '),
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -201,7 +204,9 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
     Widget body;
 
     if (_loading && _items.isEmpty && _total == 0 && _balance == 0) {
-      body = Center(child: CircularProgressIndicator(color: goldColor, strokeWidth: 2));
+      body = Center(
+        child: CircularProgressIndicator(color: goldColor, strokeWidth: 2),
+      );
     } else if (_error != null) {
       body = Center(
         child: Padding(
@@ -209,9 +214,17 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
+              Icon(
+                Icons.error_outline,
+                size: 40,
+                color: theme.colorScheme.error,
+              ),
               const SizedBox(height: 12),
-              Text(_error!, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium,
+              ),
               const SizedBox(height: 16),
               TextButton.icon(
                 onPressed: () => _load(reset: true),
@@ -236,7 +249,9 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
               padding: const EdgeInsets.only(top: 24, bottom: 12),
               child: Text(
                 l10n?.transactionHistory ?? 'Transaction History',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             if (_items.isEmpty)
@@ -244,7 +259,8 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 child: Center(
                   child: Text(
-                    l10n?.noPointsYet ?? 'No points yet. Your first order will earn some.',
+                    l10n?.noPointsYet ??
+                        'No points yet. Your first order will earn some.',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                     ),
@@ -257,7 +273,10 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
                 padding: const EdgeInsets.only(top: 12),
                 child: Center(
                   child: _loading
-                      ? CircularProgressIndicator(color: goldColor, strokeWidth: 2)
+                      ? CircularProgressIndicator(
+                          color: goldColor,
+                          strokeWidth: 2,
+                        )
                       : TextButton(
                           onPressed: () {
                             _page++;
@@ -265,7 +284,10 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
                           },
                           child: Text(
                             l10n?.loadMore ?? 'Load more',
-                            style: TextStyle(color: goldColor, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              color: goldColor,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                 ),

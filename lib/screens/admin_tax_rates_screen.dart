@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
+import '../utils/localized_content.dart';
 import '../utils/money.dart';
 
 typedef TaxRateData = Map<String, dynamic>;
@@ -49,7 +51,9 @@ class _AdminTaxRatesScreenState extends State<AdminTaxRatesScreen> {
   String _state(TaxRateData r) {
     if (r['is_current'] == true) return 'Current';
     final to = r['valid_to'] as String?;
-    return to != null && to.compareTo(_date(DateTime.now().toUtc())) < 0 ? 'Ended' : 'Upcoming';
+    return to != null && to.compareTo(_date(DateTime.now().toUtc())) < 0
+        ? 'Ended'
+        : 'Upcoming';
   }
 
   Future<void> _create() async {
@@ -66,7 +70,9 @@ class _AdminTaxRatesScreenState extends State<AdminTaxRatesScreen> {
       _load();
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -85,6 +91,7 @@ class _AdminTaxRatesScreenState extends State<AdminTaxRatesScreen> {
   }
 
   void _actions(TaxRateData r) {
+    final l10n = AppLocalizations.of(context);
     showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -96,7 +103,7 @@ class _AdminTaxRatesScreenState extends State<AdminTaxRatesScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.event_busy_outlined),
-              title: const Text('Set end date…'),
+              title: Text(l10n?.adminSetEndDate ?? 'Set end date…'),
               onTap: () {
                 Navigator.pop(context);
                 _pickEnd(r);
@@ -105,7 +112,7 @@ class _AdminTaxRatesScreenState extends State<AdminTaxRatesScreen> {
             if (r['valid_to'] != null)
               ListTile(
                 leading: const Icon(Icons.all_inclusive),
-                title: const Text('Remove end date'),
+                title: Text(l10n?.adminRemoveExpiry ?? 'Remove end date'),
                 onTap: () {
                   Navigator.pop(context);
                   _setEnd(r, null);
@@ -141,7 +148,9 @@ class _AdminTaxRatesScreenState extends State<AdminTaxRatesScreen> {
         textColor = theme.colorScheme.error;
         break;
       default: // Upcoming
-        badgeColor = isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05);
+        badgeColor = isDark
+            ? Colors.white10
+            : Colors.black.withValues(alpha: 0.05);
         textColor = theme.colorScheme.onSurface.withValues(alpha: 0.7);
     }
 
@@ -151,7 +160,9 @@ class _AdminTaxRatesScreenState extends State<AdminTaxRatesScreen> {
       onTap: () => _actions(r),
       title: Text(
         '${r['code']}  ·  ${r['country_code']}  ·  ${formatPercent(r['rate_percent'] as num)}%',
-        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+        style: theme.textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
       ),
       subtitle: Padding(
         padding: const EdgeInsets.only(top: 2.0),
@@ -160,8 +171,12 @@ class _AdminTaxRatesScreenState extends State<AdminTaxRatesScreen> {
           '$products product(s) · $shipping shipping rate(s)'
           '${stale ? '\nStill used after its end date: move them to a current rate.' : ''}',
           style: stale
-              ? theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)
-              : theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+              ? theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                )
+              : theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                ),
         ),
       ),
       isThreeLine: true,
@@ -172,7 +187,7 @@ class _AdminTaxRatesScreenState extends State<AdminTaxRatesScreen> {
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
-          state,
+          localizedTaxRateStatus(state.toLowerCase(), context: context),
           style: theme.textTheme.labelSmall?.copyWith(
             color: textColor,
             fontWeight: FontWeight.w600,
@@ -184,13 +199,16 @@ class _AdminTaxRatesScreenState extends State<AdminTaxRatesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
 
     Widget body;
 
     if (_loading) {
-      body = Center(child: CircularProgressIndicator(color: goldColor, strokeWidth: 2));
+      body = Center(
+        child: CircularProgressIndicator(color: goldColor, strokeWidth: 2),
+      );
     } else if (_error != null) {
       body = Center(
         child: Padding(
@@ -198,14 +216,22 @@ class _AdminTaxRatesScreenState extends State<AdminTaxRatesScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
+              Icon(
+                Icons.error_outline,
+                size: 40,
+                color: theme.colorScheme.error,
+              ),
               const SizedBox(height: 12),
-              Text(_error!, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium,
+              ),
               const SizedBox(height: 16),
               TextButton.icon(
                 onPressed: _load,
                 icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Retry'),
+                label: Text(l10n?.adminRetry ?? 'Retry'),
                 style: TextButton.styleFrom(foregroundColor: goldColor),
               ),
             ],
@@ -249,7 +275,7 @@ class _AdminTaxRatesScreenState extends State<AdminTaxRatesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tax Rates'),
+        title: Text(l10n?.adminTaxRates ?? 'Tax Rates'),
         elevation: 0,
       ),
       body: body,
@@ -259,9 +285,9 @@ class _AdminTaxRatesScreenState extends State<AdminTaxRatesScreen> {
         foregroundColor: goldColor,
         elevation: 2,
         icon: const Icon(Icons.add, size: 20),
-        label: const Text(
-          'New rate',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        label: Text(
+          l10n?.adminNewTaxRate ?? 'New rate',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -299,11 +325,11 @@ class _NewRateDialogState extends State<_NewRateDialog> {
   }
 
   Future<DateTime?> _pick(DateTime? current) => showDatePicker(
-        context: context,
-        initialDate: current ?? DateTime.now(),
-        firstDate: DateTime(2000),
-        lastDate: DateTime(2100),
-      );
+    context: context,
+    initialDate: current ?? DateTime.now(),
+    firstDate: DateTime(2000),
+    lastDate: DateTime(2100),
+  );
 
   Future<void> _save() async {
     setState(() {
@@ -336,6 +362,7 @@ class _NewRateDialogState extends State<_NewRateDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
 
@@ -344,8 +371,10 @@ class _NewRateDialogState extends State<_NewRateDialog> {
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
-        'New tax rate',
-        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        l10n?.adminNewTaxRate ?? 'New tax rate',
+        style: theme.textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.bold,
+        ),
       ),
       content: SingleChildScrollView(
         child: Form(
@@ -357,11 +386,17 @@ class _NewRateDialogState extends State<_NewRateDialog> {
                 controller: _code,
                 textCapitalization: TextCapitalization.characters,
                 autovalidateMode: AutovalidateMode.onUserInteraction,
-                validator: (v) => RegExp(r'^[A-Z][A-Z0-9_]{1,39}$').hasMatch((v ?? '').trim().toUpperCase())
+                validator: (v) =>
+                    RegExp(
+                      r'^[A-Z][A-Z0-9_]{1,39}$',
+                    ).hasMatch((v ?? '').trim().toUpperCase())
                     ? null
                     : '2 to 40 characters: letters, numbers and _',
                 forceErrorText: _serverErrors['code'],
-                decoration: const InputDecoration(labelText: 'Code', helperText: 'e.g. DE_REDUCED_2027'),
+                decoration: InputDecoration(
+                  labelText: l10n?.adminTaxCode ?? 'Code',
+                  helperText: 'e.g. DE_REDUCED_2027',
+                ),
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -369,32 +404,50 @@ class _NewRateDialogState extends State<_NewRateDialog> {
                 textCapitalization: TextCapitalization.characters,
                 maxLength: 2,
                 autovalidateMode: AutovalidateMode.onUserInteraction,
-                validator: (v) => RegExp(r'^[A-Z]{2}$').hasMatch((v ?? '').trim().toUpperCase())
+                validator: (v) =>
+                    RegExp(
+                      r'^[A-Z]{2}$',
+                    ).hasMatch((v ?? '').trim().toUpperCase())
                     ? null
                     : 'Two letters, e.g. DE',
                 forceErrorText: _serverErrors['country_code'],
-                decoration: const InputDecoration(labelText: 'Country', counterText: ''),
+                decoration: InputDecoration(
+                  labelText: l10n?.adminCountry ?? 'Country',
+                  counterText: '',
+                ),
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _rate,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 validator: (v) {
                   final s = (v ?? '').trim().replaceAll(',', '.');
-                  final ok = RegExp(r'^\d{1,3}(\.\d{1,2})?$').hasMatch(s) && double.parse(s) <= 100;
-                  return ok ? null : 'A number from 0 to 100, at most 2 decimals.';
+                  final ok =
+                      RegExp(r'^\d{1,3}(\.\d{1,2})?$').hasMatch(s) &&
+                      double.parse(s) <= 100;
+                  return ok
+                      ? null
+                      : 'A number from 0 to 100, at most 2 decimals.';
                 },
                 forceErrorText: _serverErrors['rate_percent'],
-                decoration: const InputDecoration(labelText: 'Rate (%)'),
+                decoration: InputDecoration(
+                  labelText: l10n?.adminRatePercent ?? 'Rate (%)',
+                ),
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _fromText,
                 readOnly: true,
-                validator: (v) => (v ?? '').isEmpty ? 'Choose a start date.' : null,
+                validator: (v) =>
+                    (v ?? '').isEmpty ? 'Choose a start date.' : null,
                 forceErrorText: _serverErrors['valid_from'],
-                decoration: const InputDecoration(labelText: 'Valid from', suffixIcon: Icon(Icons.calendar_today, size: 20)),
+                decoration: InputDecoration(
+                  labelText: l10n?.adminValidFrom ?? 'Valid from',
+                  suffixIcon: const Icon(Icons.calendar_today, size: 20),
+                ),
                 onTap: () async {
                   final d = await _pick(_from);
                   if (d != null) {
@@ -409,17 +462,18 @@ class _NewRateDialogState extends State<_NewRateDialog> {
               TextFormField(
                 controller: _toText,
                 readOnly: true,
-                validator: (v) => _to != null && _from != null && _to!.isBefore(_from!)
+                validator: (v) =>
+                    _to != null && _from != null && _to!.isBefore(_from!)
                     ? 'The end date cannot be before the start date.'
                     : null,
                 forceErrorText: _serverErrors['valid_to'],
                 decoration: InputDecoration(
-                  labelText: 'Valid until (optional)',
+                  labelText: l10n?.adminValidTo ?? 'Valid until (optional)',
                   suffixIcon: _to == null
                       ? const Icon(Icons.calendar_today, size: 20)
                       : IconButton(
                           icon: const Icon(Icons.close, size: 18),
-                          tooltip: 'No end date',
+                          tooltip: l10n?.adminNeverExpires ?? 'No end date',
                           onPressed: () => setState(() {
                             _to = null;
                             _toText.clear();
@@ -439,7 +493,13 @@ class _NewRateDialogState extends State<_NewRateDialog> {
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
-                  child: Text(_error!, style: TextStyle(color: theme.colorScheme.error, fontSize: 13)),
+                  child: Text(
+                    _error!,
+                    style: TextStyle(
+                      color: theme.colorScheme.error,
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -449,8 +509,10 @@ class _NewRateDialogState extends State<_NewRateDialog> {
         TextButton(
           onPressed: _saving ? null : () => Navigator.pop(context, false),
           child: Text(
-            'Cancel',
-            style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+            l10n?.cancel ?? 'Cancel',
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+            ),
           ),
         ),
         ElevatedButton(
@@ -461,8 +523,18 @@ class _NewRateDialogState extends State<_NewRateDialog> {
             elevation: 0,
           ),
           child: _saving
-              ? SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: goldColor))
-              : const Text('Create', style: TextStyle(fontWeight: FontWeight.bold)),
+              ? SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: goldColor,
+                  ),
+                )
+              : Text(
+                  l10n?.adminCreate ?? 'Create',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
         ),
       ],
     );

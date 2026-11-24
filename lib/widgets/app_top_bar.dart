@@ -45,9 +45,7 @@ class _AppTopBarState extends ConsumerState<AppTopBar> {
   void initState() {
     super.initState();
 
-    _searchController = TextEditingController(
-      text: widget.initialSearch,
-    );
+    _searchController = TextEditingController(text: widget.initialSearch);
 
     _searchController.addListener(_handleSearchChanged);
   }
@@ -75,45 +73,42 @@ class _AppTopBarState extends ConsumerState<AppTopBar> {
     super.dispose();
   }
 
-Future<void> _openProfile() async {
-  // Guest users must authenticate before accessing their profile.
-  if (widget.user.isEmpty && !await ApiService.instance.hasToken()) {
+  Future<void> _openProfile() async {
+    // Guest users must authenticate before accessing their profile.
+    if (widget.user.isEmpty && !await ApiService.instance.hasToken()) {
+      if (!mounted) return;
+      final user = await showAuthPrompt(
+        context,
+        title: 'Ayubo Account',
+        message:
+            'Log in or create an account to view your profile, manage addresses, check orders, and track loyalty points.',
+      );
+
+      if (user == null || !mounted) return;
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ProfileScreen(user: user)),
+      );
+
+      if (mounted) {
+        widget.onProfileClosed?.call();
+      }
+      return;
+    }
+
     if (!mounted) return;
-    final user = await showAuthPrompt(
-      context,
-      title: 'Ayubo Account',
-      message: 'Log in or create an account to view your profile, manage addresses, check orders, and track loyalty points.',
-    );
 
-    if (user == null || !mounted) return;
-
+    // Authenticated users can access their profile.
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => ProfileScreen(user: user),
-      ),
+      MaterialPageRoute(builder: (_) => ProfileScreen(user: widget.user)),
     );
 
     if (mounted) {
       widget.onProfileClosed?.call();
     }
-    return;
   }
-
-  if (!mounted) return;
-
-  // Authenticated users can access their profile.
-  await Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => ProfileScreen(user: widget.user),
-    ),
-  );
-
-  if (mounted) {
-    widget.onProfileClosed?.call();
-  }
-}
 
   void _submitSearch(String value) {
     final query = value.trim();
@@ -129,10 +124,7 @@ Future<void> _openProfile() async {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ProductsScreen(
-          user: widget.user,
-          initialSearch: query,
-        ),
+        builder: (_) => ProductsScreen(user: widget.user, initialSearch: query),
       ),
     );
   }
@@ -186,10 +178,7 @@ Future<void> _openProfile() async {
                 controller: _searchController,
                 textInputAction: TextInputAction.search,
                 onSubmitted: _submitSearch,
-                style: TextStyle(
-                  color: scheme.onSurface,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: scheme.onSurface, fontSize: 14),
                 decoration: InputDecoration(
                   hintText: l10n?.searchHint ?? 'Search organic products...',
                   hintStyle: TextStyle(
@@ -207,10 +196,7 @@ Future<void> _openProfile() async {
                 tooltip: l10n?.close ?? 'Clear search',
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(
-                  minWidth: 30,
-                  minHeight: 30,
-                ),
+                constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
                 icon: Icon(
                   Icons.close_rounded,
                   size: 18,
@@ -233,9 +219,8 @@ Future<void> _openProfile() async {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => AdminMenuScreen(
-                    currentUserId: widget.user['id'] as int,
-                  ),
+                  builder: (_) =>
+                      AdminMenuScreen(currentUserId: widget.user['id'] as int),
                 ),
               );
             },

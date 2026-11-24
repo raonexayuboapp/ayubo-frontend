@@ -28,14 +28,21 @@ class ThemeNotifier extends StateNotifier<ThemeMode> {
     final newMode = state == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
     state = newMode;
     try {
-      await _storage.write(key: _storageKey, value: newMode == ThemeMode.dark ? 'dark' : 'light');
+      await _storage.write(
+        key: _storageKey,
+        value: newMode == ThemeMode.dark ? 'dark' : 'light',
+      );
     } catch (_) {}
   }
 
   Future<void> setTheme(ThemeMode mode) async {
     state = mode;
     try {
-      final val = mode == ThemeMode.dark ? 'dark' : mode == ThemeMode.light ? 'light' : 'system';
+      final val = mode == ThemeMode.dark
+          ? 'dark'
+          : mode == ThemeMode.light
+          ? 'light'
+          : 'system';
       await _storage.write(key: _storageKey, value: val);
     } catch (_) {}
   }

@@ -44,7 +44,8 @@ class _FavouriteButtonState extends State<FavouriteButton> {
       final user = await showAuthPrompt(
         context,
         title: 'Save to Favourites',
-        message: 'Log in or create an account to save your favourite organic products and access them anywhere.',
+        message:
+            'Log in or create an account to save your favourite organic products and access them anywhere.',
       );
       if (user == null || !mounted) return;
     }
@@ -68,7 +69,9 @@ class _FavouriteButtonState extends State<FavouriteButton> {
       widget.onChanged?.call(!target);
       // Suppress raw 401 errors from reaching the user
       if (e.statusCode != 401) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -88,8 +91,8 @@ class _FavouriteButtonState extends State<FavouriteButton> {
         color: _on
             ? Colors.redAccent
             : (widget.overlay
-                ? theme.colorScheme.onSurface.withValues(alpha: 0.7)
-                : theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                  ? theme.colorScheme.onSurface.withValues(alpha: 0.7)
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.5)),
       ),
       onPressed: _busy ? null : _toggle,
     );

@@ -28,8 +28,7 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
   final _postalKey = GlobalKey<FormFieldState<String>>();
 
   late final _recipient = TextEditingController(
-    text: (widget.address?['recipient'] as String?) ??
-        widget.defaultRecipient,
+    text: (widget.address?['recipient'] as String?) ?? widget.defaultRecipient,
   );
   late final _company = TextEditingController(
     text: (widget.address?['company'] as String?) ?? '',
@@ -53,8 +52,7 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
   late String _type =
       (widget.address?['address_type'] as String?) ?? widget.initialType;
   late final String _originalType = _type;
-  late String _country =
-      (widget.address?['country_code'] as String?) ?? 'DE';
+  late String _country = (widget.address?['country_code'] as String?) ?? 'DE';
   late bool _default = widget.address?['is_default'] == true;
   late final bool _wasDefault = _default;
 
@@ -93,8 +91,7 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
   String? _vPostal(String? v) {
     final s = normalizePostal(v);
     final country = countryByCode(_country);
-    final ok =
-        s.length <= 20 && (country?.postal ?? genericPostal).hasMatch(s);
+    final ok = s.length <= 20 && (country?.postal ?? genericPostal).hasMatch(s);
 
     if (ok) return null;
     return country?.example == null
@@ -103,17 +100,17 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
   }
 
   bool _isFieldKey(String k) => const {
-        'address_type',
-        'recipient',
-        'company',
-        'street',
-        'address_line2',
-        'postal_code',
-        'city',
-        'region',
-        'country_code',
-        'is_default',
-      }.contains(k);
+    'address_type',
+    'recipient',
+    'company',
+    'street',
+    'address_line2',
+    'postal_code',
+    'city',
+    'region',
+    'country_code',
+    'is_default',
+  }.contains(k);
 
   Future<void> _save() async {
     setState(() {
@@ -197,11 +194,7 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: icon != null
-              ? Icon(
-                  icon,
-                  color: AppTheme.primaryGreen,
-                  size: 20,
-                )
+              ? Icon(icon, color: AppTheme.primaryGreen, size: 20)
               : null,
           filled: true,
           fillColor: isDark
@@ -242,10 +235,7 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
           child: Text('${c.name} (${c.code})'),
         ),
       if (countryByCode(_country) == null)
-        DropdownMenuItem<String>(
-          value: _country,
-          child: Text(_country),
-        ),
+        DropdownMenuItem<String>(value: _country, child: Text(_country)),
     ];
 
     final l10n = AppLocalizations.of(context);
@@ -256,7 +246,9 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
         title: _editing
             ? (isDe ? 'Adresse bearbeiten' : 'Edit Address')
             : (isDe ? 'Neue Adresse' : 'Add Address'),
-        subtitle: isDe ? 'Liefer- & Kontaktdaten' : 'Delivery & contact details',
+        subtitle: isDe
+            ? 'Liefer- & Kontaktdaten'
+            : 'Delivery & contact details',
         showBackButton: true,
       ),
       body: Form(
@@ -291,9 +283,7 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                   return scheme.onSurface;
                 }),
                 side: WidgetStateProperty.all(
-                  BorderSide(
-                    color: AppTheme.brandGold.withValues(alpha: 0.4),
-                  ),
+                  BorderSide(color: AppTheme.brandGold.withValues(alpha: 0.4)),
                 ),
               ),
               selected: {_type},
@@ -431,12 +421,18 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
                 ),
               ),
               child: SwitchListTile.adaptive(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 activeThumbColor: AppTheme.brandGold,
                 activeTrackColor: AppTheme.primaryGreen,
                 title: Text(
                   'Use as default ${_type == 'shipping' ? 'shipping' : 'billing'} address',
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
                 ),
                 subtitle: _wasDefault && !typeChanged
                     ? Text(
@@ -456,16 +452,25 @@ class _AddressFormScreenState extends State<AddressFormScreen> {
 
             if (_error != null) ...[
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
                   color: scheme.error.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: scheme.error.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: scheme.error.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.error_outline_rounded, size: 18, color: scheme.error),
+                    Icon(
+                      Icons.error_outline_rounded,
+                      size: 18,
+                      color: scheme.error,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(

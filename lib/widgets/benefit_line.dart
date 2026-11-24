@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 typedef BenefitData = Map<String, dynamic>;
 
 IconData benefitIcon(String kind) => switch (kind) {
-      'credit' => Icons.account_balance_wallet_outlined,
-      'discount' => Icons.sell_outlined,
-      _ => Icons.check_circle_outline,
-    };
+  'credit' => Icons.account_balance_wallet_outlined,
+  'discount' => Icons.sell_outlined,
+  _ => Icons.check_circle_outline,
+};
 
 /// One benefit as a member reads it: an icon for its kind and the text. Credit and discount lines are bold.
 class BenefitLine extends StatelessWidget {
@@ -34,11 +34,7 @@ class BenefitLine extends StatelessWidget {
               color: iconColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Icon(
-              benefitIcon(kind),
-              size: 18,
-              color: iconColor,
-            ),
+            child: Icon(benefitIcon(kind), size: 18, color: iconColor),
           ),
           const SizedBox(width: 12),
           Expanded(

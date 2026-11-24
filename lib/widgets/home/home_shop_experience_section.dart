@@ -176,19 +176,21 @@ class HomeShopExperienceSection extends StatelessWidget {
                       _buildFeatureChip(
                         context,
                         icon: Icons.eco_outlined,
-                        label: l10n?.shopFeatureOrganic ??
+                        label:
+                            l10n?.shopFeatureOrganic ??
                             '100% Certified Organic',
                       ),
                       _buildFeatureChip(
                         context,
                         icon: Icons.handshake_outlined,
-                        label: l10n?.shopFeatureFairTrade ??
-                            'Direct Fair Trade',
+                        label:
+                            l10n?.shopFeatureFairTrade ?? 'Direct Fair Trade',
                       ),
                       _buildFeatureChip(
                         context,
                         icon: Icons.spa_outlined,
-                        label: l10n?.shopFeatureAuthentic ??
+                        label:
+                            l10n?.shopFeatureAuthentic ??
                             'Authentic Ceylon Heritage',
                       ),
                     ],
@@ -200,10 +202,7 @@ class HomeShopExperienceSection extends StatelessWidget {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: onExploreProducts,
-                      icon: const Icon(
-                        Icons.shopping_bag_outlined,
-                        size: 16,
-                      ),
+                      icon: const Icon(Icons.shopping_bag_outlined, size: 16),
                       label: Text(
                         l10n?.exploreStoreCollection ??
                             'Explore In-Store Collection',

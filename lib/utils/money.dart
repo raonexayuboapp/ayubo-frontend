@@ -22,7 +22,9 @@ int? parseEuroToCents(String input) {
   final m = RegExp(r'^(\d{1,7})(?:\.(\d{1,2}))?$').firstMatch(s);
   if (m == null) return null;
   final euros = int.parse(m.group(1)!);
-  final fraction = int.parse((m.group(2) ?? '0').padRight(2, '0')); // "5" means 50 cents
+  final fraction = int.parse(
+    (m.group(2) ?? '0').padRight(2, '0'),
+  ); // "5" means 50 cents
   return euros * 100 + fraction;
 }
 

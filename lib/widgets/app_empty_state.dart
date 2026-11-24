@@ -35,11 +35,7 @@ class AppEmptyState extends StatelessWidget {
                 color: AppTheme.primaryGreen.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icon,
-                size: 42,
-                color: AppTheme.brandGoldDark,
-              ),
+              child: Icon(icon, size: 42, color: AppTheme.brandGoldDark),
             ),
             const SizedBox(height: 16),
             Text(
@@ -63,7 +59,10 @@ class AppEmptyState extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                   elevation: 0,
                 ),
                 child: Text(
@@ -81,4 +80,3 @@ class AppEmptyState extends StatelessWidget {
     );
   }
 }
-

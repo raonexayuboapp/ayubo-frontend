@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -53,7 +52,7 @@ class _CompactProductCardState extends State<CompactProductCard> {
     final product = widget.product;
     final variantId =
         (product['variants'] as List<dynamic>?)?.firstOrNull?['id'] as int? ??
-            (product['id'] as int);
+        (product['id'] as int);
 
     final name = product['name'] as String? ?? 'Product';
     final l10n = AppLocalizations.of(context);
@@ -105,11 +104,7 @@ class _CompactProductCardState extends State<CompactProductCard> {
                 TextButton(
                   onPressed: () {
                     ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    AppBottomBar.open(
-                      context,
-                      3,
-                      widget.user ?? const {},
-                    );
+                    AppBottomBar.open(context, 3, widget.user ?? const {});
                   },
                   child: Text(
                     isDe ? 'Warenkorb' : 'View Cart',
@@ -260,23 +255,23 @@ class _CompactProductCardState extends State<CompactProductCard> {
                               ),
                               child: _adding
                                   ? const Center(
-                                child: SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor:
-                                    AlwaysStoppedAnimation<Color>(
-                                      Color(0xFF1B4332),
-                                    ),
-                                  ),
-                                ),
-                              )
+                                      child: SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                Color(0xFF1B4332),
+                                              ),
+                                        ),
+                                      ),
+                                    )
                                   : const Icon(
-                                Icons.add_rounded,
-                                size: 18,
-                                color: Color(0xFF1B4332),
-                              ),
+                                      Icons.add_rounded,
+                                      size: 18,
+                                      color: Color(0xFF1B4332),
+                                    ),
                             ),
                           ),
                       ],

@@ -73,9 +73,7 @@ class _PasswordFieldState extends State<PasswordField> {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: scheme.outline.withValues(alpha: 0.15),
-          ),
+          borderSide: BorderSide(color: scheme.outline.withValues(alpha: 0.15)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -86,16 +84,11 @@ class _PasswordFieldState extends State<PasswordField> {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: scheme.error,
-          ),
+          borderSide: BorderSide(color: scheme.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: scheme.error,
-            width: 1.5,
-          ),
+          borderSide: BorderSide(color: scheme.error, width: 1.5),
         ),
       ),
     );

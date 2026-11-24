@@ -22,7 +22,11 @@ class AppBottomBar extends StatelessWidget {
 
   /// Opens a tab from anywhere in the application.
   /// The navigation stack becomes [Home, tab], ensuring Back always returns to Home.
-  static Future<void> open(BuildContext context, int index, Map<String, dynamic> user) async {
+  static Future<void> open(
+    BuildContext context,
+    int index,
+    Map<String, dynamic> user,
+  ) async {
     final Widget? screen = switch (index) {
       1 => ProductsScreen(user: user),
       2 => FamilyScreen(user: user),

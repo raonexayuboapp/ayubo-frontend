@@ -22,7 +22,9 @@ class LoadingButton extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         backgroundColor: theme.colorScheme.primary,
         foregroundColor: goldColor,
-        disabledBackgroundColor: theme.colorScheme.primary.withValues(alpha: 0.6),
+        disabledBackgroundColor: theme.colorScheme.primary.withValues(
+          alpha: 0.6,
+        ),
         disabledForegroundColor: goldColor.withValues(alpha: 0.6),
         padding: const EdgeInsets.symmetric(vertical: 14),
         elevation: 0,

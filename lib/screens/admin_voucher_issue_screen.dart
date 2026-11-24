@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../utils/dates.dart';
 import '../utils/money.dart';
@@ -131,6 +132,7 @@ class _AdminVoucherIssueScreenState extends State<AdminVoucherIssueScreen> {
 
   Widget _done() {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final issued = _issued!;
 
     return ListView(
@@ -163,8 +165,8 @@ class _AdminVoucherIssueScreenState extends State<AdminVoucherIssueScreen> {
             ),
             subtitle: Text(
               v['expires_at'] == null
-                  ? 'no expiry'
-                  : 'valid until ${formatDate(v['expires_at'] as String?)}',
+                  ? (l10n?.adminNeverExpires ?? 'no expiry')
+                  : '${l10n?.adminExpires ?? 'valid until'} ${formatDate(v['expires_at'] as String?)}',
             ),
           ),
         const SizedBox(height: 24),
@@ -178,6 +180,7 @@ class _AdminVoucherIssueScreenState extends State<AdminVoucherIssueScreen> {
 
   Widget _formView() {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
 
     return Form(
       key: _form,
@@ -191,8 +194,8 @@ class _AdminVoucherIssueScreenState extends State<AdminVoucherIssueScreen> {
             autovalidateMode: AutovalidateMode.onUserInteraction,
             validator: _vEmail,
             forceErrorText: _serverErrors['owner_email'],
-            decoration: const InputDecoration(
-              labelText: 'Customer email',
+            decoration: InputDecoration(
+              labelText: l10n?.adminCustomerEmail ?? 'Customer email',
               helperText:
                   'The customer receives the vouchers in their account and by email.',
               helperMaxLines: 2,
@@ -213,8 +216,9 @@ class _AdminVoucherIssueScreenState extends State<AdminVoucherIssueScreen> {
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   validator: _vValue,
                   forceErrorText: _serverErrors['value_cents'],
-                  decoration: const InputDecoration(
-                    labelText: 'Value of each voucher (€)',
+                  decoration: InputDecoration(
+                    labelText:
+                        '${l10n?.adminAmountValue ?? 'Value of each voucher'} (€)',
                   ),
                 ),
               ),
@@ -228,33 +232,38 @@ class _AdminVoucherIssueScreenState extends State<AdminVoucherIssueScreen> {
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   validator: _vQuantity,
                   forceErrorText: _serverErrors['quantity'],
-                  decoration: const InputDecoration(labelText: 'How many'),
+                  decoration: InputDecoration(
+                    labelText: l10n?.adminIssueQuantity ?? 'How many',
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 20),
-          Text('Expiry', style: theme.textTheme.titleSmall),
+          Text(
+            l10n?.adminExpiryOption ?? 'Expiry',
+            style: theme.textTheme.titleSmall,
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             children: [
               ChoiceChip(
-                label: const Text('Shop default'),
+                label: Text(l10n?.adminExpiryDefault ?? 'Shop default'),
                 selected: _expiry == 'default',
                 onSelected: _saving
                     ? null
                     : (_) => setState(() => _expiry = 'default'),
               ),
               ChoiceChip(
-                label: const Text('A date'),
+                label: Text(l10n?.adminExpirySpecific ?? 'A date'),
                 selected: _expiry == 'date',
                 onSelected: _saving
                     ? null
                     : (_) => setState(() => _expiry = 'date'),
               ),
               ChoiceChip(
-                label: const Text('Never expires'),
+                label: Text(l10n?.adminExpiryNever ?? 'Never expires'),
                 selected: _expiry == 'never',
                 onSelected: _saving
                     ? null
@@ -268,8 +277,8 @@ class _AdminVoucherIssueScreenState extends State<AdminVoucherIssueScreen> {
               leading: const Icon(Icons.event),
               title: Text(
                 _date == null
-                    ? 'Pick a date'
-                    : 'Valid until ${_date!.toIso8601String().substring(0, 10)}',
+                    ? (l10n?.adminExpirySpecific ?? 'Pick a date')
+                    : '${l10n?.adminExpires ?? 'Valid until'} ${_date!.toIso8601String().substring(0, 10)}',
               ),
               onTap: _saving ? null : _pickDate,
             ),
@@ -287,8 +296,8 @@ class _AdminVoucherIssueScreenState extends State<AdminVoucherIssueScreen> {
             enabled: !_saving,
             maxLength: 200,
             forceErrorText: _serverErrors['note'],
-            decoration: const InputDecoration(
-              labelText: 'Note (optional)',
+            decoration: InputDecoration(
+              labelText: l10n?.adminStaffNote ?? 'Note (optional)',
               helperText: 'For example: apology for the late delivery',
             ),
           ),
@@ -307,7 +316,7 @@ class _AdminVoucherIssueScreenState extends State<AdminVoucherIssueScreen> {
             ),
           const SizedBox(height: 16),
           LoadingButton(
-            label: 'Issue vouchers',
+            label: l10n?.adminIssueVouchers ?? 'Issue vouchers',
             loading: _saving,
             onPressed: _issue,
           ),
@@ -318,9 +327,14 @@ class _AdminVoucherIssueScreenState extends State<AdminVoucherIssueScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(_issued == null ? 'Issue vouchers' : 'Vouchers issued'),
+        title: Text(
+          _issued == null
+              ? (l10n?.adminIssueVouchers ?? 'Issue vouchers')
+              : 'Vouchers issued',
+        ),
       ),
       body: _issued == null ? _formView() : _done(),
     );

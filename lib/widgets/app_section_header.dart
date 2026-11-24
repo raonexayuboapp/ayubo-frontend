@@ -31,16 +31,10 @@ class AppSectionHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  title,
-                  style: AppTheme.sectionHeadingStyle(context),
-                ),
+                Text(title, style: AppTheme.sectionHeadingStyle(context)),
                 if (subtitle != null) ...[
                   const SizedBox(height: 2),
-                  Text(
-                    subtitle!,
-                    style: AppTheme.descriptionStyle(context),
-                  ),
+                  Text(subtitle!, style: AppTheme.descriptionStyle(context)),
                 ],
               ],
             ),
@@ -77,4 +71,3 @@ class AppSectionHeader extends StatelessWidget {
     );
   }
 }
-

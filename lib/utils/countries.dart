@@ -16,7 +16,12 @@ final List<Country> countries = [
   Country('DK', 'Denmark', RegExp(r'^\d{4}$'), '1050'),
   Country('ES', 'Spain', RegExp(r'^\d{5}$'), '28001'),
   Country('FR', 'France', RegExp(r'^\d{5}$'), '75001'),
-  Country('GB', 'United Kingdom', RegExp(r'^[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}$'), 'SW1A 1AA'),
+  Country(
+    'GB',
+    'United Kingdom',
+    RegExp(r'^[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}$'),
+    'SW1A 1AA',
+  ),
   Country('IT', 'Italy', RegExp(r'^\d{5}$'), '00100'),
   Country('LI', 'Liechtenstein', RegExp(r'^\d{4}$'), '9490'),
   Country('LK', 'Sri Lanka', RegExp(r'^\d{5}$'), '10100'),
@@ -36,6 +41,7 @@ Country? countryByCode(String code) {
 String countryName(String code) => countryByCode(code)?.name ?? code;
 
 /// Upper-case, with spaces collapsed: the same normalisation as the server.
-String normalizePostal(String? v) => (v ?? '').trim().replaceAll(RegExp(r'\s+'), ' ').toUpperCase();
+String normalizePostal(String? v) =>
+    (v ?? '').trim().replaceAll(RegExp(r'\s+'), ' ').toUpperCase();
 
 final RegExp genericPostal = RegExp(r'^[A-Z0-9][A-Z0-9 -]{1,18}[A-Z0-9]$');

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../utils/dates.dart';
 import '../utils/money.dart';
@@ -130,6 +131,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     String Function(String) label,
     ValueChanged<String> onSelected,
   ) {
+    final l10n = AppLocalizations.of(context);
     return SizedBox(
       height: 48,
       child: ListView(
@@ -140,7 +142,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: ChoiceChip(
-                label: Text(v.isEmpty ? 'All' : label(v)),
+                label: Text(v.isEmpty ? (l10n?.adminAll ?? 'All') : label(v)),
                 selected: selected == v,
                 onSelected: (_) => onSelected(v),
               ),
@@ -152,6 +154,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
 
   Widget _card(Map<String, dynamic> o) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
     final customer = o['customer'] as Map<String, dynamic>;
     final needsAttention = o['status'] == 'on_hold';
     final count = o['item_count'] as int;
@@ -205,7 +208,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
               ),
             ),
             Text(
-              '$count item${count == 1 ? '' : 's'}',
+              '$count ${l10n?.adminOrderItems ?? 'items'}',
               style: theme.textTheme.bodySmall,
             ),
           ],
@@ -215,6 +218,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   }
 
   Widget _body() {
+    final l10n = AppLocalizations.of(context);
     if (_loading && _orders.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -227,7 +231,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
             Text(_error!),
             TextButton(
               onPressed: () => _load(reset: true),
-              child: const Text('Retry'),
+              child: Text(l10n?.adminRetry ?? 'Retry'),
             ),
           ],
         ),
@@ -238,9 +242,9 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       return RefreshIndicator(
         onRefresh: () => _load(reset: true),
         child: ListView(
-          children: const [
-            SizedBox(height: 140),
-            Center(child: Text('No orders found.')),
+          children: [
+            const SizedBox(height: 140),
+            Center(child: Text(l10n?.adminNoOrdersFound ?? 'No orders found.')),
           ],
         ),
       );
@@ -261,7 +265,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                       _page++;
                       _load(reset: false);
                     },
-              child: const Text('Load more'),
+              child: Text(l10n?.adminLoadMore ?? 'Load more'),
             );
           }
           return _card(_orders[i]);
@@ -272,8 +276,9 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text('Orders ($_total)')),
+      appBar: AppBar(title: Text('${l10n?.adminOrders ?? 'Orders'} ($_total)')),
       body: Column(
         children: [
           Padding(
@@ -285,7 +290,9 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
               onSubmitted: (_) => _load(reset: true),
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search),
-                hintText: 'Order number, customer, email',
+                hintText:
+                    l10n?.adminSearchOrdersHint ??
+                    'Order number, customer, email',
                 suffixIcon: _search.text.isEmpty
                     ? null
                     : IconButton(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
 import '../utils/money.dart';
 
@@ -105,6 +106,7 @@ class _AdminVoucherAmountsScreenState extends State<AdminVoucherAmountsScreen> {
   }
 
   Widget _body() {
+    final l10n = AppLocalizations.of(context);
     if (_loading) return const Center(child: CircularProgressIndicator());
 
     if (_error != null) {
@@ -113,7 +115,10 @@ class _AdminVoucherAmountsScreenState extends State<AdminVoucherAmountsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(_error!),
-            TextButton(onPressed: _load, child: const Text('Retry')),
+            TextButton(
+              onPressed: _load,
+              child: Text(l10n?.adminRetry ?? 'Retry'),
+            ),
           ],
         ),
       );
@@ -138,10 +143,13 @@ class _AdminVoucherAmountsScreenState extends State<AdminVoucherAmountsScreen> {
               child: LinearProgressIndicator(),
             ),
           if (_amounts.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 48),
+            Padding(
+              padding: const EdgeInsets.only(top: 48),
               child: Center(
-                child: Text('No voucher amounts yet. Add the first one.'),
+                child: Text(
+                  l10n?.adminNone ??
+                      'No voucher amounts yet. Add the first one.',
+                ),
               ),
             ),
           for (final a in _amounts)
@@ -154,7 +162,7 @@ class _AdminVoucherAmountsScreenState extends State<AdminVoucherAmountsScreen> {
                   style: theme.textTheme.titleMedium,
                 ),
                 subtitle: Text(
-                  '${a['sold']} sold · ${a['on_sale'] == true ? 'on sale' : 'not on sale'}',
+                  '${a['sold']} ${l10n?.adminSold ?? 'sold'} · ${a['on_sale'] == true ? (l10n?.adminOnSale ?? 'on sale') : (l10n?.adminInactive ?? 'not on sale')}',
                 ),
                 value: a['on_sale'] == true,
                 onChanged: _busy ? null : (v) => _toggle(a, v),
@@ -167,13 +175,16 @@ class _AdminVoucherAmountsScreenState extends State<AdminVoucherAmountsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Voucher amounts')),
+      appBar: AppBar(
+        title: Text(l10n?.adminVoucherAmounts ?? 'Voucher amounts'),
+      ),
       body: _body(),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _busy ? null : _add,
         icon: const Icon(Icons.add),
-        label: const Text('New amount'),
+        label: Text(l10n?.adminNewAmount ?? 'New amount'),
       ),
     );
   }
@@ -247,8 +258,9 @@ class _NewAmountDialogState extends State<_NewAmountDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AlertDialog(
-      title: const Text('New voucher amount'),
+      title: Text(l10n?.adminNewAmount ?? 'New voucher amount'),
       content: Form(
         key: _form,
         child: SingleChildScrollView(
@@ -263,8 +275,8 @@ class _NewAmountDialogState extends State<_NewAmountDialog> {
                 ),
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 validator: _validateAmount,
-                decoration: const InputDecoration(
-                  labelText: 'Amount (€)',
+                decoration: InputDecoration(
+                  labelText: '${l10n?.adminAmountValue ?? 'Amount'} (€)',
                   helperText:
                       'Customers pay this much and the voucher is worth this much. No VAT is charged.',
                   helperMaxLines: 3,
@@ -275,8 +287,9 @@ class _NewAmountDialogState extends State<_NewAmountDialog> {
                 controller: _nameEn,
                 textCapitalization: TextCapitalization.sentences,
                 validator: _validateName,
-                decoration: const InputDecoration(
-                  labelText: 'Product name (English)',
+                decoration: InputDecoration(
+                  labelText:
+                      '${l10n?.adminProductName ?? 'Product name'} (${l10n?.adminEnglishTranslation ?? 'English'})',
                   hintText: 'Gift Voucher €30.00',
                 ),
               ),
@@ -285,8 +298,9 @@ class _NewAmountDialogState extends State<_NewAmountDialog> {
                 controller: _nameDe,
                 textCapitalization: TextCapitalization.sentences,
                 validator: _validateName,
-                decoration: const InputDecoration(
-                  labelText: 'Product name (German)',
+                decoration: InputDecoration(
+                  labelText:
+                      '${l10n?.adminProductName ?? 'Product name'} (${l10n?.adminGermanTranslation ?? 'German'})',
                   hintText: 'Geschenkgutschein 30,00 €',
                 ),
               ),
@@ -297,9 +311,12 @@ class _NewAmountDialogState extends State<_NewAmountDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(l10n?.cancel ?? 'Cancel'),
         ),
-        FilledButton(onPressed: _submit, child: const Text('Add')),
+        FilledButton(
+          onPressed: _submit,
+          child: Text(l10n?.adminCreate ?? 'Add'),
+        ),
       ],
     );
   }

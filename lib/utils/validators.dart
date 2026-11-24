@@ -1,11 +1,9 @@
-
 import 'dart:convert';
 
 /// Client-side checks for fast feedback.
 /// The backend must enforce the same rules independently.
 class Validators {
-  static final RegExp _email =
-  RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+  static final RegExp _email = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
 
   static final RegExp _name = RegExp(
     r"^[\p{L}][\p{L}\p{M} .'-]*$",
@@ -89,8 +87,7 @@ class Validators {
       return 'Include at least one letter and one number.';
     }
 
-    if (email != null &&
-        s.toLowerCase() == email.trim().toLowerCase()) {
+    if (email != null && s.toLowerCase() == email.trim().toLowerCase()) {
       return 'Password must not be your email address.';
     }
 
@@ -110,8 +107,6 @@ class Validators {
   }
 
   static String? code(String? v) {
-    return _code.hasMatch(v ?? '')
-        ? null
-        : 'Enter the 6-digit code.';
+    return _code.hasMatch(v ?? '') ? null : 'Enter the 6-digit code.';
   }
 }

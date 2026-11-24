@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
+import '../utils/localized_content.dart';
 import '../utils/money.dart';
 
 typedef StockHistoryData = Map<String, dynamic>;
@@ -9,20 +11,18 @@ typedef StockHistoryData = Map<String, dynamic>;
 class AdminStockHistoryScreen extends StatefulWidget {
   final int variantId;
   final String title;
-  const AdminStockHistoryScreen({super.key, required this.variantId, required this.title});
+  const AdminStockHistoryScreen({
+    super.key,
+    required this.variantId,
+    required this.title,
+  });
 
   @override
-  State<AdminStockHistoryScreen> createState() => _AdminStockHistoryScreenState();
+  State<AdminStockHistoryScreen> createState() =>
+      _AdminStockHistoryScreenState();
 }
 
 class _AdminStockHistoryScreenState extends State<AdminStockHistoryScreen> {
-  static const _reasons = {
-    'receipt': 'Goods received',
-    'adjustment': 'Adjustment',
-    'stocktake': 'Stocktake',
-    'sale': 'Sale',
-  };
-
   List<StockHistoryData> _items = [];
   int _page = 1;
   int _total = 0;
@@ -42,8 +42,12 @@ class _AdminStockHistoryScreenState extends State<AdminStockHistoryScreen> {
       _error = null;
     });
     try {
-      final data = await ApiService.instance.adminStockMovements(widget.variantId, page: _page);
-      final list = (data['movements'] as List<dynamic>).cast<StockHistoryData>();
+      final data = await ApiService.instance.adminStockMovements(
+        widget.variantId,
+        page: _page,
+      );
+      final list = (data['movements'] as List<dynamic>)
+          .cast<StockHistoryData>();
       if (!mounted) return;
       setState(() {
         _items = reset ? list : [..._items, ...list];
@@ -61,7 +65,9 @@ class _AdminStockHistoryScreenState extends State<AdminStockHistoryScreen> {
         }
       });
       if (!reset) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -76,13 +82,16 @@ class _AdminStockHistoryScreenState extends State<AdminStockHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final goldColor = theme.colorScheme.secondary;
 
     Widget body;
 
     if (_loading && _items.isEmpty) {
-      body = Center(child: CircularProgressIndicator(color: goldColor, strokeWidth: 2));
+      body = Center(
+        child: CircularProgressIndicator(color: goldColor, strokeWidth: 2),
+      );
     } else if (_error != null) {
       body = Center(
         child: Padding(
@@ -90,14 +99,22 @@ class _AdminStockHistoryScreenState extends State<AdminStockHistoryScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 40, color: theme.colorScheme.error),
+              Icon(
+                Icons.error_outline,
+                size: 40,
+                color: theme.colorScheme.error,
+              ),
               const SizedBox(height: 12),
-              Text(_error!, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium,
+              ),
               const SizedBox(height: 16),
               TextButton.icon(
                 onPressed: () => _load(reset: true),
                 icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Retry'),
+                label: Text(l10n?.adminRetry ?? 'Retry'),
                 style: TextButton.styleFrom(foregroundColor: goldColor),
               ),
             ],
@@ -107,7 +124,7 @@ class _AdminStockHistoryScreenState extends State<AdminStockHistoryScreen> {
     } else if (_items.isEmpty) {
       body = Center(
         child: Text(
-          'No stock movements yet.',
+          l10n?.adminStockMovements ?? 'No stock movements yet.',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
           ),
@@ -130,15 +147,21 @@ class _AdminStockHistoryScreenState extends State<AdminStockHistoryScreen> {
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Center(
                 child: _loading
-                    ? CircularProgressIndicator(color: goldColor, strokeWidth: 2)
+                    ? CircularProgressIndicator(
+                        color: goldColor,
+                        strokeWidth: 2,
+                      )
                     : TextButton(
                         onPressed: () {
                           _page++;
                           _load(reset: false);
                         },
                         child: Text(
-                          'Load more',
-                          style: TextStyle(color: goldColor, fontWeight: FontWeight.w600),
+                          l10n?.adminLoadMore ?? 'Load more',
+                          style: TextStyle(
+                            color: goldColor,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
               ),
@@ -152,16 +175,22 @@ class _AdminStockHistoryScreenState extends State<AdminStockHistoryScreen> {
 
           return ListTile(
             key: ValueKey(m['id']),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 4,
+            ),
             title: Text(
-              _reasons[reason] ?? reason,
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+              localizedStockReason(reason, context: context),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
             subtitle: Text(
               [
                 '${m['location_code']}',
                 _when(m['created_at'] as String),
-                if (m['order_item_id'] != null) 'order line ${m['order_item_id']}',
+                if (m['order_item_id'] != null)
+                  'order line ${m['order_item_id']}',
               ].join(' · '),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
@@ -171,7 +200,9 @@ class _AdminStockHistoryScreenState extends State<AdminStockHistoryScreen> {
               '${positive ? '+' : ''}${formatQuantity(delta)}',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: positive ? Colors.green.shade600 : theme.colorScheme.error,
+                color: positive
+                    ? Colors.green.shade600
+                    : theme.colorScheme.error,
               ),
             ),
           );
@@ -181,7 +212,9 @@ class _AdminStockHistoryScreenState extends State<AdminStockHistoryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('History · ${widget.title}'),
+        title: Text(
+          '${l10n?.adminStockMovements ?? "History"} · ${widget.title}',
+        ),
         elevation: 0,
       ),
       body: body,

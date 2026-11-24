@@ -2,26 +2,36 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   // --- Brand Core Palette (Green & Gold Ecosystem) ---
-  static const Color primaryGreen = Color(0xFF2D6A4F);     // Deep Emerald Green
-  static const Color emeraldDark = Color(0xFF1B4332);      // Forest Emerald
-  static const Color leafGreen = Color(0xFF52B788);        // Vibrant Organic Leaf
-  static const Color brandGold = Color(0xFFD4AF37);        // Classic Organic Gold
-  static const Color brandGoldLight = Color(0xFFF3E5AB);   // Soft Champagne Gold Accent
-  static const Color brandGoldDark = Color(0xFFA67C1E);    // Rich Metallic Amber/Gold
+  static const Color primaryGreen = Color(0xFF2D6A4F); // Deep Emerald Green
+  static const Color emeraldDark = Color(0xFF1B4332); // Forest Emerald
+  static const Color leafGreen = Color(0xFF52B788); // Vibrant Organic Leaf
+  static const Color brandGold = Color(0xFFD4AF37); // Classic Organic Gold
+  static const Color brandGoldLight = Color(
+    0xFFF3E5AB,
+  ); // Soft Champagne Gold Accent
+  static const Color brandGoldDark = Color(
+    0xFFA67C1E,
+  ); // Rich Metallic Amber/Gold
 
   // --- Light Mode Colors ---
-  static const Color bgLight = Color(0xFFFBFBF9);          // Warm Off-White / Ivory
-  static const Color surfaceLight = Color(0xFFFFFFFF);     // Pure White Cards
+  static const Color bgLight = Color(0xFFFBFBF9); // Warm Off-White / Ivory
+  static const Color surfaceLight = Color(0xFFFFFFFF); // Pure White Cards
   static const Color surfaceSubtleLight = Color(0xFFF4F6F4); // Subtle Surface
-  static const Color textPrimaryLight = Color(0xFF1B2E24); // Deep Charcoal / Forest
+  static const Color textPrimaryLight = Color(
+    0xFF1B2E24,
+  ); // Deep Charcoal / Forest
   static const Color textSecondaryLight = Color(0xFF5A7064);
   static const Color borderLight = Color(0xFFE4E9E4);
 
   // --- Dark Mode Colors ---
-  static const Color bgDark = Color(0xFF0E1712);           // Deep Charcoal / Dark Green
-  static const Color surfaceDark = Color(0xFF16241C);      // Slightly lighter surface for cards
+  static const Color bgDark = Color(0xFF0E1712); // Deep Charcoal / Dark Green
+  static const Color surfaceDark = Color(
+    0xFF16241C,
+  ); // Slightly lighter surface for cards
   static const Color surfaceSubtleDark = Color(0xFF1D2E24);
-  static const Color textPrimaryDark = Color(0xFFECF3EE);   // High-contrast clean text
+  static const Color textPrimaryDark = Color(
+    0xFFECF3EE,
+  ); // High-contrast clean text
   static const Color textSecondaryDark = Color(0xFF98ACA0);
   static const Color borderDark = Color(0xFF24382B);
 
@@ -52,56 +62,55 @@ class AppTheme {
 
   // --- Design System: Typography Helpers ---
   static TextStyle pageTitleStyle(BuildContext context) => TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        letterSpacing: -0.3,
-        color: textPrimary(context),
-      );
+    fontSize: 20,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.3,
+    color: textPrimary(context),
+  );
 
   static TextStyle sectionHeadingStyle(BuildContext context) => TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
-        letterSpacing: -0.2,
-        color: textPrimary(context),
-      );
+    fontSize: 16,
+    fontWeight: FontWeight.bold,
+    letterSpacing: -0.2,
+    color: textPrimary(context),
+  );
 
   static TextStyle cardTitleStyle(BuildContext context) => TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-        color: textPrimary(context),
-      );
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    color: textPrimary(context),
+  );
 
   static TextStyle bodyStyle(BuildContext context) => TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.normal,
-        color: textPrimary(context),
-      );
+    fontSize: 13,
+    fontWeight: FontWeight.normal,
+    color: textPrimary(context),
+  );
 
   static TextStyle descriptionStyle(BuildContext context) => TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.normal,
-        color: textSecondary(context),
-        height: 1.35,
-      );
+    fontSize: 12,
+    fontWeight: FontWeight.normal,
+    color: textSecondary(context),
+    height: 1.35,
+  );
 
   static TextStyle captionStyle(BuildContext context) => TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w500,
-        color: textSecondary(context),
-      );
+    fontSize: 11,
+    fontWeight: FontWeight.w500,
+    color: textSecondary(context),
+  );
 
   static TextStyle priceStyle(
     BuildContext context, {
     double size = 16,
     bool isGold = true,
-  }) =>
-      TextStyle(
-        fontSize: size,
-        fontWeight: FontWeight.bold,
-        color: isGold
-            ? (isDark(context) ? brandGoldLight : brandGoldDark)
-            : textPrimary(context),
-      );
+  }) => TextStyle(
+    fontSize: size,
+    fontWeight: FontWeight.bold,
+    color: isGold
+        ? (isDark(context) ? brandGoldLight : brandGoldDark)
+        : textPrimary(context),
+  );
 
   // --- Design System: Input Decoration Helper ---
   static InputDecoration inputDecoration(
@@ -123,10 +132,7 @@ class AppTheme {
         color: textSecondary(context).withValues(alpha: 0.7),
         fontSize: 13,
       ),
-      labelStyle: TextStyle(
-        color: textSecondary(context),
-        fontSize: 13,
-      ),
+      labelStyle: TextStyle(color: textSecondary(context), fontSize: 13),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -144,24 +150,15 @@ class AppTheme {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: brandGold,
-          width: 1.5,
-        ),
+        borderSide: const BorderSide(color: brandGold, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Colors.redAccent,
-          width: 1.2,
-        ),
+        borderSide: const BorderSide(color: Colors.redAccent, width: 1.2),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Colors.redAccent,
-          width: 1.5,
-        ),
+        borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
       ),
     );
   }
@@ -178,10 +175,7 @@ class AppTheme {
       color: customColor ?? (dark ? surfaceDark : surfaceLight),
       borderRadius: BorderRadius.circular(radius),
       border: hasBorder
-          ? Border.all(
-              color: dark ? borderDark : borderLight,
-              width: 1,
-            )
+          ? Border.all(color: dark ? borderDark : borderLight, width: 1)
           : null,
       boxShadow: hasShadow
           ? [
@@ -231,18 +225,16 @@ class AppTheme {
         foregroundColor: const Color(0xFF1B4332), // Dark forest text on gold
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        textStyle: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
       ),
     ),
     chipTheme: ChipThemeData(
       backgroundColor: const Color(0xFFD8F3DC),
-      labelStyle: const TextStyle(color: primaryGreen, fontWeight: FontWeight.w600),
+      labelStyle: const TextStyle(
+        color: primaryGreen,
+        fontWeight: FontWeight.w600,
+      ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       side: const BorderSide(color: brandGold, width: 0.8),
     ),
@@ -284,18 +276,16 @@ class AppTheme {
         foregroundColor: const Color(0xFF0B130E),
         elevation: 0,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        textStyle: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
       ),
     ),
     chipTheme: ChipThemeData(
       backgroundColor: const Color(0xFF1E3A29),
-      labelStyle: const TextStyle(color: brandGoldLight, fontWeight: FontWeight.w600),
+      labelStyle: const TextStyle(
+        color: brandGoldLight,
+        fontWeight: FontWeight.w600,
+      ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       side: const BorderSide(color: brandGoldDark, width: 0.8),
     ),

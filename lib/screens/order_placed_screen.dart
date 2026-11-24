@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
@@ -15,11 +14,7 @@ class OrderPlacedScreen extends StatefulWidget {
   final Map<String, dynamic> order;
   final Map<String, dynamic> user;
 
-  const OrderPlacedScreen({
-    super.key,
-    required this.order,
-    required this.user,
-  });
+  const OrderPlacedScreen({super.key, required this.order, required this.user});
 
   @override
   State<OrderPlacedScreen> createState() => _OrderPlacedScreenState();
@@ -41,26 +36,21 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
       final orderId = (_order['id'] as num).toInt();
 
       // Step 1: Initiate or resume payment through the backend.
-      final paymentResult =
-      await ApiService.instance.payOrder(orderId);
+      final paymentResult = await ApiService.instance.payOrder(orderId);
 
-      final action =
-      paymentResult['action'] as Map<String, dynamic>?;
+      final action = paymentResult['action'] as Map<String, dynamic>?;
 
-      final payment =
-      paymentResult['payment'] as Map<String, dynamic>?;
+      final payment = paymentResult['payment'] as Map<String, dynamic>?;
 
       // Step 2: Check whether the backend has already completed payment.
       final isPaid =
-          action?['type'] == 'paid' ||
-              payment?['status'] == 'succeeded';
+          action?['type'] == 'paid' || payment?['status'] == 'succeeded';
 
       if (isPaid) {
         Map<String, dynamic>? updatedOrder =
-        paymentResult['order'] as Map<String, dynamic>?;
+            paymentResult['order'] as Map<String, dynamic>?;
 
-        updatedOrder ??=
-        await ApiService.instance.getOrder(orderId);
+        updatedOrder ??= await ApiService.instance.getOrder(orderId);
 
         if (!mounted) return;
 
@@ -81,24 +71,18 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
       // Step 3: Handle the development payment sandbox.
       // No real online payment gateway is required.
       if (action?['type'] == 'dev_confirm') {
-        final confirmPath =
-        action?['confirm_path'] as String?;
+        final confirmPath = action?['confirm_path'] as String?;
 
         if (confirmPath == null || confirmPath.isEmpty) {
-          throw Exception(
-            'Development payment confirmation path is missing.',
-          );
+          throw Exception('Development payment confirmation path is missing.');
         }
 
         // Confirm the simulated payment through the backend.
-        final updatedOrder =
-        await ApiService.instance.devPayment(confirmPath);
+        final updatedOrder = await ApiService.instance.devPayment(confirmPath);
 
         // Step 4: Verify that the backend marked the order as paid.
         if (updatedOrder['payment_status'] != 'paid') {
-          throw Exception(
-            'Payment was not confirmed by the server.',
-          );
+          throw Exception('Payment was not confirmed by the server.');
         }
 
         if (!mounted) return;
@@ -120,7 +104,7 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
 
       throw Exception(
         'Online payment is not available yet. '
-            'The backend returned an unsupported payment action.',
+        'The backend returned an unsupported payment action.',
       );
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -186,13 +170,11 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
     final goldColor = theme.colorScheme.secondary;
     final l10n = AppLocalizations.of(context);
 
-    final isDe =
-    (l10n?.localeName ?? currentAppLocale).startsWith('de');
+    final isDe = (l10n?.localeName ?? currentAppLocale).startsWith('de');
 
-    final total = (
-        (_order['totals'] as Map<String, dynamic>)['total_cents']
-        as num
-    ).toInt();
+    final total =
+        ((_order['totals'] as Map<String, dynamic>)['total_cents'] as num)
+            .toInt();
 
     return PopScope(
       canPop: false,
@@ -215,18 +197,13 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
         body: Center(
           child: ListView(
             shrinkWrap: true,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: 32,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
             children: [
               Center(
                 child: Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: (_paid
-                        ? Colors.green.shade600
-                        : goldColor)
+                    color: (_paid ? Colors.green.shade600 : goldColor)
                         .withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
@@ -235,9 +212,7 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
                         ? Icons.check_circle_outline_rounded
                         : Icons.hourglass_top_rounded,
                     size: 64,
-                    color: _paid
-                        ? Colors.green.shade600
-                        : goldColor,
+                    color: _paid ? Colors.green.shade600 : goldColor,
                   ),
                 ),
               ),
@@ -246,11 +221,10 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
 
               Text(
                 _paid
-                    ? (l10n?.thankYouOrder ??
-                    'Thank you for your order!')
+                    ? (l10n?.thankYouOrder ?? 'Thank you for your order!')
                     : (isDe
-                    ? 'Ihre Bestellung ist eingegangen'
-                    : 'Your order is placed'),
+                          ? 'Ihre Bestellung ist eingegangen'
+                          : 'Your order is placed'),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
@@ -265,8 +239,7 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
                     : 'Order ${_order['number']}',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.titleMedium?.copyWith(
-                  color: theme.colorScheme.onSurface
-                      .withValues(alpha: 0.6),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
 
@@ -288,13 +261,12 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
                 child: Text(
                   _paid
                       ? (l10n?.orderConfirmedMessage ??
-                      'Your payment is complete. You will get an email, and you can download your receipt from the order.')
+                            'Your payment is complete. You will get an email, and you can download your receipt from the order.')
                       : (l10n?.orderPendingPaymentMessage ??
-                      'Your items are reserved for a short time. Pay now to complete your order.'),
+                            'Your items are reserved for a short time. Pay now to complete your order.'),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface
-                        .withValues(alpha: 0.7),
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
                 ),
               ),
@@ -307,8 +279,7 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.primary,
                     foregroundColor: goldColor,
-                    disabledBackgroundColor:
-                    theme.colorScheme.primary
+                    disabledBackgroundColor: theme.colorScheme.primary
                         .withValues(alpha: 0.6),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     elevation: 0,
@@ -318,13 +289,13 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
                   ),
                   icon: _isPaying
                       ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
                       : const Icon(Icons.payment, size: 20),
                   label: Text(
                     _isPaying
@@ -351,9 +322,7 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
                   ),
                   child: Text(
                     l10n?.viewOrder ?? 'View order',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
               ] else ...[
@@ -393,15 +362,10 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  icon: const Icon(
-                    Icons.download_outlined,
-                    size: 20,
-                  ),
+                  icon: const Icon(Icons.download_outlined, size: 20),
                   label: Text(
                     l10n?.receiptPdf ?? 'Download Receipt (PDF)',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -409,15 +373,13 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
               const SizedBox(height: 10),
 
               TextButton(
-                onPressed: () =>
-                    AppBottomBar.open(context, 1, widget.user),
+                onPressed: () => AppBottomBar.open(context, 1, widget.user),
                 style: TextButton.styleFrom(
-                  foregroundColor: theme.colorScheme.onSurface
-                      .withValues(alpha: 0.7),
+                  foregroundColor: theme.colorScheme.onSurface.withValues(
+                    alpha: 0.7,
+                  ),
                 ),
-                child: Text(
-                  l10n?.continueShopping ?? 'Continue shopping',
-                ),
+                child: Text(l10n?.continueShopping ?? 'Continue shopping'),
               ),
             ],
           ),

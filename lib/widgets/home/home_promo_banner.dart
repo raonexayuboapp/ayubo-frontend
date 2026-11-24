@@ -7,10 +7,7 @@ import '../../theme/app_theme.dart';
 class HomePromoBanner extends StatelessWidget {
   final Map<String, dynamic>? user;
 
-  const HomePromoBanner({
-    super.key,
-    required this.user,
-  });
+  const HomePromoBanner({super.key, required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +41,9 @@ class HomePromoBanner extends StatelessWidget {
             ),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.brandGold.withValues(alpha: isDark ? 0.08 : 0.04),
+                color: AppTheme.brandGold.withValues(
+                  alpha: isDark ? 0.08 : 0.04,
+                ),
                 blurRadius: 10,
                 offset: const Offset(0, 3),
               ),
@@ -64,117 +63,122 @@ class HomePromoBanner extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                      // Badge Pill
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppTheme.brandGold.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          isDe ? 'GUTSCHEINE' : 'WELLNESS GIFTING',
-                          style: const TextStyle(
-                            color: AppTheme.brandGoldDark,
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.8,
+                        // Badge Pill
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-
-                      // Title
-                      Text(
-                        l10n?.giftVoucherPromoTitle ?? 'Gift of Pure Wellness',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: -0.2,
-                          color: AppTheme.textPrimary(context),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-
-                      // Subtitle
-                      Text(
-                        l10n?.giftVoucherPromoSubtitle ??
-                            'Digital vouchers delivered instantly by email',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: AppTheme.textSecondary(context),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-
-                      // CTA Link
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            l10n?.sendVoucher ?? 'Send Voucher',
+                          decoration: BoxDecoration(
+                            color: AppTheme.brandGold.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            isDe ? 'GUTSCHEINE' : 'WELLNESS GIFTING',
                             style: const TextStyle(
                               color: AppTheme.brandGoldDark,
-                              fontSize: 11.5,
+                              fontSize: 9.5,
                               fontWeight: FontWeight.bold,
+                              letterSpacing: 0.8,
                             ),
                           ),
-                          const SizedBox(width: 3),
-                          const Icon(
-                            Icons.arrow_forward_ios_rounded,
-                            size: 10,
-                            color: AppTheme.brandGoldDark,
+                        ),
+                        const SizedBox(height: 5),
+
+                        // Title
+                        Text(
+                          l10n?.giftVoucherPromoTitle ??
+                              'Gift of Pure Wellness',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: -0.2,
+                            color: AppTheme.textPrimary(context),
                           ),
-                        ],
+                        ),
+                        const SizedBox(height: 2),
+
+                        // Subtitle
+                        Text(
+                          l10n?.giftVoucherPromoSubtitle ??
+                              'Digital vouchers delivered instantly by email',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: AppTheme.textSecondary(context),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+
+                        // CTA Link
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              l10n?.sendVoucher ?? 'Send Voucher',
+                              style: const TextStyle(
+                                color: AppTheme.brandGoldDark,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(width: 3),
+                            const Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 10,
+                              color: AppTheme.brandGoldDark,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Image Thumbnail Side
+                SizedBox(
+                  width: 100,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.asset(
+                        'assets/images/harmonie_set_for_her.webp',
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: AppTheme.primaryGreen.withValues(alpha: 0.1),
+                          child: const Icon(
+                            Icons.card_giftcard_rounded,
+                            size: 32,
+                            color: AppTheme.primaryGreen,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [
+                              isDark
+                                  ? const Color(0xFF132018)
+                                  : const Color(0xFFF2F6F3),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ),
-
-              // Image Thumbnail Side
-              SizedBox(
-                width: 100,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.asset(
-                      'assets/images/harmonie_set_for_her.webp',
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: AppTheme.primaryGreen.withValues(alpha: 0.1),
-                        child: const Icon(
-                          Icons.card_giftcard_rounded,
-                          size: 32,
-                          color: AppTheme.primaryGreen,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [
-                            isDark ? const Color(0xFF132018) : const Color(0xFFF2F6F3),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
   }
 }
-

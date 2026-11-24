@@ -19,4 +19,5 @@ List<String> addressLines(Map<String, dynamic> a) {
 }
 
 /// "Hauptstrasse 12, 10115 Berlin"
-String addressOneLine(Map<String, dynamic> a) => '${a['street']}, ${a['postal_code']} ${a['city']}';
+String addressOneLine(Map<String, dynamic> a) =>
+    '${a['street']}, ${a['postal_code']} ${a['city']}';

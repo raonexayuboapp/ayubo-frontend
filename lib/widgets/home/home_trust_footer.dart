@@ -10,11 +10,7 @@ class HomeTrustFooter extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          size: 15,
-          color: AppTheme.brandGoldDark,
-        ),
+        Icon(icon, size: 15, color: AppTheme.brandGoldDark),
         const SizedBox(width: 4),
         Text(
           label,
@@ -65,7 +61,8 @@ class HomeTrustFooter extends StatelessWidget {
 
           // Heritage Tagline
           Text(
-            l10n?.pureCeylonHeritage ?? '100% Certified Organic • Ceylon Heritage',
+            l10n?.pureCeylonHeritage ??
+                '100% Certified Organic • Ceylon Heritage',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 11,
@@ -89,4 +86,3 @@ class HomeTrustFooter extends StatelessWidget {
     );
   }
 }
-
